@@ -111,6 +111,7 @@ GEM
       railties (>= 4.1.0)
       responders
       warden (~> 1.2.3)
+    devise-bootstrap-views (1.1.0)
     drb (2.2.1)
     erubi (1.12.0)
     execjs (2.9.1)
@@ -281,10 +282,11 @@ PLATFORMS
 
 DEPENDENCIES
   bootsnap
-  bootstrap
+  bootstrap (~> 5.2, >= 5.2.3)
   capybara
   debug
   devise (~> 4.9)
+  devise-bootstrap-views (~> 1.0)
   importmap-rails
   jbuilder
   pg (~> 1.1)
