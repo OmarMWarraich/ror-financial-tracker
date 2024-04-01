@@ -1,6 +1,6 @@
 <%= turbo_frame_tag "search_results" do %>
   <% if @stock.present? %>
-    <div class="card card-header d-inline-block mt-2 mb-1">
+    <div class="card card-header d-inline-block my-3">
       <strong>Symbol: </strong> <%= @stock.ticker.upcase %>
       <strong>Name: </strong> <%= @stock.name %>
       <strong>Price: </strong> <%= @stock.last_price %>

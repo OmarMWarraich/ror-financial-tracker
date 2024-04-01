@@ -3,6 +3,7 @@ class StocksController < ApplicationController
     if params[:stock].present?
       @stock = Stock.new_lookup(params[:stock])
       @stocks = Stock.all
+      @tracked_stocks = current_user.stocks
       if @stock
         render 'users/my_portfolio', locals: { stock: @stock }
       else
