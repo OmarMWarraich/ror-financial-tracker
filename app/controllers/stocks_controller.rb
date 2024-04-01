@@ -1,9 +1,10 @@
 class StocksController < ApplicationController
   def search
-    if params[:stock].present? 
+    if params[:stock].present?
       @stock = Stock.new_lookup(params[:stock])
+      @stocks = Stock.all
       if @stock
-        render 'users/my_portfolio'
+        render 'users/my_portfolio', locals: { stock: @stock }
       else
         flash[:alert] = "Please enter a valid symbol to search"
         redirect_to my_portfolio_path
