@@ -14,7 +14,9 @@
     <%= render "shared/navbar" %>
     <div class="container">
       <div class="row">
-        <%= render "layouts/messages" %>
+        <%= turbo_frame_tag "flash" do %>
+          <%= render "layouts/messages" %>
+        <% end %>
         <%= yield %>
       </div>
     </div>

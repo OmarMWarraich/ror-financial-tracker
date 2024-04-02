@@ -5,7 +5,13 @@ class StocksController < ApplicationController
       @stocks = Stock.all
       @tracked_stocks = current_user.stocks
       if @stock
-        render 'users/my_portfolio', locals: { stock: @stock }
+        respond_to do |format|
+          format.turbo_stream do 
+            render turbo_stream: turbo_stream.append("posts", partial: "users/result", locals: { stock: @stock }) +
+                                 turbo_stream.replace("search-form", partial: "users/search_form") +
+                                 turbo_stream.replace("flash", partial: "layouts/messages")
+          end
+        end
       else
         flash[:alert] = "Please enter a valid symbol to search"
         redirect_to my_portfolio_path
