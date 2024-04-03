@@ -9,24 +9,26 @@ class UsersController < ApplicationController
 
   def search
     if params[:friend].present?
-      @friend = params[:friend]
-      if @friend
+      @friends = User.search(params[:friend])
+      @friends = current_user.except_current_user(@friends)
+      if @friends
         respond_to do |format|
           format.turbo_stream do
-            render turbo_stream: turbo_stream.append("friend-result", partial: "users/friend_result", locals: { friend: @friend }) +
+            render turbo_stream: turbo_stream.append("friend-result", partial: "users/friend_result" ) +
                                  turbo_stream.replace("friends-search-form", partial: "users/friends_search_form")                                  
           end
         end
       else
-        flash[:alert] = "Could not find user"
+        flash.now[:alert] = "Could not find user"
         respond_to do |format|
           format.turbo_stream do
-            render turbo_stream: turbo_stream.replace("flash", partial: "layouts/messages")
+            render turbo_stream: turbo_stream.replace("flash", partial: "layouts/messages") +
+                                 turbo_stream.append("friend-result", partial: "users/friend_result")
           end
         end
       end
     else
-      flash[:alert] = "Please enter a username to search"
+      flash.now[:alert] = "Please enter a username to search"
       respond_to do |format|
         format.turbo_stream do
           render turbo_stream: turbo_stream.replace("flash", partial: "layouts/messages")

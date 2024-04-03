@@ -1,10 +1,24 @@
 <%= turbo_frame_tag "friend-result" do %>
-  <% if @friend.present? %>
+  <% if @friends %>
     <div class="card card-header d-inline-block my-3">
-      <strong>Name: </strong> <%= @friend %>
-      <strong>First Name: </strong> <%= @friend %>
-      <strong>Last Name: </strong> <%= @friend %>
-      <%= link_to 'Follow', "", data: { turbo_method: :post }, class: "btn btn-xs btn-success" %>
+      <table class="col-md-12 col-sm-6">
+        <tbody>
+          <% @friends.each do |friend| %>
+            <tr>
+              <td>
+                <strong>Name: </strong>
+                <%= friend.full_name %></td>
+              <td>
+                <strong>Email: </strong>
+                <%= friend.email %></td>
+              <td>
+                <%= link_to "Profile", "#", class: "btn btn-sm btn-success" %>
+                <%= link_to 'Follow', "", data: { turbo_method: :post }, class: "btn btn-sm btn-success" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
     </div>
   <% end %>
 <% end %>
