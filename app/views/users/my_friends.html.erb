@@ -3,6 +3,8 @@
   <%= turbo_frame_tag "friends-search-form" do %>
     <%= render "users/friends_search_form" %>
   <% end %>
+  <%= turbo_frame_tag "friend-result" do %>
+  <% end %>
   <% if !@friends.empty? %>
     <%= render "friends/list" %>
   <% end %>

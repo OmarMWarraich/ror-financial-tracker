@@ -1,0 +1,10 @@
+<%= turbo_frame_tag "friend-result" do %>
+  <% if @friend.present? %>
+    <div class="card card-header d-inline-block my-3">
+      <strong>Name: </strong> <%= @friend %>
+      <strong>First Name: </strong> <%= @friend %>
+      <strong>Last Name: </strong> <%= @friend %>
+      <%= link_to 'Follow', "", data: { turbo_method: :post }, class: "btn btn-xs btn-success" %>
+    </div>
+  <% end %>
+<% end %>
