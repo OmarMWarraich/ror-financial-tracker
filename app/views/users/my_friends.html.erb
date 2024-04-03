@@ -1,4 +1,8 @@
-<%= turbo_frame_tag "stocks-list" do %>
+<%= turbo_frame_tag "friends-list" do %>
+  <h1 class="my-5">My Friends</h1>
+  <%= turbo_frame_tag "friends-search-form" do %>
+    <%= render "users/friends_search_form" %>
+  <% end %>
   <% if !@friends.empty? %>
     <%= render "friends/list" %>
   <% end %>
