@@ -23,7 +23,7 @@ class User < ApplicationRecord
   end
 
   def full_name
-    return "#{first_name} #{last_name}".titleize if first_name || last_name
+    return "#{first_name} #{last_name}".titleize if first_name.present? || last_name.present?
     "Anonymous"
   end
 end

@@ -1,0 +1,5 @@
+<%= turbo_frame_tag "stocks-list" do %>
+  <% if !@friends.empty? %>
+    <%= render "friends/list" %>
+  <% end %>
+<% end %>
