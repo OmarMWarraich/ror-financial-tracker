@@ -14,10 +14,10 @@
               <td>
                 <%= link_to "Profile", "#", class: "btn btn-sm btn-success" %>
                 <% if current_user.not_friends_with?(friend.id) %>
-                  <%= link_to 'Follow', "", data: { turbo_method: :post }, class: "btn btn-sm btn-success" %>
+                  <%= link_to 'Follow', friendships_path(friend: friend), data: { turbo_method: :post, action: "click->reload-page#reload", controller: "reload-page" }, class: "btn btn-sm btn-success" %>
+
                 <% else %>
-                  <%= link_to 'Unfollow', friendship_path(friend), data: { turbo_method: :delete, turbo_confirm: "Are you sure?" },
-                                              class: "btn btn-sm btn-warning" %>
+                  <span class="badge bg-secondary">You are already friends.</span>
                 <% end %>
               </td>
             </tr>
