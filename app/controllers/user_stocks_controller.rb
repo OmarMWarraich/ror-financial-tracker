@@ -1,5 +1,6 @@
 class UserStocksController < ApplicationController
   def create
+    @user = current_user
     @tracked_stocks = current_user.stocks
     stock = Stock.check_db(params[:ticker])
     if stock.blank?
@@ -21,6 +22,7 @@ class UserStocksController < ApplicationController
   end
 
   def destroy
+    @user = current_user
     @tracked_stocks = current_user.stocks
     stock = Stock.find(params[:id])
     user_stock = UserStock.where(user_id: current_user.id, stock_id: stock.id).first

@@ -5,6 +5,7 @@ class FriendshipsController < ApplicationController
     if current_user.save
       @friends = current_user.friends
       flash[:notice] = "Following user"
+      redirect_to my_friends_path
     else
       flash[:alert] = "There was something wrong with the tracking request"
     end
