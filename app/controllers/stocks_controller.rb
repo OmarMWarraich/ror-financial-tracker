@@ -13,7 +13,7 @@ class StocksController < ApplicationController
           end
         end
       else
-        flash[:alert] = "Please enter a valid symbol to search"
+        flash[:alert] = "Stock data is unavailable. Check the ticker or try again later."
         redirect_to my_portfolio_path
       end
     else

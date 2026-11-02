@@ -5,7 +5,11 @@ class UserStocksController < ApplicationController
     stock = Stock.check_db(params[:ticker])
     if stock.blank?
       stock = Stock.new_lookup(params[:ticker])
-      stock.save
+      unless stock&.save
+        redirect_to my_portfolio_path, alert: "Stock data is unavailable. Check the ticker or try again later.",
+                                      status: :see_other
+        return
+      end
     end
     @user_stock = UserStock.create(user: current_user, stock: stock)
     flash.now[:notice] = "Stock #{stock.name} was successfully added to your portfolio"
