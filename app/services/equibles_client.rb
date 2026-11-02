@@ -53,7 +53,10 @@ class EquiblesClient
     end
     return nil unless response.is_a?(Net::HTTPSuccess)
 
-    payload = JSON.parse(response.body, decimal_class: BigDecimal)
+    body = response.body
+    return nil unless body.is_a?(String)
+
+    payload = JSON.parse(body, decimal_class: BigDecimal)
     payload if payload.is_a?(Hash)
   end
 end

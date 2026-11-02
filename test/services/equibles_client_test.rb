@@ -62,6 +62,7 @@ class EquiblesClientTest < Minitest::Test
       with_responses(success_response(quote)) { assert_nil @client.lookup("AAPL") }
     end
     with_responses(success_response("not JSON", raw: true)) { assert_nil @client.lookup("AAPL") }
+    with_responses(success_response(nil, raw: true)) { assert_nil @client.lookup("AAPL") }
   end
 
   def test_missing_company_name_or_failed_profile_returns_nil
