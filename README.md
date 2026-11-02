@@ -5,13 +5,15 @@ A Ruby on Rails application for maintaining a stock watchlist and following othe
 ## Features
 
 - Account registration, sign-in, and password recovery through Devise.
-- Stock search by ticker, displaying company names and prices through a legacy IEX Cloud integration.
+- Stock search by ticker, displaying company names and paid intraday quotes from Equibles.
 - Personal portfolios with add/remove controls and a 10-stock limit in the tracking eligibility checks.
 - User search by first name, last name, or email, with friend add/remove controls.
 - Viewing other users' tracked stocks and adding them to your own portfolio.
 - Turbo-driven search results, portfolio updates, and flash messages.
 
-> **Stock lookup limitation:** The app still targets `https://cloud.iexapis.com/v1` using `iex-ruby-client`. IEX Cloud retired in 2024, so new stock lookups need a replacement data provider or stubbed responses for local development. Historical credentials alone will not restore the service. Stored prices are not automatically refreshed.
+[Equibles](https://equibles.com/): stock market data API.
+
+> **Quote timing:** A paid Equibles plan is required. Plus returns 15-minute delayed US quotes; Pro returns real-time US quotes. The app rejects quotes marked stale by the provider. Prices saved with tracked stocks are snapshots and are not automatically refreshed.
 
 ## Stack
 
@@ -40,7 +42,7 @@ gem install bundler -v 2.5.6
 bundle install
 ```
 
-The committed lockfile currently lists only `x86_64-linux`. If Bundler rejects your platform on macOS or another architecture, add it before installing:
+The committed lockfile includes Linux and Apple Silicon macOS platforms. If Bundler rejects another platform, add it before installing:
 
 ```sh
 bundle lock --add-platform "$(ruby -e 'puts Gem::Platform.local')"
@@ -53,36 +55,56 @@ This updates the lockfile; review that change before committing it.
 
 Obtain the existing Rails master key from the project maintainer and place it in `config/master.key`, or supply it through `RAILS_MASTER_KEY`, to decrypt the committed [config/credentials.yml.enc](config/credentials.yml.enc). Never commit the key or API tokens.
 
-The current [app/models/stock.rb](app/models/stock.rb) reads this legacy structure from encrypted Rails credentials:
+### Equibles API Key
+
+Create a key in the [Equibles API key dashboard](https://equibles.com/dashboard/apikeys) and enable a Plus or Pro plan. Keep the key server-side; never commit it or include it in browser JavaScript.
+
+Set `EQUIBLES_API_KEY` in your shell or deployment environment. For local development, create `.env` from [.env.example](.env.example) if it does not already exist, then set its `EQUIBLES_API_KEY` value to your key. An ignored `.env` placeholder is provided when setting up this migration. Load it explicitly before starting Rails:
+
+```sh
+set -a
+. ./.env
+set +a
+```
+
+The app does not include dotenv, so placing a key in `.env` alone does not load it. Alternatively, add this structure to encrypted Rails credentials:
 
 ```yaml
-iex_client:
-	publishable_token: YOUR_LEGACY_PUBLISHABLE_TOKEN
-	secret_token: YOUR_LEGACY_SECRET_TOKEN
+equibles:
+  api_key: eq_your_api_key
 ```
 
 Edit credentials with your configured editor, for example:
 
 ```sh
-EDITOR="code --wait" bin/rails credentials:edit
+EDITOR="code --wait" ruby bin/rails credentials:edit
 ```
 
-These keys document the existing integration, not a working quote-service setup. Do not replace the shared credentials or generate a new master key for the existing encrypted file. Missing `iex_client` configuration can raise an error when the app constructs its API client. The app does not include dotenv; environment variables must be supplied by your shell or deployment environment rather than merely placed in a `.env` file.
+`EQUIBLES_API_KEY` takes precedence over `equibles.api_key` in Rails credentials. Do not replace the shared credentials or generate a new master key for the existing encrypted file. The old `iex_client` entries are no longer read and can be removed through the credentials editor once no other integration needs them.
+
+The [Equibles client](app/services/equibles_client.rb) uses Ruby's standard HTTP/JSON libraries, not an SDK. Each successful new lookup makes two authenticated HTTPS requests:
+
+- `GET /v1/stocks/{ticker}/quote`: exact-listing price, with stale-quote checks.
+- `GET /v1/screener/stocks?tickers={ticker}&limit=1`: company name. Its end-of-day price is not used.
+
+Requests use the `Authorization: Bearer` header, five-second connection/read timeouts, and no automatic retries. Missing keys, unavailable/stale quotes, malformed responses, and HTTP failures produce an unavailable-data result without adding a portfolio entry. A `401` means the key is invalid, `403` can mean a paid plan is required, and `429` means the shared daily quota is exhausted. Check your account plan and reset time before retrying.
+
+Official reference: [REST API](https://equibles.com/docs/api), [authentication](https://equibles.com/docs/authentication), [paid quotes](https://equibles.com/docs/api/endpoints/prices), [company screener](https://equibles.com/docs/api/endpoints/capital), and [errors and limits](https://equibles.com/docs/api/errors).
 
 ### Prepare the Database and Start Rails
 
 ```sh
-bin/rails db:prepare
-bin/rails server
+ruby bin/rails db:prepare
+ruby bin/rails server
 ```
 
 Open <http://localhost:3000> and register an account. The default database names are `myapp_development` and `myapp_test`. [db/seeds.rb](db/seeds.rb) currently contains no sample records or preconfigured accounts.
 
-For subsequent setup or environment refreshes, [bin/setup](bin/setup) installs/checks dependencies, prepares the database, clears logs and temporary files, and requests an application restart.
+Commands above invoke the Rails binstub through Ruby so they also work when its executable bit is missing. [bin/setup](bin/setup) provides an automated environment refresh, but its direct calls to other binstubs require those scripts to be executable.
 
 ## Usage
 
-- **My Portfolio** (`/my_portfolio`): search for a ticker and manage tracked stocks. New ticker lookups are subject to the provider limitation above.
+- **My Portfolio** (`/my_portfolio`): search for a ticker and manage tracked stocks. Quote lookup requires the paid-plan configuration above.
 - **My Friends** (`/my_friends`): search registered users and manage your friends list.
 - **User Portfolio** (`/users/:id`): inspect another user's tracked stocks.
 - **Health Check** (`/up`): Rails boot health endpoint, not a check of database or quote-provider connectivity.
@@ -94,29 +116,41 @@ See [config/routes.rb](config/routes.rb) for the complete route definitions.
 With PostgreSQL running and a separate test database configured:
 
 ```sh
-RAILS_ENV=test bin/rails db:prepare
-bin/rails test
-bin/rails test test/models/stock_test.rb
-bin/rails test:system
+RAILS_ENV=test ruby bin/rails db:prepare
+ruby bin/rails test
+ruby bin/rails test test/models/stock_test.rb test/controllers/user_stocks_controller_test.rb
+ruby bin/rails test:system
 ```
 
-The test suite uses Minitest and fixtures. The stock model test is currently a generated placeholder; do not treat a passing run as proof that live quote lookup works. System tests are configured to use Chrome through Selenium, so browser-based tests require Chrome and an available compatible driver. See [test/test_helper.rb](test/test_helper.rb) and [test/application_system_test_case.rb](test/application_system_test_case.rb).
+The Equibles client tests can run without PostgreSQL or a live API key:
+
+```sh
+bundle exec ruby test/services/equibles_client_test.rb
+```
+
+The new tests cover paid quote mapping, Plus-plan delayed quotes, stale/invalid data, exact share-class identity, credentials, and failed portfolio additions. HTTP responses are stubbed; these checks do not validate a live subscription. Existing unrelated model/controller tests and fixtures still include generated placeholders. Minitest 6 uses the separate test-only `minitest-mock` dependency for mocks and stubs.
+
+**Current Rails test blocker:** The locked Rails 7.1.3.4 and Minitest 6.0.6 combination raises an argument-count error in Rails' `line_filtering.rb` when running Rails test cases. The standalone Equibles client suite runs successfully under this bundle, but Rails model/controller execution needs a separately reviewed test-framework compatibility fix. A running PostgreSQL server is still required for those tests.
+
+System tests are configured to use Chrome through Selenium, so browser-based tests require Chrome and an available compatible driver. See [test/test_helper.rb](test/test_helper.rb) and [test/application_system_test_case.rb](test/application_system_test_case.rb).
 
 ## Docker and Production
 
 [Dockerfile](Dockerfile) builds a production image with precompiled assets and a non-root runtime user:
 
 ```sh
+chmod +x bin/rails bin/docker-entrypoint
 docker build -t financial-tracker .
 docker run --rm -p 3000:3000 \
 	-e RAILS_MASTER_KEY \
 	-e DATABASE_URL \
+	-e EQUIBLES_API_KEY \
 	financial-tracker
 ```
 
-Export `RAILS_MASTER_KEY` and `DATABASE_URL` in your shell before running the container. Use a PostgreSQL URL reachable **from the container**; `localhost` inside the container is not your host machine. The image does not include a PostgreSQL server, and the entrypoint runs `db:prepare` before starting Rails.
+Export `RAILS_MASTER_KEY`, `DATABASE_URL`, and `EQUIBLES_API_KEY` in your shell before running the container (the Equibles environment key can be omitted when using encrypted credentials). Ensure binstubs are executable before building. Use a PostgreSQL URL reachable **from the container**; `localhost` inside the container is not your host machine. The image does not include a PostgreSQL server, and the entrypoint runs `db:prepare` before starting Rails.
 
-Production forces HTTPS. Deploy behind an appropriately configured TLS-terminating reverse proxy; the plain HTTP port mapping above is not a complete production deployment. Configure production mail delivery before relying on password recovery, and replace the legacy quote provider before expecting stock search to work.
+Production forces HTTPS. Deploy behind an appropriately configured TLS-terminating reverse proxy; the plain HTTP port mapping above is not a complete production deployment. Configure production mail delivery before relying on password recovery, and supply a paid Equibles key before expecting stock search to work.
 
 Relevant runtime settings:
 
@@ -124,6 +158,7 @@ Relevant runtime settings:
 | --- | --- |
 | `RAILS_MASTER_KEY` | Decrypts Rails credentials when the key file is unavailable. |
 | `DATABASE_URL` | Supplies a PostgreSQL connection URL, overriding matching database configuration values. |
+| `EQUIBLES_API_KEY` | Server-side Equibles key with Plus or Pro quote access; takes precedence over Rails credentials. |
 | `MYAPP_DATABASE_PASSWORD` | Password for the default production `myapp` database role when not overridden by the connection URL. |
 | `RAILS_MAX_THREADS` | Database pool size and Puma thread configuration; defaults to 5. |
 | `RAILS_LOG_LEVEL` | Production log level; defaults to `info`. |
