@@ -69,6 +69,6 @@ end
 gem 'bootstrap', '~> 5.2', '>= 5.2.3'
 gem "sassc-rails"
 gem "font-awesome-rails"
-gem "devise", "~> 4.9"
+gem "devise", "~> 5.0"
 gem "devise-bootstrap-views", "~> 1.0"
 gem "iex-ruby-client"
