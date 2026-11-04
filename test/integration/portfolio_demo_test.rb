@@ -75,4 +75,135 @@ class PortfolioDemoTest < Minitest::Test
     post "/portfolio_demo"
     assert_equal 404, last_response.status
   end
+
+  def test_holdings_include_source_observation_time_cost_and_weight
+    get "/portfolio_demo"
+    document = Nokogiri::HTML(last_response.body)
+    assert_equal "no-store", last_response.headers["cache-control"]
+    assert_includes document.at_css('[aria-label="Source and freshness"]').text, "static / not live"
+    assert_includes document.text, "not provider market time or request receipt time"
+    headings = document.css("thead th").map(&:text)
+    ["Quantity", "Unit cost", "Cost basis", "Observed price", "Value", "Weight", "Price provenance"].each do |heading|
+      assert_includes headings, heading
+    end
+    document.css("tbody tr").each do |row|
+      assert_equal DemoPortfolio::OBSERVED_AT, row.at_css("time")["datetime"]
+      assert_includes row.text, DemoPortfolio::SOURCE
+    end
+    assert_equal "$800.00", document.at_css("tbody tr").css("td")[2].text
+    assert_equal "50.0%", document.at_css("tbody tr").css("td")[5].text
+    assert_includes document.text, "Watchlist membership is not holdings"
+
+    get "/portfolio_demo", scenario: "missing_price"
+    row = Nokogiri::HTML(last_response.body).at_css("tbody tr")
+    assert_nil row.at_css("time")
+    assert_includes row.text, "Observation time unavailable"
+  end
+
+  def test_formulas_show_exact_operands_and_rounding_is_display_only
+    get "/portfolio_demo"
+    document = Nokogiri::HTML(last_response.body)
+    formula = document.css('[data-testid="worked-formula"]').first.text.gsub(/\s+/, " ")
+    assert_includes formula, "Value: 10.0 × 100.0 = 1000.0 USD"
+    assert_includes formula, "Cost: 10.0 × 80.0 = 800.0 USD"
+    assert_includes formula, "Gain/loss: 1000.0 − 800.0 = 200.0 USD"
+    assert_includes formula, "Weight: 1000.0 ÷ 2000.0 × 100 = 50.0%"
+    assert_includes document.text, "money-weighted, or time-weighted"
+    assert_includes document.text, "equality is not flagged"
+    assert_includes document.text, "Rules use unrounded inputs"
+    helper = ApplicationController.helpers
+    assert_equal "$1.01", helper.demo_money(BigDecimal("1.005"))
+    assert_equal "-$1.01", helper.demo_money(BigDecimal("-1.005"))
+    assert_equal "40.1%", helper.demo_weight(BigDecimal("40.05"))
+    assert_equal "0.00001", helper.demo_decimal(BigDecimal("0.00001"))
+    assert_equal "Unavailable", helper.demo_money(nil)
+    assert_equal "Unavailable", helper.demo_weight(nil)
+  end
+
+  def test_walkthrough_is_sanitized_and_live_features_are_visibly_gated
+    get "/portfolio_demo"
+    document = Nokogiri::HTML(last_response.body)
+    assert_equal 5, document.css('[data-testid="architecture-diagram"] li').length
+    assert_equal 5, document.css('[data-testid="request-flow-diagram"] li').length
+    shape = JSON.parse(document.at_css(".demo-json code").text)
+    assert_equal "synthetic", shape.fetch("mode")
+    assert_equal "USD", shape.fetch("currency")
+    assert_equal "DEMO-A", shape.fetch("ticker")
+    assert_equal "10.0", shape.fetch("quantity")
+    assert_equal "1000.0", shape.fetch("value")
+    assert_equal "800.0", shape.fetch("cost_basis")
+    assert_equal "200.0", shape.fetch("gain_loss")
+    assert_equal "50.0", shape.fetch("weight")
+    assert_nil shape.fetch("price_received_at")
+    assert_equal DemoPortfolio::OBSERVED_AT, shape.fetch("price_observed_at")
+    assert_empty shape.keys.grep(/account|key|token|secret|user/)
+    ["Sector analysis: gated", "Company evidence: gated", "History and performance: gated",
+     "Corporate-action treatment", "aligned dates", "Provider-backed extension",
+     "caching/retention rights", "rate-limit", "malformed-response", "no provider cache",
+     "not a provider response", "original observation time"].each do |text|
+      assert_includes document.text, text
+    end
+    assert_empty document.css("canvas, svg, iframe"), "No invented time series or embedded provider pages"
+  end
+
+  def test_simulated_loading_and_provider_error_never_render_success_fallbacks
+    DemoPortfolio::STATES.each_key do |scenario|
+      get "/portfolio_demo", scenario: scenario
+      assert_equal 200, last_response.status
+      document = Nokogiri::HTML(last_response.body)
+      assert_includes document.at_css('[data-testid="evidence-state"]').text, DemoPortfolio::STATES.fetch(scenario)
+      assert_empty document.css('[data-testid="total-value"], [data-testid="gain-loss"], meter, tbody tr')
+      assert_includes document.text, "Choose another scenario explicitly"
+    end
+  end
+
+  def test_all_scenarios_ignore_private_parameters_and_do_not_write_or_call_providers
+    writes = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*args|
+      sql = args.last[:sql].to_s
+      writes << sql if sql.match?(/\b(?:INSERT|UPDATE|DELETE|REPLACE|TRUNCATE|CREATE|ALTER|DROP)\b/i)
+    end
+    no_network = ->(*) { flunk "Synthetic scenario must not call a provider" }
+    Net::HTTP.stub(:start, no_network) do
+      EquiblesClient.stub(:new, no_network) do
+        DemoPortfolio::SCENARIOS.each_key do |scenario|
+          get "/portfolio_demo", scenario: scenario, api_key: "PRIVATE_SENTINEL", account_id: "PRIVATE_ACCOUNT",
+                                 holdings: [{ ticker: "UNTRUSTED-HOLDING", quantity: "999" }]
+          assert_equal 200, last_response.status
+          refute_includes last_response.body, "PRIVATE_SENTINEL"
+          refute_includes last_response.body, "PRIVATE_ACCOUNT"
+          refute_includes last_response.body, "UNTRUSTED-HOLDING"
+          document = Nokogiri::HTML(last_response.body)
+          assert_empty document.css('input[type="password"], input[name*="key"], input[name*="account"]')
+          assert_equal ["get"], document.css("form").map { |form| form["method"].downcase }.uniq
+        end
+      end
+    end
+    assert_empty writes, "Public synthetic reads must not persist private holdings or other SQL writes"
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber) if subscriber
+  end
+
+  def test_accessible_controls_tables_diagrams_and_chart_text
+    get "/portfolio_demo"
+    document = Nokogiri::HTML(last_response.body)
+    assert_equal "scenario", document.at_css('label[for="scenario"]')["for"]
+    assert document.at_css('select#scenario[name="scenario"]')
+    assert document.at_css('input[type="submit"][value="Show scenario"]')
+    assert document.at_css('.table-responsive[role="region"][tabindex="0"][aria-label]')
+    assert document.at_css("table caption")
+    assert_equal 9, document.css('thead th[scope="col"]').length
+    assert_equal 3, document.css('tbody th[scope="row"]').length
+    document.css("meter").each do |meter|
+      assert document.at_css("[id='#{meter["aria-labelledby"]}']")
+      assert_includes meter.text, "%"
+    end
+    document.css("figure").each do |figure|
+      assert document.at_css("[id='#{figure["aria-labelledby"]}']")
+      assert figure.at_css("ol")
+    end
+    assert_operator document.css("details > summary").length, :>=, 2
+    assert document.at_css(".demo-json[tabindex='0'][aria-label]")
+    assert document.at_css(".col-12.col-lg-6"), "Allocation cards retain narrow/wide responsive breakpoints"
+  end
 end

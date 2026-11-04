@@ -1,0 +1,60 @@
+<section class="card" aria-labelledby="walkthrough-heading">
+  <div class="card-body">
+    <h2 id="walkthrough-heading" class="h4">Integration walkthrough</h2>
+    <p>This public path uses only original synthetic fields. It never loads private holdings, account identifiers, credentials, or raw provider payloads.</p>
+
+    <figure aria-labelledby="architecture-caption">
+      <figcaption id="architecture-caption" class="fw-bold">Implemented synthetic architecture</figcaption>
+      <ol class="demo-flow" data-testid="architecture-diagram">
+        <li>Reviewer browser <span aria-hidden="true">→</span></li>
+        <li>Rails route / controller <span aria-hidden="true">→</span></li>
+        <li>DemoPortfolio fictional inputs <span aria-hidden="true">→</span></li>
+        <li>PortfolioAnalytics decimal calculations <span aria-hidden="true">→</span></li>
+        <li>ERB / helper accessible HTML</li>
+      </ol>
+      <p class="small">Each arrow is an in-process read or rendered response, not a separate deployable service. No database or provider adapter is in this data path.</p>
+    </figure>
+
+    <figure aria-labelledby="request-caption">
+      <figcaption id="request-caption" class="fw-bold">Implemented request flow</figcaption>
+      <ol class="demo-flow" data-testid="request-flow-diagram">
+        <li>GET /portfolio_demo?scenario=complete <span aria-hidden="true">→</span></li>
+        <li>Validate allowlisted scenario <span aria-hidden="true">→</span></li>
+        <li>Build fresh fictional inputs or explicit unavailable preview <span aria-hidden="true">→</span></li>
+        <li>Normalize / calculate if evidence exists <span aria-hidden="true">→</span></li>
+        <li>Return HTML with no-store policy</li>
+      </ol>
+      <p class="small">Scenario selection is a read-only GET. Unknown or structured scenarios return HTTP 400; there is no demo write or refresh endpoint.</p>
+    </figure>
+
+    <details>
+      <summary>Inspect the sanitized synthetic shape and normalization</summary>
+      <p>This fixed DEMO-A example is independent of the selected scenario. It is an illustrative normalized shape, not a provider response or evidence that a provider supports these fields.</p>
+      <pre class="demo-json" tabindex="0" role="region" aria-label="Sanitized fictional example"><code><%= demo_walkthrough_json %></code></pre>
+      <p>Identity requires a valid unique ticker and nonblank name. Quantities and costs are nonnegative finite decimals; supplied prices must be positive finite decimals.
+        JSON decimal strings preserve precision. Missing price or cost remains null internally, never zero.
+        Optional observation and receipt timestamps are validated separately as ISO 8601 with time zones and normalized to UTC.
+        Unknown observation time stays unknown even if a receipt time exists. Missing prices have no price provenance.
+        The synthetic source and observation time are declared fixture metadata; no provider receipt time or delay is asserted.</p>
+      <p>Quantity, unit cost, price, identity, and observation time are fictional inputs. Value, cost basis, gain/loss, and weight follow the published formulas, not an AI model.</p>
+    </details>
+
+    <h3 class="h5 mt-3">Cache, freshness, and failures</h3>
+    <p>Implemented policy: reconstruct static inputs on each request; no provider cache, polling, refresh jobs, database persistence, or external calls.
+      HTML uses <code>Cache-Control: no-store</code>. Reloading does not update the fictional observation time or make it live.</p>
+    <p>Missing price makes total valuation and aggregate gain/loss unavailable; missing cost makes cost and gain/loss unavailable.
+      Empty holdings retain zero sums, not invented positions. Loading and provider-error scenarios are explicitly simulated unavailable previews, not real requests or successful fallback data.</p>
+
+    <h3 class="h5">Provider-backed extension — gated, not implemented here</h3>
+    <p>The existing watchlist lookup is not a timestamped holdings contract. A future adapter must first verify endpoint fields, subscription entitlements, display/distribution rights,
+      delay, quotas, caching/retention rights, and supported instruments. No TTL or real-time freshness promise is invented.</p>
+    <ol>
+      <li>Authorize an explicit bounded refresh on the server; keep credentials out of the browser and public walkthrough.</li>
+      <li>Read permitted provider evidence; validate identity, currency, decimals, source observation time, receipt time, and quality separately.</li>
+      <li>Store only permitted snapshots under a verified retention policy, with bounded retries, deduplication, and quota handling.</li>
+      <li>Render valid evidence or explicit unavailable / delayed / stale / error states. Authentication, rate-limit, timeout, malformed-response, or entitlement failures must never trigger synthetic success.</li>
+    </ol>
+    <p class="mb-0">Any retained permitted snapshot must keep its original observation time and visible refresh failure, never a falsely fresh timestamp.
+      Private Kraken reads and any separately approved executor remain outside this public demo.</p>
+  </div>
+</section>

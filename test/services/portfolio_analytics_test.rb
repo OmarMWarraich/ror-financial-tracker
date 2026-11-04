@@ -102,6 +102,77 @@ class PortfolioAnalyticsTest < Minitest::Test
     assert_raises(ArgumentError) { DemoPortfolio.build(scenario: "unknown") }
   end
 
+  def test_sample_provenance_is_static_and_does_not_claim_provider_receipt
+    DemoPortfolio.build.positions.each do |position|
+      assert_equal DemoPortfolio::SOURCE, position[:price_source]
+      assert_equal DemoPortfolio::OBSERVED_AT, position[:price_observed_at]
+      assert_nil position[:price_received_at]
+    end
+    missing = DemoPortfolio.build(scenario: "missing_price").positions.first
+    assert_nil missing[:price_source]
+    assert_nil missing[:price_observed_at]
+    assert_nil missing[:price_received_at]
+  end
+
+  def test_observation_and_receipt_are_distinct_optional_normalized_timestamps
+    portfolio = PortfolioAnalytics.new(holdings: [
+      holding(price_source: " Example source ",
+              price_observed_at: "2026-11-05T05:00:00+05:00",
+              price_received_at: "2026-11-05T00:02:00Z")
+    ])
+    position = portfolio.positions.first
+    assert_equal "Example source", position[:price_source]
+    assert_equal "2026-11-05T00:00:00Z", position[:price_observed_at]
+    assert_equal "2026-11-05T00:02:00Z", position[:price_received_at]
+
+    receipt_only = PortfolioAnalytics.new(holdings: [
+      holding(price_received_at: "2026-11-05T00:02:00Z")
+    ]).positions.first
+    assert_nil receipt_only[:price_observed_at], "Receipt time must not become market observation time"
+    assert_nil receipt_only[:price_source], "Unknown source must not become a provider claim"
+
+    missing_price = PortfolioAnalytics.new(holdings: [
+      holding(price: nil, price_source: "Example source", price_observed_at: DemoPortfolio::OBSERVED_AT)
+    ]).positions.first
+    assert_nil missing_price[:price_source]
+    assert_nil missing_price[:price_observed_at]
+  end
+
+  def test_malformed_provenance_is_rejected
+    [42, "", "2026-11-05", "2026-11-05T00:00:00", "not-a-time", "2026-99-05T00:00:00Z",
+     "2026-02-31T00:00:00Z"].each do |value|
+      [:price_observed_at, :price_received_at].each do |field|
+        assert_raises(ArgumentError) { PortfolioAnalytics.new(holdings: [holding(**{ field => value })]) }
+      end
+    end
+    ["", " ", 42].each do |value|
+      assert_raises(ArgumentError) { PortfolioAnalytics.new(holdings: [holding(price_source: value)]) }
+    end
+  end
+
+  def test_simulated_loading_and_errors_cannot_build_success_portfolios
+    DemoPortfolio::STATES.each_key do |scenario|
+      assert DemoPortfolio::SCENARIOS.key?(scenario)
+      assert_raises(ArgumentError) { DemoPortfolio.build(scenario: scenario) }
+    end
+  end
+
+  def test_rounding_does_not_change_concentration_decisions_or_exact_inputs
+    portfolio = PortfolioAnalytics.new(holdings: [
+      holding(quantity: "40.00001", price: "1"),
+      holding(ticker: "OTHER", quantity: "59.99999", price: "1")
+    ])
+    assert_equal BigDecimal("40.00001"), portfolio.positions.first[:weight]
+    assert_equal ["DEMO", "OTHER"], portfolio.concentrated_positions.map { |position| position[:ticker] }
+
+    fractional = PortfolioAnalytics.new(holdings: [
+      holding(quantity: "0.00001", price: "123.456", unit_cost: "100.001")
+    ])
+    assert_equal BigDecimal("0.00123456"), fractional.total_value
+    assert_equal BigDecimal("0.00100001"), fractional.total_cost_basis
+    assert_equal BigDecimal("0.00023455"), fractional.unrealized_gain_loss
+  end
+
   private
 
   def holding(**attributes)

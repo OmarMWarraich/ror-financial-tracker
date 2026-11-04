@@ -72,6 +72,15 @@
     "sources": ["app/models/stock.rb", "app/services/equibles_client.rb", "app/controllers/portfolio_demos_controller.rb", "app/services/portfolio_analytics.rb"]
   },
   {
+    "id": "synthetic-showcase-contract",
+    "title": "Synthetic portfolio provenance and explainability",
+    "aliases": ["demo scenarios", "walkthrough", "source badges", "valuation", "concentration"],
+    "summary": "Public /portfolio_demo shows fictional USD inputs, per-holding source timestamps, decimal values/cost bases/unrealized gain-loss, allocation and strict concentration rules. Missing prices leave totals incomplete, missing costs leave gain-loss unavailable, zero allocation is undefined. Loading/provider-error scenarios are simulations with no provider call or fallback success. Accessible architecture/request-flow diagrams and sanitized walkthrough explain provenance/cache/failure boundaries. Sector/company/history/performance/benchmark features remain gated; this is not live research or a native-shell build.",
+    "status": "implemented",
+    "updated_on": "2026-11-05",
+    "sources": ["app/services/demo_portfolio.rb", "app/services/portfolio_analytics.rb", "app/views/portfolio_demos/show.html.erb", "app/views/portfolio_demos/_walkthrough.html.erb", "test/integration/portfolio_demo_test.rb", "README.md"]
+  },
+  {
     "id": "hotwire-native-clients",
     "title": "Mobile means Hotwire Native iOS and Android applications",
     "aliases": ["mobile friendly", "native friendly", "native rails", "iOS", "Android"],

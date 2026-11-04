@@ -192,6 +192,14 @@ selector to exercise missing prices, missing cost basis, and an empty portfolio.
 Missing evidence is shown as unavailable rather than a fabricated complete total.
 Static sample prices are not live quotes or historical performance.
 
+The holdings table includes original quantities, unit costs, cost bases, observed
+prices, timestamps, values, and allocation. Formula/provenance explanations and
+accessible architecture/request-flow diagrams accompany a sanitized integration
+walkthrough. Explicit loading/provider-error scenarios demonstrate unavailable
+states without network calls or a successful-looking fixture fallback. Company,
+sector, chart/history, performance, and benchmark features remain visibly gated
+on supported fields, classifications, licensed history, and methodology.
+
 The screen is shared Rails/Hotwire UI intended for **Hotwire Native iOS and Android
 apps**, not a claim that responsive web equals a native application. Native shells,
 navigation, authentication/session integration, bridges, and device tests remain

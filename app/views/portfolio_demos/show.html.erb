@@ -15,8 +15,15 @@
   <section class="alert alert-info" aria-labelledby="demo-notice">
     <h2 id="demo-notice" class="h6">Demo data, not a connected account</h2>
     <p class="mb-1">All companies, holdings, prices, and cost bases below are fictional. No live Equibles or Kraken requests are made.</p>
-    <p class="mb-0">Static sample observation: <time datetime="<%= DemoPortfolio::OBSERVED_AT %>">November 5, 2026, 00:00 UTC</time>.
+    <p class="mb-1">Static sample observation: <time datetime="<%= DemoPortfolio::OBSERVED_AT %>">November 5, 2026, 00:00 UTC</time>.
       This is not a live quote, investment recommendation, or performance record.</p>
+    <div class="demo-provenance" aria-label="Source and freshness">
+      <span class="badge bg-secondary">Source: <%= DemoPortfolio::SOURCE %></span>
+      <span class="badge bg-secondary">Freshness: static / not live</span>
+      <span class="badge bg-secondary">Provider delay: unavailable</span>
+    </div>
+    <p class="small mt-2 mb-0">The sample timestamp is a fictional observation, not provider market time or request receipt time.
+      No provider receipt time is available. Watchlist membership is not holdings, transactions, cash, a connected account, or investment performance.</p>
   </section>
 
   <%= form_with url: portfolio_demo_path, method: :get, class: "demo-scenarios mb-4" do |form| %>
@@ -28,6 +35,14 @@
     <%= form.submit "Show scenario", class: "btn btn-primary" %>
   <% end %>
 
+  <% if @evidence_state %>
+    <section class="alert alert-warning" role="status" aria-labelledby="evidence-heading" data-testid="evidence-state">
+      <h2 id="evidence-heading" class="h5">Simulated unavailable evidence</h2>
+      <p><%= @evidence_state %></p>
+      <p class="mb-0">Valuation, cost basis, gain/loss, allocation, and concentration are unavailable in this preview.
+        Choose another scenario explicitly to view fictional data.</p>
+    </section>
+  <% else %>
   <% unless @portfolio.complete_prices? %>
     <p class="alert alert-warning" role="status">Valuation is incomplete: a holding has no price. The priced subtotal is not the full portfolio value.</p>
   <% end %>
@@ -69,17 +84,29 @@
           <table class="table align-middle mb-0">
             <caption>USD sample values. Quantity times price gives position value; quantity times unit cost gives cost basis.</caption>
             <thead>
-              <tr><th scope="col">Holding</th><th scope="col">Quantity</th><th scope="col">Unit cost</th><th scope="col">Price</th><th scope="col">Value</th><th scope="col">Gain/loss</th></tr>
+              <tr><th scope="col">Holding</th><th scope="col">Quantity</th><th scope="col">Unit cost</th><th scope="col">Cost basis</th><th scope="col">Observed price</th><th scope="col">Value</th><th scope="col">Weight</th><th scope="col">Gain/loss</th><th scope="col">Price provenance</th></tr>
             </thead>
             <tbody>
               <% @portfolio.positions.each do |position| %>
                 <tr>
                   <th scope="row"><%= position[:ticker] %><span class="d-block fw-normal text-muted"><%= position[:name] %></span></th>
-                  <td><%= number_with_precision(position[:quantity], precision: 4, strip_insignificant_zeros: true) %></td>
+                  <td><%= demo_decimal(position[:quantity]) %></td>
                   <td><%= demo_money(position[:unit_cost]) %></td>
+                  <td><%= demo_money(position[:cost_basis]) %></td>
                   <td><%= demo_money(position[:price]) %></td>
                   <td><%= demo_money(position[:value]) %></td>
+                  <td><%= demo_weight(position[:weight]) %></td>
                   <td><%= demo_money(position[:gain_loss]) %></td>
+                  <td class="demo-holding-source">
+                    <% if position[:price_source] %>
+                      <span class="d-block"><%= position[:price_source] %></span>
+                    <% end %>
+                    <% if position[:price_observed_at] %>
+                      <time datetime="<%= position[:price_observed_at] %>"><%= position[:price_observed_at] %></time>
+                    <% else %>
+                      <span>Observation time unavailable</span>
+                    <% end %>
+                  </td>
                 </tr>
               <% end %>
             </tbody>
@@ -134,7 +161,44 @@
     </section>
   </div>
 
-  <section class="card" aria-labelledby="integration-heading">
+  <section class="card mb-4" aria-labelledby="formula-heading">
+    <div class="card-body">
+      <h2 id="formula-heading" class="h4">Trace the numbers</h2>
+      <p>All inputs are original fictional, long-only USD assumptions. No foreign-exchange conversion, fees, dividends, cash flows, or transactions are inferred.</p>
+      <dl>
+        <dt>Position value</dt><dd>Quantity × observed price.</dd>
+        <dt>Declared cost basis</dt><dd>Quantity × declared unit cost.</dd>
+        <dt>Unrealized gain/loss</dt><dd>Position value − declared cost basis. Aggregate gain/loss requires every price and cost.</dd>
+        <dt>Portfolio value and cost</dt><dd>Sum the corresponding position amounts only when coverage is complete; missing evidence is not zero.</dd>
+        <dt>Weight</dt><dd>Position value ÷ sum of supported priced position values × 100. Unpriced holdings are excluded; a zero denominator leaves all weights undefined.</dd>
+        <dt>Concentration</dt><dd>Compare unrounded weights strictly &gt; <%= demo_decimal(@portfolio.concentration_limit) %>%; equality is not flagged.</dd>
+        <dt>Display rounding</dt><dd>Decimal arithmetic is preserved through calculation. USD displays round half up to two decimals, weights to one decimal; displayed rounded amounts may not sum exactly. Rules use unrounded inputs.</dd>
+      </dl>
+      <p>Unrealized gain/loss is not total, money-weighted, or time-weighted return.</p>
+      <details>
+        <summary>Inspect exact inputs and worked formulas for this scenario</summary>
+        <% @portfolio.positions.each do |position| %>
+          <div class="demo-calculation" data-testid="worked-formula">
+            <h3 class="h6"><%= position[:ticker] %></h3>
+            <p>Value: <%= demo_decimal(position[:quantity]) %> × <%= demo_decimal(position[:price]) %> = <%= demo_decimal(position[:value]) %> USD.
+              Cost: <%= demo_decimal(position[:quantity]) %> × <%= demo_decimal(position[:unit_cost]) %> = <%= demo_decimal(position[:cost_basis]) %> USD.
+              Gain/loss: <%= demo_decimal(position[:value]) %> − <%= demo_decimal(position[:cost_basis]) %> = <%= demo_decimal(position[:gain_loss]) %> USD.</p>
+            <p>Weight: <%= demo_decimal(position[:value]) %> ÷ <%= demo_decimal(@portfolio.priced_value) %> × 100 = <%= demo_decimal(position[:weight]) %>%.
+              Missing operands or a zero denominator mean unavailable, not zero.</p>
+          </div>
+        <% end %>
+        <% if @portfolio.positions.empty? %>
+          <p>No position inputs. Empty sums are zero; allocation and concentration remain undefined.</p>
+        <% end %>
+      </details>
+    </div>
+  </section>
+  <% end %>
+
+  <%= render "evidence_gates" %>
+  <%= render "walkthrough" %>
+
+  <section class="card mt-4" aria-labelledby="integration-heading">
     <div class="card-body">
       <h2 id="integration-heading" class="h4">Integration boundaries</h2>
       <dl class="demo-boundaries mb-0">

@@ -38,7 +38,65 @@
   }
 
   .table {
-    min-width: 42rem;
+    min-width: 68rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .demo-provenance {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+
+    .badge {
+      white-space: normal;
+      text-align: left;
+    }
+  }
+
+  .demo-holding-source {
+    min-width: 14rem;
+  }
+
+  .demo-flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    list-style-position: inside;
+    padding: .75rem 0;
+
+    li {
+      background: #edf2f7;
+      border: 1px solid #dce3eb;
+      border-radius: .5rem;
+      flex: 1 1 10rem;
+      overflow-wrap: anywhere;
+      padding: .75rem;
+    }
+  }
+
+  .demo-json {
+    background: #edf2f7;
+    max-width: 100%;
+    padding: 1rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .demo-calculation {
+    border-left: .25rem solid #dce3eb;
+    margin-top: 1rem;
+    overflow-wrap: anywhere;
+    padding-left: 1rem;
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  :focus-visible {
+    outline: 3px solid #005fcc;
+    outline-offset: 3px;
   }
 
   .demo-boundaries {

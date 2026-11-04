@@ -1,4 +1,6 @@
 require "bigdecimal"
+require "date"
+require "time"
 
 class PortfolioAnalytics
   ZERO = BigDecimal("0").freeze
@@ -68,7 +70,26 @@ class PortfolioAnalytics
     cost_basis = quantity * unit_cost if unit_cost
     { ticker: ticker.dup.freeze, name: name.strip.freeze, quantity: quantity,
       price: price, unit_cost: unit_cost, value: value, cost_basis: cost_basis,
+      price_source: price ? source(holding[:price_source]) : nil,
+      price_observed_at: price ? timestamp(holding[:price_observed_at]) : nil,
+      price_received_at: price ? timestamp(holding[:price_received_at]) : nil,
       gain_loss: value && cost_basis ? value - cost_basis : nil }
+  end
+
+  def source(value)
+    return nil if value.nil?
+    raise ArgumentError, "Price source must be a non-empty string" unless value.is_a?(String) && !value.strip.empty?
+
+    value.strip.freeze
+  end
+
+  def timestamp(value)
+    return nil if value.nil?
+    unless value.is_a?(String) && value.match?(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})\z/)
+      raise ArgumentError, "Price timestamp must be ISO 8601 with a time zone"
+    end
+
+    DateTime.iso8601(value).to_time.utc.iso8601.freeze
   end
 
   def decimal(value, field, optional: false)
