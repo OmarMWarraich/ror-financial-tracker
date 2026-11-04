@@ -102,7 +102,7 @@
     "id": "runtime-regression-foundation",
     "title": "Rails regression runner compatibility and watchlist authority",
     "aliases": ["Minitest", "line_filtering", "test runner", "runtime", "regression", "tracking limit"],
-    "summary": "Rails 7.1.3.4 with Minitest 6.0.6 reproduced line_filtering.rb argument-count failure. Gemfile now constrains test Minitest to compatible 5.27 without unrelated runtime upgrades. Real model/controller tests cover Devise, stock normalization, duplicate and ten-stock enforcement, owner-only removal and friend views. Run bundle exec ruby bin/rails test test/models test/controllers --seed 12345 with the isolated migrated PostgreSQL test database; provider calls are faked. Public demo and private connections have separate integration acceptance checks.",
+    "summary": "Rails 7.1.3.4 with Minitest 6.0.6 reproduced line_filtering.rb argument-count failure. Gemfile constrains Minitest to compatible 5.27 without unrelated runtime upgrades. Real tests cover Devise, normalization, ten-stock/duplicate enforcement, owner-only removal, social privacy, synthetic analytics and private-provider authority. On 2026-11-05, RAILS_ENV=test bundle exec ruby bin/rails test --seed 12345 passed 151 tests/2220 assertions with isolated PostgreSQL and faked providers; eager loading and production asset compilation also passed. This does not verify actual subscriptions, eligibility, execution or native builds.",
     "status": "implemented",
     "updated_on": "2026-11-05",
     "sources": ["Gemfile", "Gemfile.lock", "app/controllers/user_stocks_controller.rb", "test/test_helper.rb", "test/controllers/user_stocks_controller_test.rb", "test/models/user_test.rb", "README.md"]

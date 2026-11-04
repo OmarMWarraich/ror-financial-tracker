@@ -393,6 +393,28 @@ appendix in the plan. Retrieval tooling does not implement those planned feature
 
 ## Tests
 
+Verified on 2026-11-05 with Ruby 3.3.0, Rails 7.1.3.4 and Minitest 5.27:
+
+```sh
+RAILS_ENV=test bundle exec ruby bin/rails test --seed 12345
+# 151 tests, 2,220 assertions; zero failures, errors or skips.
+RAILS_ENV=test bundle exec ruby bin/rails zeitwerk:check
+RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 bundle exec ruby bin/rails assets:precompile
+```
+
+Eager loading and production asset compilation pass. Existing RubyGems constant
+and Rack status-name deprecation warnings remain. Browser checks cover the
+synthetic screen's narrow/wide layouts and keyboard interaction, not native
+shells or real provider accounts.
+
+Outstanding A-E gates: actual Equibles subscription and use/display/retention/
+distribution permissions; strategy-specific freshness/rights; Kraken owner
+product/geography/developer-terms review, conventional securities API access and
+actual xStocks eligibility; and future mandate/live/recovery-specific step-up
+workflows. These are not marked completed or enabled by the passing fake-based
+tests. Use the private-screen configuration instructions above; never substitute
+a role toggle or an unverified key for these approvals.
+
 With PostgreSQL running and a separate test database configured:
 
 ```sh
