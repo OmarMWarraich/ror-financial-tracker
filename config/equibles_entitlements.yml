@@ -1,0 +1,21 @@
+# Operator-maintained per-user approvals. Empty disables all provider features.
+# A subscription name or possession of a key is not approval.
+#
+# verified_users:
+#   "USER_ID":
+#     approval_reference: "Written provider permission / account verification"
+#     subscription_verified: true
+#     paid_quotes: true
+#     automated_read: true
+#     private_display: true
+#     cache_storage: true
+#     daily_request_budget: 10
+#     retention_seconds: 3600
+#     freshness_seconds: 900
+#     expires_at: "2026-12-01T00:00:00Z" # Optional; invalid/elapsed expiry disables approval.
+#
+# USD US-listing quote evidence only. No rights inferred for history, corporate
+# actions, analytics, AI, exports, screenshots, recordings, mobile, redistribution,
+# or paper/live decisions. Actual account verification remains an external gate.
+shared:
+  verified_users: {}

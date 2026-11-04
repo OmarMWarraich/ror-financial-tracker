@@ -12,6 +12,12 @@
             <%= link_to "My Portfolio", my_portfolio_path, class: "nav-link #{current_path?(my_portfolio_path)}" %>
           </li>
           <li class="nav-item">
+            <%= link_to "Private connections", broker_connections_path, class: "nav-link" %>
+          </li>
+          <li class="nav-item">
+            <%= link_to "Equibles evidence", equibles_evidence_path, class: "nav-link" %>
+          </li>
+          <li class="nav-item">
             <%= link_to "My Friends", my_friends_path, class: "nav-link #{current_path?(my_friends_path)}" %>
           </li>
           <li class="nav-item dropdown">

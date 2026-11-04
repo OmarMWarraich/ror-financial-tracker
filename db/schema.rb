@@ -10,9 +10,54 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_04_03_103018) do
+ActiveRecord::Schema[7.1].define(version: 2026_11_05_043000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "broker_connections", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "label", null: false
+    t.string "product", default: "exchange", null: false
+    t.string "mode", default: "read_only", null: false
+    t.string "state", default: "pending", null: false
+    t.string "key_fingerprint", null: false
+    t.text "api_key"
+    t.text "api_secret"
+    t.text "account_identifier"
+    t.text "balance_payload"
+    t.text "history_payload"
+    t.jsonb "verified_permissions", default: [], null: false
+    t.boolean "include_history", default: false, null: false
+    t.bigint "last_nonce", default: 0, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "last_attempt_at"
+    t.datetime "received_at"
+    t.datetime "disconnected_at"
+    t.string "last_error"
+    t.string "elevation_state", default: "not_requested", null: false
+    t.datetime "elevation_requested_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key_fingerprint"], name: "index_broker_connections_on_key_fingerprint", unique: true
+    t.index ["user_id"], name: "index_broker_connections_on_user_id"
+    t.check_constraint "mode::text = 'read_only'::text", name: "broker_monitoring_only"
+    t.check_constraint "product::text = 'exchange'::text", name: "broker_exchange_only"
+  end
+
+  create_table "equibles_connections", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.text "api_key"
+    t.jsonb "snapshot", default: {}, null: false
+    t.date "quota_date"
+    t.integer "requests_used", default: 0, null: false
+    t.datetime "last_attempt_at"
+    t.datetime "last_success_at"
+    t.string "last_error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_equibles_connections_on_user_id", unique: true
+    t.check_constraint "requests_used >= 0", name: "equibles_nonnegative_usage"
+  end
 
   create_table "friendships", force: :cascade do |t|
     t.bigint "user_id", null: false
@@ -50,10 +95,14 @@ ActiveRecord::Schema[7.1].define(version: 2024_04_03_103018) do
     t.datetime "updated_at", null: false
     t.string "first_name"
     t.string "last_name"
+    t.integer "sensitive_action_failures", default: 0, null: false
+    t.datetime "sensitive_action_locked_until"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "broker_connections", "users"
+  add_foreign_key "equibles_connections", "users"
   add_foreign_key "friendships", "users"
   add_foreign_key "friendships", "users", column: "friend_id"
   add_foreign_key "user_stocks", "stocks"

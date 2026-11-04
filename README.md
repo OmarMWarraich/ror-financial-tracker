@@ -2,10 +2,16 @@
 
 A Ruby on Rails application for maintaining a stock watchlist and following other users' portfolios. This is a tracking app, not a brokerage: it does not execute trades or record holdings, transactions, or investment returns.
 
+The current direction is an Equibles engineering showcase with a public fictional
+portfolio, private evidence screens, and fail-closed read-only Kraken monitoring.
+Rails/Hotwire is the shared UI for future Hotwire Native iOS/Android shells.
+Trading, funding, native builds, and public redistribution of provider data are
+not enabled by these implementation slices.
+
 ## Features
 
 - Account registration, sign-in, and password recovery through Devise.
-- Stock search by ticker, displaying company names and paid intraday quotes from Equibles.
+- Stock search from the owner's approved private Equibles evidence; shared watchlists retain identifier metadata, not a licensed customer feed.
 - Personal portfolios with add/remove controls and a 10-stock limit in the tracking eligibility checks.
 - User search by first name, last name, or email, with friend add/remove controls.
 - Viewing other users' tracked stocks and adding them to your own portfolio.
@@ -13,13 +19,17 @@ A Ruby on Rails application for maintaining a stock watchlist and following othe
 
 [Equibles](https://equibles.com/): stock market data API.
 
-> **Quote timing:** A paid Equibles plan is required. Plus returns 15-minute delayed US quotes; Pro returns real-time US quotes. The app rejects quotes marked stale by the provider. Prices saved with tracked stocks are snapshots and are not automatically refreshed.
+> **Quote timing:** A paid Equibles plan and verified rights are required. Provider plan claims do not establish the current user's entitlement or the age of a particular observation. Private evidence retains its actual timing/delay fields and refreshes only explicitly; shared watchlists are not a quote feed.
 
 > **Data licensing:** API access is not permission to redistribute prices. Equibles excludes live/intraday quotes and historical daily prices from standard Pro distribution rights. Obtain prior written permission or an Enterprise agreement before displaying those data to end users, including through this watchlist. See the [commercial-use requirements](#commercial-use-and-data-timing) below.
 
-## Planned US Equities Advisory Product
+## Historical US Equities Advisory Product (Superseded)
 
-See [plan.md](plan.md) for the current implementation roadmap: a local-first Marketstack Professional pilot, agentic AI research, and principal-only automatic trading under an approved mandate, starting in paper mode. That plan supersedes the earlier provider, frontend, and hosting assumptions below; future customer trading remains separately gated and user-confirmed. These capabilities are planned, not implemented.
+The following advisory/business roadmap is retained as historical context, not
+the current backlog. The current direction in the local ignored [plan.md](plan.md)
+and the implementation sections below supersede its provider migration,
+commercial-launch, Next.js, and React Native assumptions. No historical roadmap
+item authorizes account access, spending, publishing provider data, or trading.
 
 **Status: product direction only, not implemented or approved for live use.** The current application remains the watchlist described above. Alpaca integration, investment recommendations, push notifications, order submission, and the proposed Next.js and React Native clients do not exist in this repository yet.
 
@@ -123,39 +133,74 @@ This updates the lockfile; review that change before committing it.
 
 Obtain the existing Rails master key from the project maintainer and place it in `config/master.key`, or supply it through `RAILS_MASTER_KEY`, to decrypt the committed [config/credentials.yml.enc](config/credentials.yml.enc). Never commit the key or API tokens.
 
-### Equibles API Key
+### Equibles Private Evidence and Entitlements
 
-Create a key in the [Equibles API key dashboard](https://equibles.com/dashboard/apikeys) and enable a Plus or Pro plan. Keep the key server-side; never commit it or include it in browser JavaScript.
+The application no longer uses a global `EQUIBLES_API_KEY` or the developer's
+Rails-credentials subscription as a shared user feed. Existing unrelated Rails
+credentials/master keys must not be replaced. Each owner supplies an independently
+permitted API key through `/equibles_evidence`, only after encryption and the
+operator's actual subscription/rights verification are configured.
 
-Set `EQUIBLES_API_KEY` in your shell or deployment environment. For local development, create `.env` from [.env.example](.env.example) if it does not already exist, then set its `EQUIBLES_API_KEY` value to your key. An ignored `.env` placeholder is provided when setting up this migration. Load it explicitly before starting Rails:
-
-```sh
-set -a
-. ./.env
-set +a
-```
-
-The app does not include dotenv, so placing a key in `.env` alone does not load it. Alternatively, add this structure to encrypted Rails credentials:
+[config/equibles_entitlements.yml](config/equibles_entitlements.yml) defaults to
+no approved users. An operator may add the following **only after obtaining the
+underlying evidence**, using the actual owner ID and approval reference:
 
 ```yaml
-equibles:
-  api_key: eq_your_api_key
+shared:
+  verified_users:
+    "ACTUAL_USER_ID":
+      approval_reference: "Actual written permission/account verification reference"
+      subscription_verified: true
+      paid_quotes: true
+      automated_read: true
+      private_display: true
+      cache_storage: true
+      daily_request_budget: 10
+      retention_seconds: 3600
+      freshness_seconds: 900
+      # Optional approval expiry; use the actual reviewed expiry, not this example.
+      expires_at: "2026-12-01T00:00:00Z"
 ```
 
-Edit credentials with your configured editor, for example:
+All five approvals must be exactly `true`. Daily request budget is an integer
+1-100; retention/freshness are integers 1-86400 seconds. These sample limits are
+not subscription entitlements. Missing/unknown approvals disable real-data
+features; synthetic demonstration remains independent.
+Expired/malformed approval expiry disables access. Stored evidence retains its
+original retention/approval deadline even after renewal; shortened retention or
+revoked private-display rights cannot be bypassed by an older snapshot.
 
-```sh
-EDITOR="code --wait" ruby bin/rails credentials:edit
-```
+The private screen supports authenticated `GET` status, `PATCH` key setup,
+explicit `POST /equibles_evidence/refresh` with one ticker, and `DELETE` disconnect.
+Credential changes/disconnect require the current application password. Mutations
+are CSRF protected; HTTPS is required except private loopback development.
+Keys and retained evidence use the three deployment encryption secrets documented
+below; stored keys are never redisplayed and private responses use `no-store`.
 
-`EQUIBLES_API_KEY` takes precedence over `equibles.api_key` in Rails credentials. Do not replace the shared credentials or generate a new master key for the existing encrypted file. The old `iex_client` entries are no longer read and can be removed through the credentials editor once no other integration needs them.
+The [client](app/services/equibles_client.rb) uses standard HTTP/JSON libraries,
+Bearer authentication, bounded five-second timeouts and zero retries.
+The new evidence refresh makes **one** `GET /v1/stocks/{ticker}/quote` request.
+The older direct `lookup` method retains its two-request quote/screener contract
+for compatibility tests, but user-facing watchlist lookup uses only the owner's
+approved retained evidence and makes no implicit network call.
+Both legacy stock-list and search-result price cells explicitly say
+**Unavailable**, including for old persisted prices, nulls and zeros. Licensed
+quotes belong only on the owner's permitted private evidence screen.
 
-The [Equibles client](app/services/equibles_client.rb) uses Ruby's standard HTTP/JSON libraries, not an SDK. Each successful new lookup makes two authenticated HTTPS requests:
+Normalized evidence distinguishes exact provider/instrument identity, product,
+currency, decimal price, provider observation time (unknown if absent), receipt
+time, session/observation metadata, delay, quality and entitlement reference.
+Unknown timing is never labelled real-time. Malformed/mismatched, stale, quota,
+authentication and transport failures are explicit; no fictional fallback replaces
+failed evidence and retained receipts are not rewritten as fresh observations.
 
-- `GET /v1/stocks/{ticker}/quote`: exact-listing price, with stale-quote checks.
-- `GET /v1/screener/stocks?tickers={ticker}&limit=1`: company name. Its end-of-day price is not used.
-
-Requests use the `Authorization: Bearer` header, five-second connection/read timeouts, and no automatic retries. Missing keys, unavailable/stale quotes, malformed responses, and HTTP failures produce an unavailable-data result without adding a portfolio entry. A `401` means the key is invalid, `403` can mean a paid plan is required, and `429` means the shared daily quota is exhausted. Check your account plan and reset time before retrying.
+Database locking provides per-user UTC-daily conservative quota accounting and
+60-second refresh deduplication. Failed attempts consume the bounded local budget;
+this is not Kraken's quota or the provider's authoritative shared-account allowance.
+Retention purges on access/refresh, not a scheduled background job. History,
+corporate actions, backtesting, AI processing, screenshots/recordings, native/API
+delivery, hosted display and redistribution require separate rights confirmation;
+none is implied by these private-display configuration flags.
 
 Official reference: [REST API](https://equibles.com/docs/api), [authentication](https://equibles.com/docs/authentication), [paid quotes](https://equibles.com/docs/api/endpoints/prices), [company screener](https://equibles.com/docs/api/endpoints/capital), and [errors and limits](https://equibles.com/docs/api/errors).
 
@@ -172,7 +217,9 @@ Commands above invoke the Rails binstub through Ruby so they also work when its 
 
 ## Usage
 
-- **My Portfolio** (`/my_portfolio`): search for a ticker and manage tracked stocks. Quote lookup requires the paid-plan configuration above.
+- **My Portfolio** (`/my_portfolio`): search approved owner evidence and manage tracked identifiers; a watchlist is not a holdings ledger.
+- **Equibles Evidence** (`/equibles_evidence`): private, explicitly refreshed quote evidence; disabled until rights and encryption are configured.
+- **Private Connections** (`/broker_connections`): separately gated owner-only Kraken read monitoring, never trading authority.
 - **My Friends** (`/my_friends`): search registered users and manage your friends list.
 - **User Portfolio** (`/users/:id`): inspect another user's tracked stocks.
 - **Health Check** (`/up`): Rails boot health endpoint, not a check of database or quote-provider connectivity.
@@ -204,6 +251,82 @@ The screen is shared Rails/Hotwire UI intended for **Hotwire Native iOS and Andr
 apps**, not a claim that responsive web equals a native application. Native shells,
 navigation, authentication/session integration, bridges, and device tests remain
 separate implementation work. Real account connections and trading are not active.
+
+## Private Connections and Read-Only Kraken Monitoring
+
+`/broker_connections` is authenticated and owner-scoped; it never inherits social
+watchlist sharing. Setup, disconnect, and elevation-review requests require the
+current **application** password. Five failed confirmations lock sensitive actions
+for 15 minutes without imposing a historical MFA migration on ordinary sign-in.
+Elevation is a review request only: no endpoint activates paper/live execution,
+orders, cancellations, funding, or transfers.
+
+Connections use the existing PostgreSQL database and Rails encrypted attributes.
+Set these independently generated secrets in the runtime environment or a secret
+manager, separately from the database, before accepting credentials:
+
+- `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY`
+- `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY`
+- `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT`
+
+Generate deployment-specific values with `bundle exec ruby bin/rails db:encryption:init`;
+do not commit its output, reuse the test values, or replace the existing Rails
+credentials/master key. Back up encryption keys securely; losing them makes stored
+credentials and evidence unreadable. Production requires HTTPS; only private
+loopback development may use HTTP.
+
+Monitoring is **disabled by default** in [config/kraken_monitoring.yml](config/kraken_monitoring.yml).
+Before enabling it, separately verify the actual owner's product/geography
+eligibility and developer terms, then record an expiring owner-specific approval
+reference there. Do not treat this configuration as regulatory approval. No real
+account exercise was performed as part of implementation.
+
+The narrow [adapter](app/services/kraken_read_only_client.rb) permits only:
+
+| Operation | Endpoint | Required permissions |
+| --- | --- | --- |
+| Inspect key/account/expiry | `POST /0/private/GetApiKeyInfo` | No additional permission |
+| Balances | `POST /0/private/Balance` | `query-funds` |
+| Optional latest 50 trades | `POST /0/private/TradesHistory` | Additionally `query-closed-trades` |
+
+Scope inspection happens before balance/history requests on **every refresh**.
+Permissions must exactly match the selected features: unknown, unverifiable,
+extra read scopes, order/cancel, deposit, withdrawal, Earn, export, and WebSocket
+permissions are rejected. No write operation is probed to check permissions and
+there is no arbitrary endpoint proxy. Signed POST queries remain reads by their
+operation semantics, not because of their HTTP method.
+
+Use a new dedicated key per connection; a unique retained fingerprint prevents
+cross-user key reuse. Row locking serializes per-key nonce generation, refresh,
+and disconnect across processes. Refresh is explicit, at most once per minute,
+with bounded timeouts and **zero automatic retries** (at most three requests with
+history, two without). No worker, Redis, polling loop, or executor is introduced.
+Rate-limit/provider failures are visible; previous evidence keeps its real receipt
+time and a failed/stale indication. Balance source time stays unknown; trade
+timestamps remain source times.
+
+Account identity from key inspection is pinned, credentials are never redisplayed,
+and application expiry is 30 days or earlier provider expiry. Disconnect waits
+for an in-flight read, removes secrets and retained account evidence, and prevents
+later work from reactivating the connection. The owner must also revoke the key
+at Kraken; reconnecting requires a new key. Inactive/revoked/unsafe-scope keys
+cannot sync.
+
+Kraken Exchange balances are **not conventional US stock brokerage holdings**.
+Provider asset/pair IDs are retained without Equibles ticker matching. All current
+exchange assets are explicitly unclassified/unsupported for equity analytics and
+the strategy universe; quantities are not presented as USD portfolio values.
+Recent trades are not a complete ledger or investment performance calculation.
+xStocks are geographically restricted tokenized exposure, not underlying share
+ownership. Conventional securities brokerage API availability and actual account
+eligibility remain unverified; unsupported does not mean an empty or zero account.
+
+Official contracts checked 2026-11-05:
+[key inspection](https://docs.kraken.com/api-reference/account-data/get-api-key-info),
+[permissions](https://docs.kraken.com/exchange/guides/rest/api-keys),
+[authentication](https://docs.kraken.com/exchange/guides/rest/authentication),
+[Spot OpenAPI](https://docs.kraken.com/openapi/spot-rest.yaml), and
+[xStocks differences](https://support.kraken.com/articles/getting-started-with-xstocks).
 
 ## Project Knowledge Retrieval
 
@@ -299,9 +422,30 @@ bundle exec ruby -Itest -e 'ARGV.each { |file| require_relative file }' \
   ./test/services/portfolio_analytics_test.rb ./test/integration/portfolio_demo_test.rb
 ```
 
-The new tests cover paid quote mapping, Plus-plan delayed quotes, stale/invalid data, exact share-class identity, credentials, and failed portfolio additions. HTTP responses are stubbed; these checks do not validate a live subscription. Existing unrelated model/controller tests and fixtures still include generated placeholders. Minitest 6 uses the separate test-only `minitest-mock` dependency for mocks and stubs.
+Provider responses are stubbed; these checks do not validate a live subscription.
+The model/controller regressions now cover real watchlist eligibility, duplicate
+and 10-stock enforcement, owner-only removal, friend views, and authentication
+rather than generated placeholder assertions. Dedicated private-connection
+checks cover encrypted storage, redaction, cross-user denial, CSRF, password
+step-up/lockout, stale evidence, expiry/revocation, nonce concurrency, and
+disconnect/in-flight-read coordination.
 
-**Current Rails test blocker:** The locked Rails 7.1.3.4 and Minitest 6.0.6 combination raises an argument-count error in Rails' `line_filtering.rb` when running Rails test cases. The standalone Equibles client suite runs successfully under this bundle, but Rails model/controller execution needs a separately reviewed test-framework compatibility fix. A running PostgreSQL server is still required for those tests.
+**Resolved Rails runner incompatibility:** Ruby 3.3.0 / Rails 7.1.3.4 with
+Minitest 6.0.6 reproduced `line_filtering.rb:7: wrong number of arguments
+(given 3, expected 1..2)`. The test dependency is now constrained to compatible
+Minitest 5.27 without upgrading Rails, Devise, assets, or application dependencies.
+After `bundle install`, the affected regression selectors pass:
+
+```sh
+bundle exec ruby bin/rails test test/models test/controllers --seed 12345
+bundle exec ruby test/services/kraken_read_only_client_test.rb
+bundle exec ruby test/integration/broker_connections_test.rb
+```
+
+PostgreSQL and the migrated isolated test database are required for application
+tests; no real API keys are needed. Tests generate/configure fake encryption
+material only inside the test process. Passing these tests is not a native-device
+test or authorization for a credentialed provider/account exercise.
 
 System tests are configured to use Chrome through Selenium, so browser-based tests require Chrome and an available compatible driver. See [test/test_helper.rb](test/test_helper.rb) and [test/application_system_test_case.rb](test/application_system_test_case.rb).
 
@@ -315,13 +459,22 @@ docker build -t financial-tracker .
 docker run --rm -p 3000:3000 \
 	-e RAILS_MASTER_KEY \
 	-e DATABASE_URL \
-	-e EQUIBLES_API_KEY \
+	-e ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY \
+	-e ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY \
+	-e ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT \
 	financial-tracker
 ```
 
-Export `RAILS_MASTER_KEY`, `DATABASE_URL`, and `EQUIBLES_API_KEY` in your shell before running the container (the Equibles environment key can be omitted when using encrypted credentials). Ensure binstubs are executable before building. Use a PostgreSQL URL reachable **from the container**; `localhost` inside the container is not your host machine. The image does not include a PostgreSQL server, and the entrypoint runs `db:prepare` before starting Rails.
+Export the listed secrets in your shell before running the container; never put
+their values in the command, image or repository. Provider features remain
+disabled until their owner-specific approval configuration is supplied.
+Ensure binstubs are executable before building. Use a PostgreSQL URL reachable
+**from the container**; `localhost` inside the container is not your host machine.
+The image does not include PostgreSQL; the entrypoint runs `db:prepare`.
 
-Production forces HTTPS. Deploy behind an appropriately configured TLS-terminating reverse proxy; the plain HTTP port mapping above is not a complete production deployment. Configure production mail delivery before relying on password recovery, and supply a paid Equibles key before expecting stock search to work.
+Production forces HTTPS. Deploy behind an appropriately configured TLS-terminating
+reverse proxy; the plain HTTP mapping is not a complete production deployment.
+Configure production mail delivery before relying on password recovery.
 
 Relevant runtime settings:
 
@@ -329,7 +482,9 @@ Relevant runtime settings:
 | --- | --- |
 | `RAILS_MASTER_KEY` | Decrypts Rails credentials when the key file is unavailable. |
 | `DATABASE_URL` | Supplies a PostgreSQL connection URL, overriding matching database configuration values. |
-| `EQUIBLES_API_KEY` | Server-side Equibles key with Plus or Pro quote access; takes precedence over Rails credentials. |
+| `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` | Encrypts private provider credentials/evidence at rest. |
+| `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` | Independent Rails encryption configuration secret. |
+| `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` | Independent Rails encryption key-derivation salt. |
 | `MYAPP_DATABASE_PASSWORD` | Password for the default production `myapp` database role when not overridden by the connection URL. |
 | `RAILS_MAX_THREADS` | Database pool size and Puma thread configuration; defaults to 5. |
 | `RAILS_LOG_LEVEL` | Production log level; defaults to `info`. |

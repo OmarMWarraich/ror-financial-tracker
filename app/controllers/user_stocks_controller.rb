@@ -1,10 +1,16 @@
 class UserStocksController < ApplicationController
   def create
+    unless current_user.can_track_stock?(params[:ticker])
+      redirect_to my_portfolio_path, alert: "Stock is already tracked or your ten-stock limit has been reached.",
+                                    status: :see_other
+      return
+    end
+
     @user = current_user
     @tracked_stocks = current_user.stocks
     stock = Stock.check_db(params[:ticker])
     if stock.blank?
-      stock = Stock.new_lookup(params[:ticker])
+      stock = Stock.new_lookup(params[:ticker], user: current_user)
       unless stock&.save
         redirect_to my_portfolio_path, alert: "Stock data is unavailable. Check the ticker or try again later.",
                                       status: :see_other
@@ -28,8 +34,8 @@ class UserStocksController < ApplicationController
   def destroy
     @user = current_user
     @tracked_stocks = current_user.stocks
-    stock = Stock.find(params[:id])
-    user_stock = UserStock.where(user_id: current_user.id, stock_id: stock.id).first
+    user_stock = current_user.user_stocks.find_by!(stock_id: params[:id])
+    stock = user_stock.stock
     user_stock.destroy
     flash.now[:alert] = "#{stock.ticker.upcase} was successfully removed from your portfolio"
 

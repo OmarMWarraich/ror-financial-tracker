@@ -1,0 +1,13 @@
+shared:
+  enabled: false
+  # Operator-reviewed exchange monitoring only; never a securities brokerage adapter.
+  # Add an owner ID only after recording product/geography/API-terms approval:
+  # approved_users:
+  #   "123":
+  #     reference: "local-review-reference"
+  #     expires_at: "2026-12-01T00:00:00Z"
+  approved_users: {}
+
+development: {}
+test: {}
+production: {}

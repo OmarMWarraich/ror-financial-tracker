@@ -1,5 +1,14 @@
 Rails.application.routes.draw do
   get "portfolio_demo", to: "portfolio_demos#show", as: :portfolio_demo
+  resources :broker_connections, only: %i[index create destroy] do
+    member do
+      post :refresh
+      post :request_elevation
+    end
+  end
+  resource :equibles_evidence, only: %i[show update destroy], controller: "equibles_evidence" do
+    post :refresh
+  end
   resources :user_stocks, only: [:create, :destroy]
   devise_for :users
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html

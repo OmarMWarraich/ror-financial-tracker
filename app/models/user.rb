@@ -1,4 +1,6 @@
 class User < ApplicationRecord
+  has_many :broker_connections, dependent: :destroy
+  has_one :equibles_connection, dependent: :destroy
   has_many :user_stocks
   has_many :stocks, through: :user_stocks
   has_many :friendships

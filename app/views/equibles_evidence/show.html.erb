@@ -1,0 +1,50 @@
+<h1>Private Equibles evidence</h1>
+<p>Personal subscription only. No shared developer feed, fictional fallback, execution, or decision inputs.</p>
+<% unless @entitlement.approved? %>
+  <p role="alert">Disabled: subscription, permissions, quotas, and retention require operator verification. A key alone is insufficient.</p>
+<% end %>
+<% unless EquiblesConnection.encryption_configured? %>
+  <p role="alert">Credential storage disabled: encryption keys are not configured.</p>
+<% end %>
+<% if @connection&.last_error.present? %>
+  <p role="alert">Last refresh failed: <%= @connection.last_error.humanize %>. Existing evidence retains its original timestamps.</p>
+<% end %>
+<% if @snapshot.present? %>
+  <dl>
+    <dt>Provider / instrument / product</dt>
+    <dd><%= @snapshot["provider"] %> / <%= @snapshot["instrument"] %> / <%= @snapshot["product_type"] %></dd>
+    <dt>Price</dt><dd><%= @snapshot["price"] %> <%= @snapshot["currency"] %></dd>
+    <dt>Source time</dt><dd><%= @snapshot["source_at"] || "Unknown — received time is not quote time" %></dd>
+    <dt>Received time</dt><dd><%= @snapshot["received_at"] %></dd>
+    <dt>Timing / quality</dt>
+    <dd><%= @snapshot["quality"].humanize %> — delay: <%= @snapshot["delayed"].nil? ? "unknown" : @snapshot["delayed"] %>; never assumed real-time.</dd>
+    <dt>Session / expected session</dt>
+    <dd><%= @snapshot.dig("session", "sessionDate") || "Unknown" %> / <%= @snapshot.dig("session", "expectedSessionDate") || "Unknown" %></dd>
+    <dt>Current freshness</dt>
+    <dd><%= @snapshot["source_at"].nil? ? "Unknown" : (Time.iso8601(@snapshot["source_at"]) < Time.current - @entitlement.settings["freshness_seconds"] ? "Aged evidence" : "Within configured display age; not decision eligible") %></dd>
+  </dl>
+<% else %>
+  <p>No permitted evidence available.</p>
+<% end %>
+<% if @entitlement.approved? && EquiblesConnection.encryption_configured? %>
+  <%= form_with url: equibles_evidence_path, method: :patch do |form| %>
+    <%= form.label :api_key, "Your independently permitted Equibles API key" %>
+    <%= form.password_field :api_key, autocomplete: "new-password", required: true %>
+    <%= form.label :current_password, "Current application password" %>
+    <%= form.password_field :current_password, autocomplete: "current-password", required: true %>
+    <%= form.submit "Save personal key" %>
+  <% end %>
+  <%= form_with url: refresh_equibles_evidence_path, method: :post do |form| %>
+    <%= form.label :ticker, "US listing ticker (USD only)" %>
+    <%= form.text_field :ticker, maxlength: 32, required: true %>
+    <%= form.submit "Refresh one quote" %>
+  <% end %>
+  <p>One read per refresh, no retries; 60-second deduplication. Usage is a conservative local budget, not the provider's shared account quota.</p>
+<% end %>
+<% if @connection %>
+  <%= form_with url: equibles_evidence_path, method: :delete do |form| %>
+    <%= form.label :current_password, "Current application password to disconnect" %>
+    <%= form.password_field :current_password, autocomplete: "current-password", required: true %>
+    <%= form.submit "Disconnect and remove evidence" %>
+  <% end %>
+<% end %>

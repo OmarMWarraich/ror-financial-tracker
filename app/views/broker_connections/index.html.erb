@@ -1,0 +1,89 @@
+<% content_for :title, "Private Kraken monitoring | FinanceTracker" %>
+<main class="container py-4">
+  <h1>Private Kraken monitoring</h1>
+  <p>Owner-only exchange evidence. Not a US stock brokerage connection, a holdings valuation, or trading authority.</p>
+  <p>Conventional equities, crypto, tokenized xStocks, and derivatives are different products.
+    xStocks do not confer shareholder ownership. No symbol is mapped to an Equibles equity;
+    unclassified exchange assets remain excluded from equity analytics and the strategy universe.</p>
+  <p>Live monitoring is disabled by default until the operator records your product/geography eligibility
+    and API-terms review. This is not a claim of Kraken approval in any jurisdiction.</p>
+  <h2>Connect your own dedicated read-only key</h2>
+  <% unless @monitoring_enabled %>
+    <p role="status">Setup blocked: encryption and account-specific product/terms approval are required. Do not enter credentials yet.</p>
+  <% end %>
+  <p>Balances need Query Funds only. Optional recent trade history additionally needs Query Closed Orders &amp; Trades.
+    All other permissions, including orders, cancellations, deposits, withdrawals, transfers, Earn,
+    ledger access, exports, and WebSocket access, are rejected. Scope checks never attempt a write.</p>
+  <p>Use a dedicated key with IP restrictions. Never enter your Kraken password or seed phrase.
+    Connections expire after 30 days or earlier if the key expires. Disconnect removes local secrets
+    and account evidence; the key fingerprint remains to prevent cross-account key reuse.
+    Revoke the key at Kraken and use a new key to reconnect.</p>
+  <%= form_with model: @connection do |form| %>
+    <fieldset <%= "disabled" unless @monitoring_enabled %>>
+      <div class="mb-2"><%= form.label :label %><%= form.text_field :label, required: true, maxlength: 80, class: "form-control" %></div>
+      <div class="mb-2"><%= form.label :api_key, "Kraken API key" %><%= form.password_field :api_key, required: true, autocomplete: "off", class: "form-control" %></div>
+      <div class="mb-2"><%= form.label :api_secret, "Kraken API secret" %><%= form.password_field :api_secret, required: true, autocomplete: "off", class: "form-control" %></div>
+      <div class="mb-2"><%= form.check_box :include_history %> <%= form.label :include_history, "Include up to 50 recent trades (additional read permission)" %></div>
+      <div class="mb-2"><%= check_box_tag :owns_account, "1", false, required: true %> <%= label_tag :owns_account, "I control this own-name account and this key is dedicated to this app." %></div>
+      <div class="mb-2"><%= label_tag :current_password, "Current application password" %><%= password_field_tag :current_password, nil, required: true, autocomplete: "current-password", class: "form-control" %></div>
+      <%= form.submit "Save pending connection", class: "btn btn-primary" %>
+    </fieldset>
+  <% end %>
+
+  <h2 class="mt-4">Your connections</h2>
+  <% if @connections.empty? %><p>No connections saved. This is not evidence of an empty Kraken account.</p><% end %>
+  <% @connections.each do |connection| %>
+    <section class="border rounded p-3 mb-3">
+      <h3><%= connection.label %></h3>
+      <p>Mode: read-only / exchange. State: <%= connection.state %>.
+        Elevation: <%= connection.elevation_state %> (request only; execution unavailable).
+        Expires: <%= connection.expires_at.utc.iso8601 %>.</p>
+      <p>Source: Kraken Exchange API. Balance observation time: unknown (not supplied by Balance).
+        Received: <%= connection.received_at&.utc&.iso8601 || "unavailable" %>.
+        <strong><%= connection.stale? ? "Stale, missing, or failed-refresh evidence" : "Last read succeeded; not real-time market evidence" %></strong></p>
+      <% if connection.last_error.present? %><p role="alert"><%= connection.last_error %></p><% end %>
+      <% if !@encryption_ready %>
+        <p role="alert">Encrypted evidence unavailable until the configured encryption keys are restored.</p>
+      <% elsif connection.balances.nil? %>
+        <p>Balances unavailable. No zero balance is inferred.</p>
+      <% else %>
+        <div class="table-responsive">
+          <table class="table"><caption>Unclassified exchange balances, excluded from equity analytics</caption>
+            <thead><tr><th scope="col">Provider asset ID</th><th scope="col">Quantity</th><th scope="col">Product / analytics</th></tr></thead>
+            <tbody><% connection.balances.each do |balance| %>
+              <tr><td><%= balance["provider_instrument_id"] %></td><td><%= balance["quantity"] %></td><td>Unclassified exchange asset / unsupported</td></tr>
+            <% end %></tbody>
+          </table>
+        </div>
+      <% end %>
+      <% if connection.include_history && @encryption_ready %>
+        <h4>Recent trade history</h4>
+        <p>At most 50 trades; not a complete ledger, tax record, or investment return. Prices use the provider pair's quote units, not an assumed USD currency.</p>
+        <% if connection.history.nil? %><p>Trade history unavailable.</p><% else %>
+          <div class="table-responsive"><table class="table">
+            <caption>Kraken-reported historical trades; not app-submitted orders</caption>
+            <thead><tr><th scope="col">Provider pair ID</th><th scope="col">Side</th><th scope="col">Quantity</th><th scope="col">Price</th><th scope="col">Source time</th></tr></thead>
+            <tbody><% connection.history.each do |trade| %>
+              <tr><td><%= trade["provider_instrument_id"] %></td><td><%= trade["side"] %></td><td><%= trade["quantity"] %></td><td><%= trade["price"] %></td><td><%= trade["source_time"] %></td></tr>
+            <% end %></tbody>
+          </table></div>
+        <% end %>
+      <% end %>
+      <% if connection.active? %>
+        <%= button_to "Refresh read-only evidence", refresh_broker_connection_path(connection), class: "btn btn-outline-primary" %>
+        <%= form_with url: request_elevation_broker_connection_path(connection), method: :post, class: "mt-2" do |form| %>
+          <%= form.label :current_password, "Application password for review request", for: "elevation_password_#{connection.id}" %>
+          <%= form.password_field :current_password, id: "elevation_password_#{connection.id}", required: true, autocomplete: "current-password" %>
+          <%= form.submit "Request elevation review (does not enable trading)" %>
+        <% end %>
+      <% end %>
+      <% unless connection.state == "disconnected" %>
+        <%= form_with url: broker_connection_path(connection), method: :delete, class: "mt-2" do |form| %>
+          <%= form.label :current_password, "Application password to disconnect", for: "disconnect_password_#{connection.id}" %>
+          <%= form.password_field :current_password, id: "disconnect_password_#{connection.id}", required: true, autocomplete: "current-password" %>
+          <%= form.submit "Disconnect and remove local evidence", class: "btn btn-outline-danger" %>
+        <% end %>
+      <% end %>
+    </section>
+  <% end %>
+</main>
