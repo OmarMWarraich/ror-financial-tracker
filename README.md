@@ -213,6 +213,44 @@ update existing records when decisions change. It contains no credentials,
 private account data, or raw conversation history. It is lexical retrieval, not
 GraphRAG or an application-facing financial research service.
 
+### Keeping Copilot's project context current
+
+The [repository instructions](.github/copilot-instructions.md) tell Copilot to
+assess available context before each response, reuse relevant session evidence,
+and retrieve only missing, uncertain, or stale facts before substantial work.
+Do not repeat retrieval or other tool calls without a concrete evidence gap.
+Update affected records after meaningful decisions or implementations.
+Preserve record IDs, cite sources, date
+updates, distinguish plans from working features, and run the knowledge tests
+plus a representative query before completing a knowledge-store change.
+This is curated maintenance by the working agent/developer, not automatic chat
+ingestion or a background synchronization service.
+
+A new or resumed session cannot assume its memory matches the repository.
+Compare the task-relevant decisions, implementation status, sources, and
+freshness already available; when their applicability is unknown, retrieve the
+relevant records once and verify only unresolved details against cited sources.
+This establishes sufficient context for the task, not whole-store parity or an
+automatic freshness guarantee. Reconcile conflicting memory with current code
+and explicit user decisions rather than silently carrying stale assumptions.
+
+Before every authorized commit, review the staged changes against the store and
+include affected knowledge updates in that same commit. If no reusable facts
+change, leave records/dates untouched and note that the retrieval review required
+no update. This is a review requirement, not a demand for artificial record churn
+or permission to create commits.
+
+Local Copilot agents with terminal access can run the same command; without a
+terminal, they can read the JSON records directly. GitHub-hosted agents need the
+instructions, JSON store, CLI, and library available in their committed/pushed
+checkout. The ignored `plan.md` and `todo.md` remain local and must not be
+force-added; reusable non-sensitive facts belong in the shared store.
+
+Retrieval itself performs no network or model calls. Copilot still uses inference
+for reasoning, coding, and tool orchestration, and retrieved text consumes context.
+Instructions do not guarantee retrieval in every Copilot mode or inline completion.
+The aim is less repeated reading/research, not guaranteed token or billing savings.
+
 Equibles calls its built-in AI analyst **ALVIS** (sometimes transcribed as Elvis
 or Alvish). See the [official ALVIS documentation](https://equibles.com/docs/alvis).
 The browser feature is verified; a supported ALVIS inference API is not yet

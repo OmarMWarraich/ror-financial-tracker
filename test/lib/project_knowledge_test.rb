@@ -30,6 +30,30 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_equal "user_decision", result["status"]
   end
 
+  def test_retrieves_copilot_maintenance_and_local_only_boundaries
+    result = @knowledge.search("retrieval").first
+    assert_equal "project-retrieval-workflow", result["id"]
+    assert_includes result["summary"], "plan.md and todo.md are ignored local files"
+    assert_includes result["sources"], ".github/copilot-instructions.md"
+  end
+
+  def test_commit_query_retrieves_same_commit_maintenance_policy
+    result = @knowledge.search("commit").first
+    assert_equal "project-retrieval-workflow", result["id"]
+    assert_includes result["summary"], "before every authorized commit"
+    assert_includes result["summary"], "in that same commit"
+  end
+
+  def test_session_queries_retrieve_context_reuse_and_freshness_policy
+    ["new session", "session context", "redundant retrieval"].each do |query|
+      result = @knowledge.search(query).first
+      assert_equal "project-retrieval-workflow", result["id"], query
+      assert_includes result["summary"], "reuse relevant session evidence"
+      assert_includes result["summary"], "do not assume memory parity"
+      assert_includes result["summary"], "sources, and freshness"
+    end
+  end
+
   def test_returns_bounded_results_with_sources_and_deterministic_order
     results = @knowledge.search("Equibles Kraken", limit: 2)
     assert_equal 2, results.length

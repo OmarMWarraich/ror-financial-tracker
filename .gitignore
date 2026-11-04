@@ -35,3 +35,6 @@
 # Ignore master key for decrypting credentials and more.
 /config/master.key
 plan.md
+
+# Local implementation checklist.
+/todo.md

@@ -1,5 +1,14 @@
 [
   {
+    "id": "project-retrieval-workflow",
+    "title": "Repository retrieval and ongoing knowledge maintenance",
+    "aliases": ["retrieval", "GitHub Copilot", "memory", "session context", "new session", "redundant retrieval", "inference", "todo", "plan", "knowledge maintenance", "commit"],
+    "summary": "Before each response, assess available context and reuse relevant session evidence; avoid redundant retrieval and unnecessary tool calls. Before substantial work, retrieve only missing, uncertain, or stale task-relevant facts. In a new or resumed session, do not assume memory parity: check decisions, implementation status, sources, and freshness; retrieve relevant records once if applicability is unknown and verify unresolved details. Reconcile conflicts with current code and explicit user decisions. Review staged changes against the store before every authorized commit; include affected fact, decision, implementation-status, and source updates in that same commit. Preserve IDs and actual dates, validate tests and a representative query, and leave records unchanged when no reusable facts change. Retrieval is local lexical search with no model/network call; Copilot still uses inference. Instructions guide rather than enforce this workflow. plan.md and todo.md are ignored local files; GitHub agents need the shared retrieval files committed and pushed.",
+    "status": "implemented",
+    "updated_on": "2026-11-05",
+    "sources": [".github/copilot-instructions.md", "lib/project_knowledge.rb", "bin/project-knowledge", "README.md", ".gitignore"]
+  },
+  {
     "id": "equibles-alvis",
     "title": "ALVIS is Equibles' built-in AI analyst",
     "aliases": ["ALVIS", "Elvis", "Elvis AI", "Alvish", "Alvis AI", "Equiples", "Equipables"],
