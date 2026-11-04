@@ -57,9 +57,18 @@
     "id": "implemented-watchlist",
     "title": "Implemented application is a stock watchlist",
     "aliases": ["baseline", "holdings", "EquiblesClient", "new_lookup"],
-    "summary": "Stock.new_lookup delegates to EquiblesClient.lookup for ticker, name, and decimal last price. The implemented watchlist is not a holdings ledger or trading engine. ALVIS integration, Kraken connections, elevated execution, and the portfolio dashboard are planned, not operational. Local project-knowledge search is developer tooling, not an application research or trading endpoint.",
+    "summary": "Stock.new_lookup delegates to EquiblesClient.lookup for ticker, name, and decimal last price. The existing watchlist is not a holdings ledger or trading engine. A separate public /portfolio_demo screen now demonstrates synthetic valuation, cost basis, allocation, concentration, and missing-data scenarios without live API calls. ALVIS integration, Kraken connections, elevated execution, and native shells remain planned. Local project-knowledge search is developer tooling, not an application research or trading endpoint.",
     "status": "implemented",
     "updated_on": "2026-11-05",
-    "sources": ["app/models/stock.rb", "app/services/equibles_client.rb"]
+    "sources": ["app/models/stock.rb", "app/services/equibles_client.rb", "app/controllers/portfolio_demos_controller.rb", "app/services/portfolio_analytics.rb"]
+  },
+  {
+    "id": "hotwire-native-clients",
+    "title": "Mobile means Hotwire Native iOS and Android applications",
+    "aliases": ["mobile friendly", "native friendly", "native rails", "iOS", "Android"],
+    "summary": "The intended mobile clients are real Hotwire Native iOS and Android shells sharing Rails server-rendered HTML with platform-native navigation and optional bridge components, not merely a responsive website or a separate React Native frontend. The synthetic portfolio demo implements the shared Rails screen layer only; native shell builds, platform authentication/navigation, and device testing remain required.",
+    "status": "user_decision",
+    "updated_on": "2026-11-05",
+    "sources": ["plan.md#product-boundary", "https://native.hotwired.dev/overview/how-it-works"]
   }
 ]

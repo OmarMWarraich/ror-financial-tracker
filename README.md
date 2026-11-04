@@ -179,6 +179,24 @@ Commands above invoke the Rails binstub through Ruby so they also work when its 
 
 See [config/routes.rb](config/routes.rb) for the complete route definitions.
 
+## Portfolio Proof of Concept
+
+With the existing Rails environment configured, start `bundle exec ruby bin/rails server`
+and open `/portfolio_demo`. This public demo is deliberately isolated from private
+portfolios: it collects no account credentials, writes no holdings, and makes no
+Equibles, ALVIS, or Kraken requests.
+
+It demonstrates fictional USD holdings, decimal valuation/cost basis/unrealized
+gain/loss, allocation and a disclosed concentration threshold. Use the scenario
+selector to exercise missing prices, missing cost basis, and an empty portfolio.
+Missing evidence is shown as unavailable rather than a fabricated complete total.
+Static sample prices are not live quotes or historical performance.
+
+The screen is shared Rails/Hotwire UI intended for **Hotwire Native iOS and Android
+apps**, not a claim that responsive web equals a native application. Native shells,
+navigation, authentication/session integration, bridges, and device tests remain
+separate implementation work. Real account connections and trading are not active.
+
 ## Project Knowledge Retrieval
 
 Search established provider facts and current product decisions locally:
@@ -225,6 +243,14 @@ The standalone project-knowledge tests also need no database or network:
 
 ```sh
 bundle exec ruby test/lib/project_knowledge_test.rb
+```
+
+The proof-of-concept checks exercise exact analytics and real Rails requests
+without fixtures, data writes, external APIs, or the Rails test-case runner:
+
+```sh
+bundle exec ruby -Itest -e 'ARGV.each { |file| require_relative file }' \
+  ./test/services/portfolio_analytics_test.rb ./test/integration/portfolio_demo_test.rb
 ```
 
 The new tests cover paid quote mapping, Plus-plan delayed quotes, stale/invalid data, exact share-class identity, credentials, and failed portfolio additions. HTTP responses are stubbed; these checks do not validate a live subscription. Existing unrelated model/controller tests and fixtures still include generated placeholders. Minitest 6 uses the separate test-only `minitest-mock` dependency for mocks and stubs.

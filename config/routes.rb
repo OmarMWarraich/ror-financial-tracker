@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  get "portfolio_demo", to: "portfolio_demos#show", as: :portfolio_demo
   resources :user_stocks, only: [:create, :destroy]
   devise_for :users
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html

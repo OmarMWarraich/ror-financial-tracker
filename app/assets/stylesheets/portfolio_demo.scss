@@ -1,0 +1,53 @@
+.portfolio-demo {
+  .demo-eyebrow {
+    color: #536271;
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .card {
+    border-color: #dce3eb;
+    border-radius: .75rem;
+  }
+
+  .demo-metric {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    margin-bottom: .25rem;
+  }
+
+  .demo-scenarios {
+    align-items: flex-end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+
+    > div {
+      flex: 1 1 16rem;
+      max-width: 28rem;
+    }
+  }
+
+  meter {
+    display: block;
+    height: 1.25rem;
+    width: 100%;
+  }
+
+  .table {
+    min-width: 42rem;
+  }
+
+  .demo-boundaries {
+    dd {
+      margin-bottom: 1rem;
+    }
+
+    dd:last-child {
+      margin-bottom: 0;
+    }
+  }
+}

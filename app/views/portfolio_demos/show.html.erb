@@ -1,0 +1,148 @@
+<% content_for :title, "Portfolio Demo | FinanceTracker" %>
+
+<main class="portfolio-demo col-12 py-4">
+  <header class="mb-4">
+    <p class="demo-eyebrow">FinanceTracker / Proof of concept</p>
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <h1>Portfolio analytics</h1>
+        <p class="text-muted mb-0">One shared Rails screen layer for the web and planned Hotwire Native iOS and Android apps.</p>
+      </div>
+      <span class="badge rounded-pill bg-warning text-dark p-3">Fictional portfolio / USD</span>
+    </div>
+  </header>
+
+  <section class="alert alert-info" aria-labelledby="demo-notice">
+    <h2 id="demo-notice" class="h6">Demo data, not a connected account</h2>
+    <p class="mb-1">All companies, holdings, prices, and cost bases below are fictional. No live Equibles or Kraken requests are made.</p>
+    <p class="mb-0">Static sample observation: <time datetime="<%= DemoPortfolio::OBSERVED_AT %>">November 5, 2026, 00:00 UTC</time>.
+      This is not a live quote, investment recommendation, or performance record.</p>
+  </section>
+
+  <%= form_with url: portfolio_demo_path, method: :get, class: "demo-scenarios mb-4" do |form| %>
+    <div>
+      <%= form.label :scenario, "Explore data-quality scenarios", class: "form-label fw-bold" %>
+      <%= form.select :scenario, DemoPortfolio::SCENARIOS.map { |value, label| [label, value] },
+                      { selected: @scenario }, class: "form-select" %>
+    </div>
+    <%= form.submit "Show scenario", class: "btn btn-primary" %>
+  <% end %>
+
+  <% unless @portfolio.complete_prices? %>
+    <p class="alert alert-warning" role="status">Valuation is incomplete: a holding has no price. The priced subtotal is not the full portfolio value.</p>
+  <% end %>
+  <% unless @portfolio.complete_cost_basis? %>
+    <p class="alert alert-warning" role="status">Cost basis is incomplete. Portfolio unrealized gain/loss is unavailable, not zero.</p>
+  <% end %>
+
+  <section class="row g-3 mb-4" aria-label="Portfolio summary">
+    <div class="col-12 col-md-4">
+      <div class="card h-100"><div class="card-body">
+        <h2 class="h6 text-muted">Portfolio value</h2>
+        <p class="demo-metric" data-testid="total-value"><%= demo_money(@portfolio.total_value) %></p>
+        <p class="small mb-0"><%= @portfolio.complete_prices? ? "All sample holdings priced" : "Missing price evidence" %></p>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100"><div class="card-body">
+        <h2 class="h6 text-muted">Declared cost basis</h2>
+        <p class="demo-metric" data-testid="cost-basis"><%= demo_money(@portfolio.total_cost_basis) %></p>
+        <p class="small mb-0">Fictional acquisition assumptions</p>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="card h-100"><div class="card-body">
+        <h2 class="h6 text-muted">Unrealized gain/loss</h2>
+        <p class="demo-metric" data-testid="gain-loss"><%= demo_money(@portfolio.unrealized_gain_loss) %></p>
+        <p class="small mb-0">Value minus cost basis; not total return</p>
+      </div></div>
+    </div>
+  </section>
+
+  <section class="card mb-4" aria-labelledby="holdings-heading">
+    <div class="card-body">
+      <h2 id="holdings-heading" class="h4">Sample holdings</h2>
+      <% if @portfolio.positions.empty? %>
+        <p class="mb-0" role="status">No sample holdings in this scenario. Allocation is undefined when the priced value is zero.</p>
+      <% else %>
+        <div class="table-responsive" role="region" aria-label="Sample holdings table" tabindex="0">
+          <table class="table align-middle mb-0">
+            <caption>USD sample values. Quantity times price gives position value; quantity times unit cost gives cost basis.</caption>
+            <thead>
+              <tr><th scope="col">Holding</th><th scope="col">Quantity</th><th scope="col">Unit cost</th><th scope="col">Price</th><th scope="col">Value</th><th scope="col">Gain/loss</th></tr>
+            </thead>
+            <tbody>
+              <% @portfolio.positions.each do |position| %>
+                <tr>
+                  <th scope="row"><%= position[:ticker] %><span class="d-block fw-normal text-muted"><%= position[:name] %></span></th>
+                  <td><%= number_with_precision(position[:quantity], precision: 4, strip_insignificant_zeros: true) %></td>
+                  <td><%= demo_money(position[:unit_cost]) %></td>
+                  <td><%= demo_money(position[:price]) %></td>
+                  <td><%= demo_money(position[:value]) %></td>
+                  <td><%= demo_money(position[:gain_loss]) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <div class="row g-4 mb-4">
+    <section class="col-12 col-lg-6" aria-labelledby="allocation-heading">
+      <div class="card h-100"><div class="card-body">
+        <h2 id="allocation-heading" class="h4">Allocation</h2>
+        <p class="small text-muted">Weights use the priced subtotal: <%= demo_money(@portfolio.priced_value) %>.
+          Unpriced holdings are excluded; their weight is unavailable.</p>
+        <% @portfolio.positions.each do |position| %>
+          <div class="mb-3">
+            <div class="d-flex justify-content-between gap-2">
+              <span id="label-<%= position[:ticker] %>"><%= position[:ticker] %></span>
+              <span><%= demo_weight(position[:weight]) %></span>
+            </div>
+            <% if position[:weight] %>
+              <meter aria-labelledby="label-<%= position[:ticker] %>" min="0" max="100" value="<%= position[:weight].to_s("F") %>"><%= demo_weight(position[:weight]) %></meter>
+            <% else %>
+              <p class="small text-muted mb-0">No weight available</p>
+            <% end %>
+          </div>
+        <% end %>
+      </div></div>
+    </section>
+    <section class="col-12 col-lg-6" aria-labelledby="risk-heading">
+      <div class="card h-100"><div class="card-body">
+        <h2 id="risk-heading" class="h4">Explainable concentration</h2>
+        <p class="small text-muted">Illustrative rule: flag a weight strictly greater than <%= demo_weight(@portfolio.concentration_limit) %>.
+          This threshold is a demonstration, not a suitability assessment.</p>
+        <% if @portfolio.positions.empty? || @portfolio.priced_value.zero? %>
+          <p>Concentration cannot be assessed without priced holdings.</p>
+        <% elsif @portfolio.concentrated_positions.empty? %>
+          <p>No priced holding exceeds this sample threshold.</p>
+        <% else %>
+          <ul>
+            <% @portfolio.concentrated_positions.each do |position| %>
+              <li><strong><%= position[:ticker] %></strong> is <%= demo_weight(position[:weight]) %> of the priced subtotal.</li>
+            <% end %>
+          </ul>
+        <% end %>
+        <% unless @portfolio.complete_prices? %>
+          <p class="small">Incomplete prices prevent a full-portfolio concentration conclusion.</p>
+        <% end %>
+        <p class="small mb-0">No volatility, historical return, sector, or forecasting claims are made from this static sample.</p>
+      </div></div>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="integration-heading">
+    <div class="card-body">
+      <h2 id="integration-heading" class="h4">Integration boundaries</h2>
+      <dl class="demo-boundaries mb-0">
+        <dt>Equibles / ALVIS</dt><dd>Not connected on this screen. ALVIS is Equibles' cited-research analyst, not a trade executor.</dd>
+        <dt>Kraken monitoring</dt><dd>Planned default read-only connection. No account keys are collected by this demo.</dd>
+        <dt>Elevated algorithms</dt><dd>Planned, inactive. No orders, deposits, withdrawals, or transfers can be submitted here.</dd>
+        <dt>Hotwire Native</dt><dd>Shared Rails HTML is implemented here. Native iOS and Android shells, navigation, and device validation are separate work, not completed by this page.</dd>
+      </dl>
+    </div>
+  </section>
+</main>
