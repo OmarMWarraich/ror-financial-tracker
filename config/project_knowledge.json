@@ -1,0 +1,65 @@
+[
+  {
+    "id": "equibles-alvis",
+    "title": "ALVIS is Equibles' built-in AI analyst",
+    "aliases": ["ALVIS", "Elvis", "Elvis AI", "Alvish", "Alvis AI", "Equiples", "Equipables"],
+    "summary": "Equibles officially calls its built-in browser AI analyst ALVIS. It researches Equibles financial data and provides source citations. It is not a separate unverified vendor. Equibles describes ALVIS as informational research that never places trades. ALVIS credits are separate from REST/MCP daily request limits.",
+    "status": "verified_fact",
+    "updated_on": "2026-11-05",
+    "sources": ["https://equibles.com/docs/alvis", "https://equibles.com/"]
+  },
+  {
+    "id": "alvis-programmatic-access",
+    "title": "ALVIS browser feature is not proof of an ALVIS inference API",
+    "aliases": ["Elvis endpoint", "ALVIS API", "Equibles MCP", "REST"],
+    "summary": "Official ALVIS documentation describes browser chats, research workflows, and author-only PDF/Markdown exports. It directs developers using their own AI agent to Equibles MCP. A supported programmatic ALVIS chat/inference endpoint and automated export-ingestion rights have not been verified. Do not invent an endpoint or automate private browser APIs. Equibles data REST/MCP access is a separate integration surface.",
+    "status": "open_question",
+    "updated_on": "2026-11-05",
+    "sources": ["https://equibles.com/docs/alvis", "https://equibles.com/docs"]
+  },
+  {
+    "id": "kraken-connection-modes",
+    "title": "Default read-only and opt-in elevated Kraken connections",
+    "aliases": ["brokerage", "execution", "spending", "permissions", "elevated users"],
+    "summary": "The requested product has read-only Kraken monitoring by default. Eligible users may request a separately approved execution-capable connection for algorithmic trading informed by Equibles research and ALVIS insights. A user role or API key alone does not activate trading: require account ownership, verified scopes, paper acceptance, explicit bounded mandate, and live release gates. This is a product decision, not implemented functionality.",
+    "status": "user_decision",
+    "updated_on": "2026-11-05",
+    "sources": ["plan.md#kraken-account-connections-default-read-only-and-opt-in-elevated-mode"]
+  },
+  {
+    "id": "kraken-funding-boundary",
+    "title": "Trading, deposit information, withdrawals, and transfers are separate",
+    "aliases": ["deposit", "depositing", "withdrawal", "transfer", "spending rights"],
+    "summary": "The proposed elevated mode uses necessary trading permissions, not unrestricted financial access. Optional deposit methods/address/status access is separately approved and does not authorize bank debits or wallet transfers. Withdrawals, transfers, and autonomous funding remain excluded from the current plan. No model receives broker keys or can change permissions or mandates.",
+    "status": "user_decision",
+    "updated_on": "2026-11-05",
+    "sources": ["plan.md#kraken-account-connections-default-read-only-and-opt-in-elevated-mode", "https://docs.kraken.com/exchange/guides/rest/api-keys"]
+  },
+  {
+    "id": "kraken-equities-versus-xstocks",
+    "title": "Kraken conventional equities and xStocks are distinct products",
+    "aliases": ["US stocks", "broker", "tokenized", "Equibles ticker"],
+    "summary": "Kraken advertises conventional stock/ETF brokerage for eligible US residents; brokerage API access has not been verified. Kraken xStocks are geographically restricted tokenized equity exposure, not ownership of underlying shares, and have exchange API support. Never map an Equibles equity ticker directly to a token, crypto asset, or derivative. Verify account eligibility and exact venue instrument before pricing or execution.",
+    "status": "verified_fact",
+    "updated_on": "2026-11-05",
+    "sources": ["https://www.kraken.com/stocks", "https://support.kraken.com/articles/getting-started-with-xstocks", "https://blog.kraken.com/product/api/kraken-api-partner-program-xstocks"]
+  },
+  {
+    "id": "showcase-and-hobby",
+    "title": "Equibles engineering showcase with personal hobby trading",
+    "aliases": ["portfolio", "architecture", "current direction", "robo advisory"],
+    "summary": "The current direction is a professional portfolio analytics showcase using Rails ERB/Hotwire and Equibles, with personal hobby algorithmic trading allowed and proposed elevated per-user paper mode. The former commercial hub/community/marketplace roadmap is historical, not the current backlog. Public demo fixtures, private account data, paper state, and live state must remain distinct.",
+    "status": "user_decision",
+    "updated_on": "2026-11-05",
+    "sources": ["plan.md#current-direction-demonstrate-engineering-not-launch-a-trading-business"]
+  },
+  {
+    "id": "implemented-watchlist",
+    "title": "Implemented application is a stock watchlist",
+    "aliases": ["baseline", "holdings", "EquiblesClient", "new_lookup"],
+    "summary": "Stock.new_lookup delegates to EquiblesClient.lookup for ticker, name, and decimal last price. The implemented watchlist is not a holdings ledger or trading engine. ALVIS integration, Kraken connections, elevated execution, and the portfolio dashboard are planned, not operational. Local project-knowledge search is developer tooling, not an application research or trading endpoint.",
+    "status": "implemented",
+    "updated_on": "2026-11-05",
+    "sources": ["app/models/stock.rb", "app/services/equibles_client.rb"]
+  }
+]

@@ -1,0 +1,11 @@
+require_relative "../lib/project_knowledge"
+
+begin
+  query = ARGV.join(" ")
+  matches = ProjectKnowledge.new.search(query)
+  puts JSON.pretty_generate("query" => query, "matches" => matches)
+rescue ArgumentError, JSON::ParserError, Errno::ENOENT, Errno::EACCES => error
+  warn "Project knowledge search failed: #{error.message}"
+  warn 'Usage: ruby bin/project-knowledge "ALVIS Equibles"'
+  exit 1
+end

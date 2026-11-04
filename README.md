@@ -19,6 +19,8 @@ A Ruby on Rails application for maintaining a stock watchlist and following othe
 
 ## Planned US Equities Advisory Product
 
+See [plan.md](plan.md) for the current implementation roadmap: a local-first Marketstack Professional pilot, agentic AI research, and principal-only automatic trading under an approved mandate, starting in paper mode. That plan supersedes the earlier provider, frontend, and hosting assumptions below; future customer trading remains separately gated and user-confirmed. These capabilities are planned, not implemented.
+
 **Status: product direction only, not implemented or approved for live use.** The current application remains the watchlist described above. Alpaca integration, investment recommendations, push notifications, order submission, and the proposed Next.js and React Native clients do not exist in this repository yet.
 
 The intended business is a Wyoming LLC owned and operated by its Pakistan-based owner, serving eligible US-resident customers initially. Pakistani-resident customers are outside the initial target market. Entity formation does not authorize investment advice; actual ownership, operating location, customer states, and activities must be disclosed to prospective regulated partners.
@@ -177,6 +179,31 @@ Commands above invoke the Rails binstub through Ruby so they also work when its 
 
 See [config/routes.rb](config/routes.rb) for the complete route definitions.
 
+## Project Knowledge Retrieval
+
+Search established provider facts and current product decisions locally:
+
+```sh
+ruby bin/project-knowledge "Elvis AI"
+ruby bin/project-knowledge "Kraken connection modes"
+```
+
+This dependency-free developer tool returns at most five ranked records with
+sources, dates, and explicit fact/decision/open-question/implementation status.
+The curated store is [config/project_knowledge.json](config/project_knowledge.json);
+update existing records when decisions change. It contains no credentials,
+private account data, or raw conversation history. It is lexical retrieval, not
+GraphRAG or an application-facing financial research service.
+
+Equibles calls its built-in AI analyst **ALVIS** (sometimes transcribed as Elvis
+or Alvish). See the [official ALVIS documentation](https://equibles.com/docs/alvis).
+The browser feature is verified; a supported ALVIS inference API is not yet
+verified. Do not confuse Equibles REST/MCP data access with an ALVIS chat API.
+
+The [current direction in plan.md](plan.md#current-direction-demonstrate-engineering-not-launch-a-trading-business)
+supersedes earlier planned-product descriptions in this README and the historical
+appendix in the plan. Retrieval tooling does not implement those planned features.
+
 ## Tests
 
 With PostgreSQL running and a separate test database configured:
@@ -192,6 +219,12 @@ The Equibles client tests can run without PostgreSQL or a live API key:
 
 ```sh
 bundle exec ruby test/services/equibles_client_test.rb
+```
+
+The standalone project-knowledge tests also need no database or network:
+
+```sh
+bundle exec ruby test/lib/project_knowledge_test.rb
 ```
 
 The new tests cover paid quote mapping, Plus-plan delayed quotes, stale/invalid data, exact share-class identity, credentials, and failed portfolio additions. HTTP responses are stubbed; these checks do not validate a live subscription. Existing unrelated model/controller tests and fixtures still include generated placeholders. Minitest 6 uses the separate test-only `minitest-mock` dependency for mocks and stubs.
