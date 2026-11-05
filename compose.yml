@@ -1,0 +1,115 @@
+name: ror-financial-tracker
+
+x-app: &app
+  image: ror-financial-tracker:development
+  build:
+    context: .
+    target: development
+  init: true
+  environment: &app-environment
+    RAILS_ENV: development
+    DATABASE_URL: postgresql://rails:${POSTGRES_PASSWORD:?Run ruby bin/compose-env and use --env-file .env.docker}@postgres:5432/financial_tracker_development
+    REDIS_URL: redis://redis:6379/0
+    SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Local SECRET_KEY_BASE is required}
+    ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY: ${ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY:?Encryption primary key is required}
+    ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY: ${ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY:?Encryption deterministic key is required}
+    ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: ${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT:?Encryption salt is required}
+    RAILS_MAX_THREADS: "5"
+    SKIP_DB_PREPARE: "1"
+  tmpfs:
+    - /rails/tmp:uid=1000,gid=1000,mode=1770
+  stop_grace_period: 40s
+
+services:
+  postgres:
+    image: postgres:16@sha256:5db6dac2ef5dcff512f4f00a009c3c332b9f2f28f24277175bf3e4a3d02ef83a
+    environment:
+      POSTGRES_USER: rails
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Local database password is required}
+      POSTGRES_DB: financial_tracker_development
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rails -d financial_tracker_development"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  prepare:
+    <<: *app
+    command: ["bundle", "exec", "ruby", "bin/rails", "db:prepare"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    <<: *app
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    volumes:
+      - app_storage:/rails/storage
+    command: ["bundle", "exec", "ruby", "bin/rails", "server", "-b", "0.0.0.0"]
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:3000/up"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+    restart: unless-stopped
+
+  worker:
+    <<: *app
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bundle", "exec", "ruby", "bin/worker-healthcheck"]
+      interval: 15s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+    restart: unless-stopped
+
+  test:
+    <<: *app
+    profiles: ["test"]
+    environment:
+      <<: *app-environment
+      RAILS_ENV: test
+      DATABASE_URL: postgresql://rails:${POSTGRES_PASSWORD:?Local database password is required}@postgres:5432/financial_tracker_test
+      REDIS_URL: redis://redis:6379/1
+      PARALLEL_WORKERS: "2"
+    command: ["bash", "-ec", "bundle exec ruby bin/rails db:prepare && bundle exec ruby bin/rails test --seed 12345"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  postgres_data:
+  redis_data:
+  app_storage:

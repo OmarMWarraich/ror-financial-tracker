@@ -10,6 +10,11 @@ gem "sprockets-rails"
 
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.1"
+gem "sidekiq", "~> 8.0"
+# connection_pool 3 uses forwarding syntax unsupported by Ruby 3.3.0.
+gem "connection_pool", "~> 2.5"
+# Rails 7.1 still passes JSON's create_additions parsing option.
+gem "json", "~> 2.9"
 
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"

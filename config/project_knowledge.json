@@ -75,7 +75,7 @@
     "id": "equibles-private-evidence",
     "title": "Owner-specific Equibles evidence, entitlements and bounded refresh",
     "aliases": ["Equibles snapshot", "entitlements", "quota", "retention", "freshness", "per-user API key"],
-    "summary": "Authenticated /equibles_evidence stores encrypted owner credentials/evidence and refreshes one exact quote explicitly, with CSRF, password step-up for credential mutation, HTTPS and no-store responses. Default config has no approved subscriptions/rights. Verify subscription, paid quotes, automated read, private display and caching; separate history/AI/distribution rights remain unknown. Database locking bounds UTC-daily attempts and deduplicates refreshes for 60 seconds; zero retries. Snapshots separate source/receipt time, quality/delay and entitlement metadata. Failures retain old timestamps without synthetic fallback. Retention purges on access/refresh, not scheduled deletion; expiry/revoked rights cannot be bypassed by old snapshots or retroactive extensions. Legacy stock/social/search price cells show Unavailable even for existing stored prices; only owner evidence may display permitted quotes. No credentialed subscription exercise was performed.",
+    "summary": "Authenticated /equibles_evidence stores encrypted owner API keys and owner-scoped JSONB quote snapshots; snapshots are not Rails-encrypted attributes. Refreshes one exact quote explicitly, with CSRF, password step-up for credential mutation, HTTPS and no-store responses. Default config has no approved subscriptions/rights. Verify subscription, paid quotes, automated read, private display and caching; separate history/AI/distribution rights remain unknown. Database locking bounds UTC-daily attempts and deduplicates refreshes for 60 seconds; zero retries. Snapshots separate source/receipt time, quality/delay and entitlement metadata. Failures retain old timestamps without synthetic fallback. Retention purges on access/refresh, not scheduled deletion; expiry/revoked rights cannot be bypassed by old snapshots or retroactive extensions. Legacy stock/social/search price cells show Unavailable even for existing stored prices; only owner evidence may display permitted quotes. No credentialed subscription exercise was performed.",
     "status": "implemented",
     "updated_on": "2026-11-05",
     "sources": ["config/equibles_entitlements.yml", "app/models/equibles_connection.rb", "app/services/equibles_entitlement.rb", "app/services/equibles_evidence_refresh.rb", "app/controllers/equibles_evidence_controller.rb", "test/integration/equibles_evidence_test.rb", "README.md"]
@@ -106,6 +106,15 @@
     "status": "implemented",
     "updated_on": "2026-11-05",
     "sources": ["Gemfile", "Gemfile.lock", "app/controllers/user_stocks_controller.rb", "test/test_helper.rb", "test/controllers/user_stocks_controller_test.rb", "test/models/user_test.rb", "README.md"]
+  },
+  {
+    "id": "local-compose-runtime",
+    "title": "Isolated Docker Compose Rails, Sidekiq, PostgreSQL and Redis",
+    "aliases": ["Docker", "Compose", "Sidekiq", "PostgreSQL", "Redis", "containers", "local infrastructure", "worker health"],
+    "summary": "Local Compose is now explicitly approved and implemented without restoring the historical ecosystem roadmap. Digest-pinned PostgreSQL 16.15 and Redis 7.4.12 use named volumes; only Rails port 3000 is published on loopback. Existing host services/data are untouched. Separate preparation and test services use isolated development/test databases. Active Job uses Sidekiq; tests use the test adapter. Sidekiq 8.0.10/connection_pool 2.5/JSON 2 preserve Ruby 3.3.0/Rails 7.1 compatibility; Linux platforms and frozen bundles prevent runtime lock changes. Health checks include actual worker heartbeat. Redis uses noeviction and AOF everysec; at-least-once jobs and potential recent-write loss are not exactly-once execution/outbox guarantees. No scheduler, trading jobs or Sidekiq Web UI. bin/compose-env exclusively generates ignored mode-0600 local secrets; preserve original secrets with volumes and never use down -v as routine cleanup. Container health, isolated regressions, volume recreation, worker restart, eager loading and production image build were verified. This is local development, not production release approval.",
+    "status": "implemented",
+    "updated_on": "2026-11-05",
+    "sources": ["compose.yml", "Dockerfile", "Gemfile", "Gemfile.lock", "bin/compose-env", "bin/worker-healthcheck", "config/initializers/sidekiq.rb", "config/sidekiq.yml", "config/application.rb", "config/environments/test.rb", "README.md"]
   },
   {
     "id": "hotwire-native-clients",

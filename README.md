@@ -103,7 +103,66 @@ These are future evaluation areas, not supported portfolios, scheduled releases,
 
 See [Gemfile](Gemfile) and [Gemfile.lock](Gemfile.lock) for dependencies.
 
-## Local Setup
+## Local Docker Compose (Recommended)
+
+[compose.yml](compose.yml) runs Rails, Sidekiq, PostgreSQL 16.15 and Redis 7.4.12.
+PostgreSQL and Redis images are digest-pinned; the application keeps Ruby 3.3.0
+and Rails 7.1.3.4. Docker Desktop with Compose v2 or newer is required.
+
+```sh
+ruby bin/compose-env
+docker compose --env-file .env.docker config --quiet
+docker compose --env-file .env.docker build web
+docker compose --env-file .env.docker up -d --wait web worker
+```
+
+Open <http://127.0.0.1:3000/portfolio_demo>. Only the web port is published,
+on loopback; PostgreSQL and Redis are reachable only inside the Compose network.
+Set `WEB_PORT` in the ignored `.env.docker` before startup if 3000 is occupied.
+Existing host PostgreSQL/Redis services and databases are not changed or imported.
+The one-shot `prepare` service waits for PostgreSQL, runs `db:prepare`, and must
+succeed before web/worker startup. Health checks verify PostgreSQL readiness,
+Redis PING, Rails `/up`, and this worker's actual Sidekiq heartbeat.
+
+[bin/compose-env](bin/compose-env) exclusively creates an ignored mode-0600
+`.env.docker` with independently generated database/session/encryption secrets.
+It refuses to overwrite an existing file. **Keep and securely back up those
+original secrets with the named volumes**: changing the database password does
+not reset an initialized database, and losing encryption secrets makes encrypted
+records unreadable. Never print interpolated `docker compose config` output;
+use `config --quiet`. Secrets, local plans, host credentials and stored uploads
+are excluded from the build context.
+
+```sh
+# Separate financial_tracker_test database; test Active Job adapter and fake providers.
+docker compose --env-file .env.docker --profile test run --rm test
+docker compose --env-file .env.docker logs --tail 100 web worker
+docker compose --env-file .env.docker stop
+docker compose --env-file .env.docker up -d --wait web worker
+# Remove containers/network but preserve all named volumes.
+docker compose --env-file .env.docker down
+```
+
+Do not use `down -v` or delete `.env.docker` as a routine reset. PostgreSQL's named
+volume mounts its verified `/var/lib/postgresql/data`; Redis persists AOF under
+`/data`; application uploads use a separate storage volume. The code is built
+into the image, not bind-mounted: after changing it, rebuild and recreate web
+and worker with `docker compose --env-file .env.docker up -d --build --wait web worker`.
+
+Sidekiq uses `REDIS_URL`, concurrency 5, and `maintenance`/`default` queues.
+Each process has a five-connection database pool. Redis is dedicated to queues,
+with `noeviction`, AOF enabled, and `appendfsync everysec`; it is not an evictable
+cache. Jobs are **at-least-once**, not exactly-once. Recent queue writes can still
+be lost on Redis failure; a named volume is not a backup or an execution outbox.
+No trading, broker refresh, scheduler, or Sidekiq Web UI is enabled by this setup.
+
+Validated locally: health checks, HTTP demo/auth boundaries, isolated test DB,
+volume persistence through PostgreSQL/Redis container recreation, worker restart,
+eager loading, and the final production image build. Public image pulls required
+a session-only credential-free Docker configuration because the local credential
+helper stalled; existing Docker settings were not changed.
+
+## Local Setup (Without Containers)
 
 Run the following commands from the repository root.
 
@@ -174,8 +233,10 @@ The private screen supports authenticated `GET` status, `PATCH` key setup,
 explicit `POST /equibles_evidence/refresh` with one ticker, and `DELETE` disconnect.
 Credential changes/disconnect require the current application password. Mutations
 are CSRF protected; HTTPS is required except private loopback development.
-Keys and retained evidence use the three deployment encryption secrets documented
-below; stored keys are never redisplayed and private responses use `no-store`.
+Keys use the three deployment encryption secrets documented below; stored keys
+are never redisplayed and private responses use `no-store`. Equibles quote
+snapshots are owner-scoped JSONB, not Rails-encrypted attributes; secure database
+storage and backups separately. Kraken account payloads are encrypted.
 
 The [client](app/services/equibles_client.rb) uses standard HTTP/JSON libraries,
 Bearer authentication, bounded five-second timeouts and zero retries.
@@ -393,7 +454,8 @@ appendix in the plan. Retrieval tooling does not implement those planned feature
 
 ## Tests
 
-Verified on 2026-11-05 with Ruby 3.3.0, Rails 7.1.3.4 and Minitest 5.27:
+A-E baseline, before the container/maintenance additions, verified on 2026-11-05
+with Ruby 3.3.0, Rails 7.1.3.4 and Minitest 5.27:
 
 ```sh
 RAILS_ENV=test bundle exec ruby bin/rails test --seed 12345
@@ -455,7 +517,11 @@ disconnect/in-flight-read coordination.
 **Resolved Rails runner incompatibility:** Ruby 3.3.0 / Rails 7.1.3.4 with
 Minitest 6.0.6 reproduced `line_filtering.rb:7: wrong number of arguments
 (given 3, expected 1..2)`. The test dependency is now constrained to compatible
-Minitest 5.27 without upgrading Rails, Devise, assets, or application dependencies.
+Minitest 5.27 without upgrading Rails, Devise, or assets. Sidekiq 8.0.10 uses
+connection_pool 2.5 because v3 fails to parse on Ruby 3.3.0; JSON stays below v3
+because Rails 7.1 still passes its removed `create_additions` option. Both Linux
+platforms are locked and image bundles are frozen, avoiding runtime lockfile
+rewrites by the non-root user.
 After `bundle install`, the affected regression selectors pass:
 
 ```sh
@@ -476,11 +542,12 @@ System tests are configured to use Chrome through Selenium, so browser-based tes
 [Dockerfile](Dockerfile) builds a production image with precompiled assets and a non-root runtime user:
 
 ```sh
-chmod +x bin/rails bin/docker-entrypoint
 docker build -t financial-tracker .
 docker run --rm -p 3000:3000 \
 	-e RAILS_MASTER_KEY \
+	-e SECRET_KEY_BASE \
 	-e DATABASE_URL \
+	-e REDIS_URL \
 	-e ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY \
 	-e ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY \
 	-e ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT \
@@ -490,9 +557,13 @@ docker run --rm -p 3000:3000 \
 Export the listed secrets in your shell before running the container; never put
 their values in the command, image or repository. Provider features remain
 disabled until their owner-specific approval configuration is supplied.
-Ensure binstubs are executable before building. Use a PostgreSQL URL reachable
+The image explicitly invokes Ruby/Bash; no binstub chmod is needed. Use a PostgreSQL URL reachable
 **from the container**; `localhost` inside the container is not your host machine.
-The image does not include PostgreSQL; the entrypoint runs `db:prepare`.
+The image does not include PostgreSQL/Redis; the entrypoint runs `db:prepare`.
+Run a separate worker from the same image with
+`bundle exec sidekiq -C config/sidekiq.yml`, supplying the same database,
+Redis and encryption configuration. The Compose file above is local development,
+not a production deployment specification.
 
 Production forces HTTPS. Deploy behind an appropriately configured TLS-terminating
 reverse proxy; the plain HTTP mapping is not a complete production deployment.
@@ -504,7 +575,9 @@ Relevant runtime settings:
 | --- | --- |
 | `RAILS_MASTER_KEY` | Decrypts Rails credentials when the key file is unavailable. |
 | `DATABASE_URL` | Supplies a PostgreSQL connection URL, overriding matching database configuration values. |
-| `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` | Encrypts private provider credentials/evidence at rest. |
+| `SECRET_KEY_BASE` | Runtime session signing secret when not supplied through Rails credentials. |
+| `REDIS_URL` | Dedicated Sidekiq Redis URL; defaults to loopback DB 0 outside Compose. |
+| `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY` | Encrypts provider credentials and Kraken payloads, not Equibles JSONB snapshots. |
 | `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY` | Independent Rails encryption configuration secret. |
 | `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` | Independent Rails encryption key-derivation salt. |
 | `MYAPP_DATABASE_PASSWORD` | Password for the default production `myapp` database role when not overridden by the connection URL. |

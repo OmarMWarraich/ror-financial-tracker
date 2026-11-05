@@ -8,6 +8,7 @@
 
 # Ignore all environment files (except templates).
 /.env*
+!/.env.example
 !/.env*.erb
 
 # Ignore all default key files.
@@ -35,3 +36,8 @@
 /app/assets/builds/*
 !/app/assets/builds/.keep
 /public/assets
+
+# Local planning and session context are not application build inputs.
+/plan.md
+/todo.md
+/.copilot/

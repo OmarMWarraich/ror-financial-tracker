@@ -1,8 +1,10 @@
 #!/bin/bash -e
 
 # If running the rails server then create or migrate existing database
-if [ "${1}" == "./bin/rails" ] && [ "${2}" == "server" ]; then
-  ./bin/rails db:prepare
+if [ "${SKIP_DB_PREPARE:-0}" != "1" ] && \
+   { [ "${1:-}" == "./bin/rails" ] && [ "${2:-}" == "server" ] || \
+     [ "${1:-}" == "bundle" ] && [ "${2:-}" == "exec" ] && [ "${3:-}" == "ruby" ] && [ "${4:-}" == "bin/rails" ] && [ "${5:-}" == "server" ]; }; then
+  bundle exec ruby bin/rails db:prepare
 fi
 
 exec "${@}"

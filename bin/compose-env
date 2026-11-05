@@ -1,0 +1,19 @@
+#!/usr/bin/env ruby
+require "securerandom"
+
+root = File.expand_path("..", __dir__)
+path = File.join(root, ".env.docker")
+secret_names = %w[POSTGRES_PASSWORD SECRET_KEY_BASE ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY
+                  ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT]
+template = File.read(File.join(root, ".env.example"))
+content = template.lines.map do |line|
+  name = line.strip.delete_suffix("=")
+  secret_names.include?(name) ? "#{name}=#{SecureRandom.hex(32)}\n" : line
+end.join
+
+begin
+  File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |file| file.write(content) }
+  puts "Created ignored .env.docker with independent local-development secrets. Keep this file for volume reuse; never commit it."
+rescue Errno::EEXIST
+  abort ".env.docker already exists; it was not changed. Reuse its original secrets with the existing volumes."
+end
