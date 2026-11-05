@@ -156,6 +156,23 @@ cache. Jobs are **at-least-once**, not exactly-once. Recent queue writes can sti
 be lost on Redis failure; a named volume is not a backup or an execution outbox.
 No trading, broker refresh, scheduler, or Sidekiq Web UI is enabled by this setup.
 
+The safe follow-on [ExpireEquiblesEvidenceJob](app/jobs/expire_equibles_evidence_job.rb)
+reuses the existing retention policy under row locks and rechecks current rights
+and original deadlines. It is idempotent, has no arguments or provider requests,
+and does not decrypt credentials. Enqueue it explicitly when needed:
+
+```sh
+docker compose --env-file .env.docker exec -T web \
+  bundle exec ruby bin/rails runner 'ExpireEquiblesEvidenceJob.perform_later'
+```
+
+There is **no periodic scheduler or wall-clock deletion guarantee**. Access and
+explicit refresh still enforce retention independently. A real argument-free
+job was queued while the worker was stopped; its synthetic database row and
+Redis queue survived database/queue container recreation, and the restarted
+worker purged the evidence. Synthetic records and the smoke-test marker were
+removed afterward. No actual provider account or credential was exercised.
+
 Validated locally: health checks, HTTP demo/auth boundaries, isolated test DB,
 volume persistence through PostgreSQL/Redis container recreation, worker restart,
 eager loading, and the final production image build. Public image pulls required
@@ -453,6 +470,20 @@ supersedes earlier planned-product descriptions in this README and the historica
 appendix in the plan. Retrieval tooling does not implement those planned features.
 
 ## Tests
+
+Current container verification on 2026-11-05:
+
+```sh
+docker compose --env-file .env.docker --profile test run --rm test
+# 158 tests, 2,278 assertions; zero failures, errors or skips; two test workers.
+docker compose --env-file .env.docker exec -T web bundle exec ruby bin/rails zeitwerk:check
+```
+
+The final production image also builds and boots with an ephemeral smoke secret.
+Secret-generation tests verify mode 0600, independent values, no secret output,
+and refusal to overwrite existing secrets. Retention tests cover current rights,
+original retention deadlines, preserved fresh evidence, idempotency, and no
+provider requests. Container recreation/restart verification is described above.
 
 A-E baseline, before the container/maintenance additions, verified on 2026-11-05
 with Ruby 3.3.0, Rails 7.1.3.4 and Minitest 5.27:

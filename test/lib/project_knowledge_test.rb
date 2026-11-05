@@ -54,6 +54,23 @@ class ProjectKnowledgeTest < Minitest::Test
     end
   end
 
+  def test_container_query_retrieves_isolation_and_queue_durability_limits
+    result = @knowledge.search("Docker Sidekiq Redis").first
+    assert_equal "local-compose-runtime", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["sources"], "compose.yml"
+    assert_includes result["summary"], "noeviction"
+    assert_includes result["summary"], "not exactly-once"
+  end
+
+  def test_retention_query_preserves_storage_and_scheduling_boundaries
+    result = @knowledge.search("Equibles retention cleanup").first
+    assert_equal "equibles-private-evidence", result["id"]
+    assert_includes result["summary"], "snapshots are not Rails-encrypted attributes"
+    assert_includes result["summary"], "No periodic scheduler"
+    assert_includes result["sources"], "app/jobs/expire_equibles_evidence_job.rb"
+  end
+
   def test_returns_bounded_results_with_sources_and_deterministic_order
     results = @knowledge.search("Equibles Kraken", limit: 2)
     assert_equal 2, results.length
