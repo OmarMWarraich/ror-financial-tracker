@@ -1,0 +1,18 @@
+<div class="sandbox-panel">
+<%= render "sandbox_accounts/responsive" %>
+<h1>Owner-only synthetic sandbox</h1>
+<%= render "sandbox_accounts/notice" %>
+<div class="alert alert-danger" role="note">
+  <strong>Before enrolling: this synthetic ledger and its audit records are append-only.</strong>
+  <p>They cannot be reset or deleted through ordinary account deletion. Creating a sandbox
+    blocks ordinary application account deletion. A reviewed retention and account-closure
+    process remains unavailable. Only create a sandbox if you accept this current limitation.</p>
+</div>
+<%= form_with url: sandbox_accounts_path, local: true do |f| %>
+  <p><%= f.label :initial_cash, "Fictional initial USD (maximum 10,000; no reset or deposit)" %>
+    <%= f.number_field :initial_cash, value: 1000, min: 1, max: 10000, step: "0.01", required: true %></p>
+  <p><%= f.label :current_password, "Current application password" %>
+    <%= f.password_field :current_password, required: true, autocomplete: "current-password" %></p>
+  <%= f.button "Create independent synthetic account", name: "commit", value: "Create independent synthetic account", class: "btn btn-primary" %>
+<% end %>
+</div>

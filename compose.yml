@@ -16,6 +16,7 @@ x-app: &app
     ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT: ${ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT:?Encryption salt is required}
     RAILS_MAX_THREADS: "5"
     SKIP_DB_PREPARE: "1"
+    LOCAL_COMPOSE_HTTP: "1"
   tmpfs:
     - /rails/tmp:uid=1000,gid=1000,mode=1770
   stop_grace_period: 40s
@@ -90,6 +91,22 @@ services:
       timeout: 10s
       start_period: 30s
       retries: 5
+    restart: unless-stopped
+
+  scheduler:
+    <<: *app
+    command: ["bundle", "exec", "ruby", "bin/maintenance-scheduler"]
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "ruby", "bin/scheduler-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     restart: unless-stopped
 
   test:

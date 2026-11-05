@@ -1,5 +1,20 @@
 Rails.application.routes.draw do
   get "portfolio_demo", to: "portfolio_demos#show", as: :portfolio_demo
+  get "research_demo", to: "research_demos#show", as: :research_demo
+  get "configurations/ios_v1", to: "native_configurations#show", defaults: { platform: "ios", format: :json }
+  get "configurations/android_v1", to: "native_configurations#show", defaults: { platform: "android", format: :json }
+  resource :deposit_information, only: :show, controller: "deposit_information" do
+    post :check
+  end
+  resources :sandbox_accounts, only: %i[index create show] do
+    member { post :load_fixture }
+    resources :sandbox_mandates, only: :create do
+      member do
+        patch :transition
+        post :execute
+      end
+    end
+  end
   resources :broker_connections, only: %i[index create destroy] do
     member do
       post :refresh
@@ -10,7 +25,7 @@ Rails.application.routes.draw do
     post :refresh
   end
   resources :user_stocks, only: [:create, :destroy]
-  devise_for :users
+  devise_for :users, controllers: { registrations: "users/registrations" }
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
   get 'my_portfolio', to: 'users#my_portfolio'
   get 'search_stock', to: 'stocks#search'

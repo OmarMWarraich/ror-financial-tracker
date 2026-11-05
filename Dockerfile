@@ -12,14 +12,30 @@ ENV RAILS_ENV="production" \
     BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test"
 
-FROM base AS development
+FROM base AS runtime
+
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y curl ca-certificates gnupg && \
+    install -d /usr/share/postgresql-common/pgdg && \
+    curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+      -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc && \
+    gpg --show-keys --with-colons /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc | \
+      grep -q '^fpr:::::::::B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8:$' && \
+    . /etc/os-release && \
+    printf 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' \
+      "$VERSION_CODENAME" > /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update -qq && \
+    apt-get install --no-install-recommends -y nodejs libvips postgresql-client-16 && \
+    rm -rf /var/lib/apt/lists/*
+
+FROM runtime AS development
 
 ENV RAILS_ENV="development" \
     BUNDLE_DEPLOYMENT="0" \
     BUNDLE_WITHOUT=""
 
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev pkg-config curl nodejs && \
+    apt-get install --no-install-recommends -y build-essential git libpq-dev pkg-config && \
     rm -rf /var/lib/apt/lists/*
 
 COPY Gemfile Gemfile.lock ./
@@ -35,11 +51,11 @@ CMD ["bundle", "exec", "ruby", "bin/rails", "server", "-b", "0.0.0.0"]
 
 
 # Throw-away build stage to reduce size of final image
-FROM base AS build
+FROM runtime AS build
 
 # Install packages needed to build gems
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev libvips pkg-config nodejs
+    apt-get install --no-install-recommends -y build-essential git libpq-dev pkg-config
 
 # Install application gems
 COPY Gemfile Gemfile.lock ./
@@ -58,12 +74,7 @@ RUN SECRET_KEY_BASE_DUMMY=1 bundle exec ruby bin/rails assets:precompile
 
 
 # Final stage for app image
-FROM base
-
-# Install packages needed for deployment
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libvips postgresql-client nodejs && \
-    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+FROM runtime
 
 # Copy built artifacts: gems, application
 COPY --from=build /usr/local/bundle /usr/local/bundle

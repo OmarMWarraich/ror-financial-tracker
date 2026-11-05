@@ -1,4 +1,5 @@
 class User < ApplicationRecord
+  has_one :sandbox_account, dependent: :restrict_with_error
   has_many :broker_connections, dependent: :destroy
   has_one :equibles_connection, dependent: :destroy
   has_many :user_stocks

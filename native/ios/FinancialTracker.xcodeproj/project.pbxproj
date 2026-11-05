@@ -1,0 +1,598 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3E6EA90DC563B20C2EB86673 /* PublicFixtureNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAC07C92D336E338C8941378 /* PublicFixtureNavigationTests.swift */; };
+		5160AD899E635AEA4822C10F /* HotwireNative in Frameworks */ = {isa = PBXBuildFile; productRef = 07DE53FB303BE9EF9D319723 /* HotwireNative */; };
+		5C3D06CB8182B7ACF090EEDE /* path-configuration.json in Resources */ = {isa = PBXBuildFile; fileRef = 8BC4B4963CB6043B04ADDAC1 /* path-configuration.json */; };
+		99CB329ACE7220861601F803 /* DevelopmentURLPolicy in Frameworks */ = {isa = PBXBuildFile; productRef = 2686B1337BC67447AD8C0861 /* DevelopmentURLPolicy */; };
+		9F225E18FB738D01018C4B6A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA4E8E5440D42CD56D0BA30A /* Foundation.framework */; };
+		BA2097507872A12EA778CBBF /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04246C157BC04DB33CDB41F3 /* SceneDelegate.swift */; };
+		C16982A49924E94D02976482 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA4E8E5440D42CD56D0BA30A /* Foundation.framework */; };
+		D13313DDEB3A93AC4C6CB3D6 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A4C0716646991624BEE329 /* AppDelegate.swift */; };
+		EC01E740169ED2C6229D17B4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA4E8E5440D42CD56D0BA30A /* Foundation.framework */; };
+		FA4346E6BBCF4EB8E92D705D /* RealRailsSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D33E485B52E4A3F2064BE8 /* RealRailsSessionTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		33BA650567325027B18157C9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 931CA6E4E685C46AED11C6E5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 622823D93977C533F09C499E;
+			remoteInfo = FinancialTracker;
+		};
+		F90421719D991C57FC2179C9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 931CA6E4E685C46AED11C6E5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 622823D93977C533F09C499E;
+			remoteInfo = FinancialTracker;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		04246C157BC04DB33CDB41F3 /* SceneDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		25A4C0716646991624BEE329 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		29B3F856FF88017CF2F38EF5 /* FinancialTrackerRailsSmokeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FinancialTrackerRailsSmokeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		349DF31A891BEAD3C02CD38E /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7AFC431E743A6D3C5118E288 /* FinancialTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FinancialTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8BC4B4963CB6043B04ADDAC1 /* path-configuration.json */ = {isa = PBXFileReference; includeInIndex = 1; path = "path-configuration.json"; sourceTree = "<group>"; };
+		D1D33E485B52E4A3F2064BE8 /* RealRailsSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RealRailsSessionTests.swift; sourceTree = "<group>"; };
+		DA4E8E5440D42CD56D0BA30A /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		DAC07C92D336E338C8941378 /* PublicFixtureNavigationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PublicFixtureNavigationTests.swift; sourceTree = "<group>"; };
+		E03290531BF5DD4DE7A75CBE /* FinancialTrackerSmokeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FinancialTrackerSmokeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		08F0DA3CB1965F8064497BD6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EC01E740169ED2C6229D17B4 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB8703400387BBAF0F7E43AB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C16982A49924E94D02976482 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F93CE04CBC5AB1B8C2CEA9CE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9F225E18FB738D01018C4B6A /* Foundation.framework in Frameworks */,
+				5160AD899E635AEA4822C10F /* HotwireNative in Frameworks */,
+				99CB329ACE7220861601F803 /* DevelopmentURLPolicy in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0CB9DC724DAA4E766261A488 = {
+			isa = PBXGroup;
+			children = (
+				836FB10666D74DB8913E3669 /* Products */,
+				E71151232CCCBEAC143A2A9B /* Frameworks */,
+				C2FE60A60708E30296768950 /* FinancialTracker */,
+				66B95F83B240F31B7DB9F6C7 /* SmokeTests */,
+				3C3E7D2BB1DE8B2FF75D6474 /* RailsSmokeTests */,
+			);
+			sourceTree = "<group>";
+		};
+		15490B2FAB065FBE05FE3A46 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				DA4E8E5440D42CD56D0BA30A /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		3C3E7D2BB1DE8B2FF75D6474 /* RailsSmokeTests */ = {
+			isa = PBXGroup;
+			children = (
+				D1D33E485B52E4A3F2064BE8 /* RealRailsSessionTests.swift */,
+			);
+			name = RailsSmokeTests;
+			path = RailsSmokeTests;
+			sourceTree = "<group>";
+		};
+		66B95F83B240F31B7DB9F6C7 /* SmokeTests */ = {
+			isa = PBXGroup;
+			children = (
+				DAC07C92D336E338C8941378 /* PublicFixtureNavigationTests.swift */,
+			);
+			name = SmokeTests;
+			path = SmokeTests;
+			sourceTree = "<group>";
+		};
+		836FB10666D74DB8913E3669 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7AFC431E743A6D3C5118E288 /* FinancialTracker.app */,
+				E03290531BF5DD4DE7A75CBE /* FinancialTrackerSmokeTests.xctest */,
+				29B3F856FF88017CF2F38EF5 /* FinancialTrackerRailsSmokeTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C2FE60A60708E30296768950 /* FinancialTracker */ = {
+			isa = PBXGroup;
+			children = (
+				25A4C0716646991624BEE329 /* AppDelegate.swift */,
+				04246C157BC04DB33CDB41F3 /* SceneDelegate.swift */,
+				8BC4B4963CB6043B04ADDAC1 /* path-configuration.json */,
+				349DF31A891BEAD3C02CD38E /* Info.plist */,
+			);
+			name = FinancialTracker;
+			path = FinancialTracker;
+			sourceTree = "<group>";
+		};
+		E71151232CCCBEAC143A2A9B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				15490B2FAB065FBE05FE3A46 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5CB8144B8967310A99FEAC7A /* FinancialTrackerSmokeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7CBE742BD0A2CD4FD36A41EA /* Build configuration list for PBXNativeTarget "FinancialTrackerSmokeTests" */;
+			buildPhases = (
+				B7E4C907D79B852FB64DD784 /* Sources */,
+				08F0DA3CB1965F8064497BD6 /* Frameworks */,
+				F17FFAD80664E0DD6686B153 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				225F16939E5BA900E49475EF /* PBXTargetDependency */,
+			);
+			name = FinancialTrackerSmokeTests;
+			productName = FinancialTrackerSmokeTests;
+			productReference = E03290531BF5DD4DE7A75CBE /* FinancialTrackerSmokeTests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		622823D93977C533F09C499E /* FinancialTracker */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E768650D213BD98E89F8D00F /* Build configuration list for PBXNativeTarget "FinancialTracker" */;
+			buildPhases = (
+				522010A45B5809DE23654DE1 /* Sources */,
+				F93CE04CBC5AB1B8C2CEA9CE /* Frameworks */,
+				A46539E7BD88BCE34713F543 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FinancialTracker;
+			packageProductDependencies = (
+				07DE53FB303BE9EF9D319723 /* HotwireNative */,
+				2686B1337BC67447AD8C0861 /* DevelopmentURLPolicy */,
+			);
+			productName = FinancialTracker;
+			productReference = 7AFC431E743A6D3C5118E288 /* FinancialTracker.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C2FC948F690B39255E806088 /* FinancialTrackerRailsSmokeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E0FF4026D30E8BDAC43F67B0 /* Build configuration list for PBXNativeTarget "FinancialTrackerRailsSmokeTests" */;
+			buildPhases = (
+				2274C5FED627BB66B4E5DCD4 /* Sources */,
+				CB8703400387BBAF0F7E43AB /* Frameworks */,
+				640FA47476EF4690EFD6E2BE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C8DA3201852754538927AD6F /* PBXTargetDependency */,
+			);
+			name = FinancialTrackerRailsSmokeTests;
+			productName = FinancialTrackerRailsSmokeTests;
+			productReference = 29B3F856FF88017CF2F38EF5 /* FinancialTrackerRailsSmokeTests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		931CA6E4E685C46AED11C6E5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = A418349DFD6D70D92EC30438 /* Build configuration list for PBXProject "FinancialTracker" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 0CB9DC724DAA4E766261A488;
+			minimizedProjectReferenceProxies = 0;
+			packageReferences = (
+				EB79E653703F396535BD2B7A /* XCRemoteSwiftPackageReference "hotwire-native-ios" */,
+				A2BC81F535AFB782788C40D0 /* XCLocalSwiftPackageReference "URLPolicy" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 836FB10666D74DB8913E3669 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				622823D93977C533F09C499E /* FinancialTracker */,
+				5CB8144B8967310A99FEAC7A /* FinancialTrackerSmokeTests */,
+				C2FC948F690B39255E806088 /* FinancialTrackerRailsSmokeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		640FA47476EF4690EFD6E2BE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A46539E7BD88BCE34713F543 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5C3D06CB8182B7ACF090EEDE /* path-configuration.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F17FFAD80664E0DD6686B153 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2274C5FED627BB66B4E5DCD4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FA4346E6BBCF4EB8E92D705D /* RealRailsSessionTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		522010A45B5809DE23654DE1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D13313DDEB3A93AC4C6CB3D6 /* AppDelegate.swift in Sources */,
+				BA2097507872A12EA778CBBF /* SceneDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B7E4C907D79B852FB64DD784 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3E6EA90DC563B20C2EB86673 /* PublicFixtureNavigationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		225F16939E5BA900E49475EF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = FinancialTracker;
+			target = 622823D93977C533F09C499E /* FinancialTracker */;
+			targetProxy = 33BA650567325027B18157C9 /* PBXContainerItemProxy */;
+		};
+		C8DA3201852754538927AD6F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = FinancialTracker;
+			target = 622823D93977C533F09C499E /* FinancialTracker */;
+			targetProxy = F90421719D991C57FC2179C9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		10312E995E7C4F636FFC02CA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.financialtracker.shell.railssmoketests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = FinancialTracker;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		1E68F4464F5B0C2BF9849F33 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		2EEF52629C14B4B6B0516CD9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		8CD9645EB30F9F6444FB486A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.financialtracker.shell.smoketests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = FinancialTracker;
+			};
+			name = Debug;
+		};
+		D6C5C2B04F391E64CD507C1F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = FinancialTracker/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.financialtracker.shell;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		EB67383B29F1B0ED5C0B4C85 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.financialtracker.shell.smoketests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = FinancialTracker;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		F144FF803FA779F3BB1EDBC0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.financialtracker.shell.railssmoketests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = FinancialTracker;
+			};
+			name = Debug;
+		};
+		F7E1741970E963A8ABFFCCB6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = FinancialTracker/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = dev.financialtracker.shell;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7CBE742BD0A2CD4FD36A41EA /* Build configuration list for PBXNativeTarget "FinancialTrackerSmokeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EB67383B29F1B0ED5C0B4C85 /* Release */,
+				8CD9645EB30F9F6444FB486A /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A418349DFD6D70D92EC30438 /* Build configuration list for PBXProject "FinancialTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2EEF52629C14B4B6B0516CD9 /* Debug */,
+				1E68F4464F5B0C2BF9849F33 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E0FF4026D30E8BDAC43F67B0 /* Build configuration list for PBXNativeTarget "FinancialTrackerRailsSmokeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10312E995E7C4F636FFC02CA /* Release */,
+				F144FF803FA779F3BB1EDBC0 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E768650D213BD98E89F8D00F /* Build configuration list for PBXNativeTarget "FinancialTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D6C5C2B04F391E64CD507C1F /* Release */,
+				F7E1741970E963A8ABFFCCB6 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A2BC81F535AFB782788C40D0 /* XCLocalSwiftPackageReference "URLPolicy" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = URLPolicy;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		EB79E653703F396535BD2B7A /* XCRemoteSwiftPackageReference "hotwire-native-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/hotwired/hotwire-native-ios";
+			requirement = {
+				kind = exactVersion;
+				version = 1.3.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		07DE53FB303BE9EF9D319723 /* HotwireNative */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EB79E653703F396535BD2B7A /* XCRemoteSwiftPackageReference "hotwire-native-ios" */;
+			productName = HotwireNative;
+		};
+		2686B1337BC67447AD8C0861 /* DevelopmentURLPolicy */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A2BC81F535AFB782788C40D0 /* XCLocalSwiftPackageReference "URLPolicy" */;
+			productName = DevelopmentURLPolicy;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 931CA6E4E685C46AED11C6E5 /* Project object */;
+}

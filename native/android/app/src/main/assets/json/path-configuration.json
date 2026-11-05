@@ -1,0 +1,26 @@
+{
+  "settings": { "schema_version": 1 },
+  "rules": [
+    {
+      "patterns": [".*"],
+      "properties": {
+        "uri": "hotwire://fragment/web",
+        "context": "default",
+        "presentation": "default",
+        "pull_to_refresh_enabled": false
+      }
+    },
+    {
+      "patterns": ["^/users/sign_in$", "^/users/sign_up$", "^/users/password/new$"],
+      "properties": {
+        "uri": "hotwire://fragment/web/modal/sheet",
+        "context": "modal",
+        "pull_to_refresh_enabled": false
+      }
+    },
+    {
+      "patterns": ["^/sandbox_accounts(?:/.*)?$", "^/research_demo(?:/.*)?$"],
+      "properties": { "context": "default", "presentation": "default", "pull_to_refresh_enabled": false }
+    }
+  ]
+}

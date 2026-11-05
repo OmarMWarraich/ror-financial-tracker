@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+require_relative "../config/environment"
+
+$stdout.sync = true
+%w[TERM INT].each { |signal| Signal.trap(signal) { exit } }
+puts "Retention scheduler started: argument-free maintenance every 300 seconds"
+EvidenceMaintenanceScheduler.new.run

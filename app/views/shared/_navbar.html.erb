@@ -2,6 +2,7 @@
   <div class="container-fluid">
     <%= link_to "FinanceTracker", root_path, class: "navbar-brand" %>
     <%= link_to "Demo dashboard", portfolio_demo_path, class: "btn btn-outline-primary me-3" %>
+    <%= link_to "Research policy lab", research_demo_path, class: "btn btn-outline-secondary me-3" %>
     <% if current_user %>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -13,6 +14,12 @@
           </li>
           <li class="nav-item">
             <%= link_to "Private connections", broker_connections_path, class: "nav-link" %>
+          </li>
+          <li class="nav-item">
+            <%= link_to "Deposit information gates", deposit_information_path, class: "nav-link" %>
+          </li>
+          <li class="nav-item">
+            <%= link_to "Synthetic sandbox", sandbox_accounts_path, class: "nav-link" %>
           </li>
           <li class="nav-item">
             <%= link_to "Equibles evidence", equibles_evidence_path, class: "nav-link" %>

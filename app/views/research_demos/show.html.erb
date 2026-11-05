@@ -1,0 +1,42 @@
+<% content_for :title, "Synthetic Research Policy | FinanceTracker" %>
+<main class="col-12 py-4">
+  <h1>Synthetic research policy lab</h1>
+  <p class="badge bg-warning text-dark">Original fixtures / deterministic baseline / not AI-generated research</p>
+  <p>This public demonstration validates untrusted structured observations. It never calls a model or provider,
+    reads private accounts, places orders, or changes strategy limits. It is not a backtest or an investment recommendation.</p>
+  <section class="alert alert-info" aria-labelledby="alvis-boundary">
+    <h2 id="alvis-boundary" class="h5">ALVIS integration remains gated</h2>
+    <p>ALVIS is Equibles' built-in cited research analyst. Browser chat and author exports are not proof of
+      a supported inference API or permission for automated ingestion.</p>
+    <p class="mb-0"><a href="https://equibles.com/docs/alvis" rel="noopener noreferrer">Official ALVIS documentation</a>.
+      No private holdings leave this app. External-model consent, data rights, licenses, privacy,
+      inference budgets and a supported integration must be verified separately.</p>
+  </section>
+  <%= form_with url: research_demo_path, method: :get, class: "mb-4" do |form| %>
+    <%= form.label :scenario, "Policy scenario", class: "form-label" %>
+    <%= form.select :scenario, SyntheticResearch::SCENARIOS.map { |value, label| [label, value] },
+                    { selected: @scenario }, class: "form-select mb-2" %>
+    <%= form.submit "Validate fixture", class: "btn btn-primary" %>
+  <% end %>
+  <section class="alert <%= @result.accepted ? 'alert-success' : 'alert-danger' %>" role="status">
+    <h2 class="h5"><%= @result.accepted ? "Accepted observation" : "Rejected observation" %></h2>
+    <p class="mb-0" data-testid="research-result"><%= @result.reason %></p>
+  </section>
+  <p>Evaluation uses a fixed fictional clock:
+    <time datetime="<%= SyntheticResearch::CLOCK.iso8601 %>"><%= SyntheticResearch::CLOCK.iso8601 %></time>.
+    This does not claim freshness of real market data. Only an allowlisted observe-only signal is permitted;
+    arbitrary instructions, endpoints, quantities and policy changes are rejected.</p>
+  <div class="row">
+    <section class="col-12 col-lg-6">
+      <h2 class="h5">Untrusted candidate</h2>
+      <pre class="border rounded p-3 text-wrap"><%= JSON.pretty_generate(@insight) %></pre>
+    </section>
+    <section class="col-12 col-lg-6">
+      <h2 class="h5">Original synthetic citations</h2>
+      <pre class="border rounded p-3 text-wrap"><%= JSON.pretty_generate(@evidence) %></pre>
+    </section>
+  </div>
+  <p>Models have no tools or credentials in this lab. Deterministic decimal sizing, authorization and
+    any future execution controls remain outside model output. Protective broker behavior and
+    real AI quality/performance evaluation are not implemented by accepting a fixture.</p>
+</main>

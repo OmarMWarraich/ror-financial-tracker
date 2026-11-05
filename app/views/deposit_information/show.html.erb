@@ -1,0 +1,24 @@
+<h1>Kraken deposit information</h1>
+<p><strong>Disabled — no provider requests or actionable destinations are available.</strong></p>
+<p>This optional capability is independent of monitoring, trading review and the synthetic sandbox.
+  Monitoring keys are never promoted. No owner is provider-verified by this screen.</p>
+<ul>
+  <% @capability.blockers.each do |blocker| %>
+    <li><%= blocker %></li>
+  <% end %>
+</ul>
+<p>Deposit Funds permission can authorize deposit-information operations; it is not permission
+  for this application to debit a bank account, transfer from a wallet or direct funding.
+  Crypto exchange deposit information does not fund a conventional securities brokerage account.</p>
+<p>No deposits, withdrawals, transfers, address creation or trading are implemented.
+  You remain responsible for any lawful action taken directly with your authorized provider.</p>
+<p>Do not enter Kraken credentials, a Kraken account password or a wallet seed phrase.</p>
+<% if @checked %>
+  <p role="status">Application password confirmed for this check only. Capability remains disabled;
+    no approval was granted, no credentials were saved and no provider was contacted.</p>
+<% end %>
+<%= form_with url: check_deposit_information_path, method: :post do |form| %>
+  <%= form.label :current_password, "Current application password (not your Kraken password)", class: "form-label d-block", style: "max-width: 100%; overflow-wrap: anywhere;" %>
+  <%= form.password_field :current_password, required: true, autocomplete: "current-password", size: 20, maxlength: 1024, class: "form-control", style: "max-width: 100%; box-sizing: border-box;" %>
+  <%= form.button "Check local capability status only", type: "submit", class: "btn btn-secondary", style: "max-width: 100%; white-space: normal; overflow-wrap: anywhere;" %>
+<% end %>

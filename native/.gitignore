@@ -1,0 +1,17 @@
+.tools/
+.build/
+ios/build/
+ios/build.log
+ios/URLPolicy/.build/
+ios/**/xcuserdata/
+android/.gradle/
+android/**/build/
+android/local.properties
+smoke/node_modules/
+smoke/results.xcresult/
+smoke/device.udid
+smoke/test.log
+smoke/rails-results.xcresult/
+smoke/rails-test.log
+smoke/disposable-results.xcresult/
+smoke/disposable-test.log

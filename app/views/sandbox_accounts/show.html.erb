@@ -1,0 +1,98 @@
+<div class="sandbox-panel">
+<%= render "sandbox_accounts/responsive" %>
+<h1>SYNTHETIC account #<%= @account.id %></h1>
+<%= render "sandbox_accounts/notice" %>
+<p>Owner: you only. Currency: <%= @account.currency %>. Environment: <%= @account.environment %>.</p>
+<dl>
+  <dt>Fictional starting cash / available cash</dt>
+  <dd><%= number_to_currency @account.initial_cash %> / <%= number_to_currency @account.cash %></dd>
+  <dt>Long-only fictional units / remaining fee-inclusive basis</dt>
+  <dd><%= @account.quantity %> / <%= number_to_currency @account.cost_basis %></dd>
+</dl>
+<h2>Built-in observation fixture</h2>
+<p>Selected: <%= @account.fixture_key %>. Explicitly loaded at <%= @account.fixture_loaded_at.iso8601 %>.
+  Fails closed after 15 minutes or if clock moves backwards. Reloading is a manual demonstration input,
+  not retrieval of fresh evidence. No scheduler, queued orders, partial fills, or overnight orders exist.</p>
+<%= form_with url: load_fixture_sandbox_account_path(@account), method: :post, local: true do |f| %>
+  <%= f.label :fixture_key, "Fictional two-observation scenario" %>
+  <%= f.select :fixture_key, SandboxFixtures::DATA.map { |key, values| ["#{key}: #{values.join(' → ')} USD", key] }, selected: @account.fixture_key %>
+  <%= f.button "Explicitly load fixture", name: "commit", value: "Explicitly load fixture" %>
+<% end %>
+<h2>Fixed declarative rule trend-v1</h2>
+<p>Only SYNTH-ALPHA; horizon: two fictional observations; session: fixture; type: synthetic_market.
+  Last &gt; prior buys, last &lt; prior sells existing units, equality holds.
+  Integer sizing takes the smallest approved quantity/notional/cash/capital/exposure allowance.
+  Adverse slippage is 0.1%; fee is 0.1% rounded up to USD cents per fill.
+  No arbitrary rule text, uploads, AI/model/provider inputs, or code are accepted.</p>
+<p>Capital caps remaining fee-inclusive basis; notional caps each fill excluding fees;
+  exposure caps total holdings marked at fixture mid. Loss is starting cash minus (projected cash plus
+  holdings marked at fixture mid) (includes fees/slippage). Buys at or beyond the loss limit are blocked;
+  authorized sells can reduce exposure. Limits are not a guarantee of bounded real losses.
+  New terms require a new draft and password approval. Expiry is at most 24 hours.</p>
+<h2>New immutable draft</h2>
+<%= form_with url: sandbox_account_sandbox_mandates_path(@account), scope: :sandbox_mandate, local: true do |f| %>
+  <% { capital_limit: "Capital USD", max_notional: "Per-fill notional USD", max_quantity: "Per-fill integer units (1–100)", max_exposure: "Total marked exposure USD", loss_limit: "Loss stop USD" }.each do |field, label| %>
+    <p><%= f.label field, label %>
+      <%= f.number_field field, min: field == :max_quantity ? 1 : "0.01", max: field == :max_quantity ? 100 : 10000, step: field == :max_quantity ? 1 : "0.01", required: true %></p>
+  <% end %>
+  <p><%= f.label :expires_at, "Expires at (UTC, within 24 hours)" %>
+    <%= f.datetime_field :expires_at, value: 1.hour.from_now.utc.strftime("%Y-%m-%dT%H:%M"), required: true %></p>
+  <%= f.button "Save draft (no activation)", name: "commit", value: "Save draft (no activation)" %>
+<% end %>
+<h2>Mandates</h2>
+<% @mandates.each do |mandate| %>
+  <section class="card p-3 my-3">
+    <h3>#<%= mandate.id %> · <%= mandate.state %><%= " · EXPIRED (execution disabled)" if mandate.expired? %></h3>
+    <p><%= mandate.rule_version %> · <%= mandate.instrument %> · <%= mandate.environment %> ·
+      <%= mandate.session %> · <%= mandate.order_type %> · expires <%= mandate.expires_at.iso8601 %></p>
+    <p><% SandboxMandate::BOUNDS.each do |field| %>
+      <%= field.to_s.humanize %>: <%= mandate.public_send(field) %>;
+    <% end %></p>
+    <% if %w[draft paused].include?(mandate.state) && !mandate.expired? %>
+      <%= form_with url: transition_sandbox_account_sandbox_mandate_path(@account, mandate), method: :patch, local: true do |f| %>
+        <%= f.hidden_field :state, value: "active" %>
+        <%= f.label :current_password, "Approve these exact terms with current application password" %>
+        <%= f.password_field :current_password, required: true, autocomplete: "current-password" %>
+        <%= f.button "Approve and activate SYNTHETIC mandate", name: "commit", value: "Approve and activate SYNTHETIC mandate" %>
+      <% end %>
+    <% end %>
+    <% if mandate.state == "active" %>
+      <%= button_to transition_sandbox_account_sandbox_mandate_path(@account, mandate), method: :patch, params: { state: "paused" } do %>
+        Pause new synthetic fills
+      <% end %>
+      <% unless mandate.expired? %>
+        <%= button_to execute_sandbox_account_sandbox_mandate_path(@account, mandate), method: :post, params: { request_key: @request_key } do %>
+          Evaluate rule once and synchronously fill if allowed
+        <% end %>
+      <% end %>
+    <% end %>
+    <% unless mandate.state == "revoked" %>
+      <%= button_to transition_sandbox_account_sandbox_mandate_path(@account, mandate), method: :patch, params: { state: "revoked" } do %>
+        Permanently revoke mandate
+      <% end %>
+    <% end %>
+  </section>
+<% end %>
+<p>Pause/revoke stops new fills, never closes positions. To close fictional holdings, explicitly load fall-v1
+  and evaluate an active, unexpired mandate until flat. A revoked/expired mandate needs a new approved draft.
+  All fills are synchronous; there are no outstanding orders to cancel. A retry of the same request UUID
+  returns its original fill, even after expiry/revocation or fixture change; it never submits a new fill.</p>
+<h2>Latest 30 synthetic fills</h2>
+<div class="table-responsive sandbox-fills" role="region" aria-label="Synthetic fills (scroll horizontally)" tabindex="0">
+<table class="table">
+  <thead><tr><th>ID / request identity</th><th>Rule / fixture</th><th>Side / units</th><th>Fictional price / fee</th><th>UTC</th></tr></thead>
+  <tbody><% @orders.each do |order| %>
+    <tr><td><%= order.id %> / <%= order.request_key %></td><td>trend-v1 / <%= order.fixture_key %></td>
+      <td><%= order.side %> / <%= order.quantity %></td><td><%= number_to_currency order.price %> / <%= number_to_currency order.fee %></td>
+      <td><%= order.created_at.iso8601 %></td></tr>
+  <% end %></tbody>
+</table>
+</div>
+<h2>Latest 50 append-only audit events</h2>
+<ul class="sandbox-audit"><% @events.each do |event| %>
+  <li><%= event.created_at.iso8601 %> · <%= event.kind %> · <%= event.details.to_json %></li>
+<% end %></ul>
+<p>Real execution remains unavailable: broker/product/account eligibility, licensed data/history,
+  paper acceptance, execution credentials, reconciliation/recovery, durable dispatch, and separate
+  explicit live approval are unmet gates. This sandbox grants none of them.</p>
+</div>

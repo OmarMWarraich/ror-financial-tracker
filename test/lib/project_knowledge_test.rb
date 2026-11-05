@@ -67,8 +67,30 @@ class ProjectKnowledgeTest < Minitest::Test
     result = @knowledge.search("Equibles retention cleanup").first
     assert_equal "equibles-private-evidence", result["id"]
     assert_includes result["summary"], "snapshots are not Rails-encrypted attributes"
-    assert_includes result["summary"], "No periodic scheduler"
+    assert_includes result["summary"], "not a wall-clock deletion guarantee"
     assert_includes result["sources"], "app/jobs/expire_equibles_evidence_job.rb"
+  end
+
+  def test_sandbox_query_preserves_synthetic_and_real_execution_boundaries
+    result = @knowledge.search("synthetic sandbox").first
+    assert_equal "synthetic-execution-sandbox", result["id"]
+    assert_includes result["summary"], "not licensed backtests"
+    assert_includes result["summary"], "Account deletion is explicitly blocked"
+    assert_includes result["sources"], "db/structure.sql"
+  end
+
+  def test_research_query_does_not_invent_alvis_or_model_authority
+    result = @knowledge.search("research policy lab").first
+    assert_equal "synthetic-research-policy", result["id"]
+    assert_includes result["summary"], "not ALVIS or model inference"
+    assert_includes result["summary"], "No uploads"
+  end
+
+  def test_deposit_query_preserves_non_actionable_review_status
+    result = @knowledge.search("deposit information").first
+    assert_equal "deposit-information-boundary", result["id"]
+    assert_includes result["summary"], "cannot activate an adapter"
+    assert_includes result["summary"], "every destination is non-actionable"
   end
 
   def test_returns_bounded_results_with_sources_and_deterministic_order

@@ -1,12 +1,15 @@
 # Financial Tracker
 
-A Ruby on Rails application for maintaining a stock watchlist and following other users' portfolios. This is a tracking app, not a brokerage: it does not execute trades or record holdings, transactions, or investment returns.
+A Rails financial-engineering showcase with a stock watchlist, fictional portfolio
+analytics, private synthetic strategy mechanics, and gated read-only provider evidence.
+It is not a brokerage: no real orders, funding or investment returns are produced.
 
 The current direction is an Equibles engineering showcase with a public fictional
 portfolio, private evidence screens, and fail-closed read-only Kraken monitoring.
-Rails/Hotwire is the shared UI for future Hotwire Native iOS/Android shells.
-Trading, funding, native builds, and public redistribution of provider data are
-not enabled by these implementation slices.
+Rails/Hotwire is the shared UI for real Hotwire Native shell projects. The iOS
+shell builds and has an isolated simulator navigation smoke; Android is scaffolded
+but its local JDK/SDK are missing. Actual broker execution, funding, provider-data
+redistribution, native-device acceptance and distribution remain gated.
 
 ## Features
 
@@ -16,6 +19,10 @@ not enabled by these implementation slices.
 - User search by first name, last name, or email, with friend add/remove controls.
 - Viewing other users' tracked stocks and adding them to your own portfolio.
 - Turbo-driven search results, portfolio updates, and flash messages.
+- Owner-only synthetic USD sandbox with bounded versioned mandates, deterministic
+  fictional fills, idempotency, transactional limits and append-only audit.
+- Public synthetic research-policy lab demonstrating rejection of untrusted instructions.
+- Separately gated deposit-information review; no actionable funding destination or transport.
 
 [Equibles](https://equibles.com/): stock market data API.
 
@@ -31,7 +38,7 @@ and the implementation sections below supersede its provider migration,
 commercial-launch, Next.js, and React Native assumptions. No historical roadmap
 item authorizes account access, spending, publishing provider data, or trading.
 
-**Status: product direction only, not implemented or approved for live use.** The current application remains the watchlist described above. Alpaca integration, investment recommendations, push notifications, order submission, and the proposed Next.js and React Native clients do not exist in this repository yet.
+**Status: historical product direction, not implemented or approved for live use.** Alpaca integration, investment recommendations, push notifications, broker order submission, and the proposed Next.js and React Native clients do not exist in this repository. The current implemented showcase is described in the feature sections below.
 
 The intended business is a Wyoming LLC owned and operated by its Pakistan-based owner, serving eligible US-resident customers initially. Pakistani-resident customers are outside the initial target market. Entity formation does not authorize investment advice; actual ownership, operating location, customer states, and activities must be disclosed to prospective regulated partners.
 
@@ -113,7 +120,7 @@ and Rails 7.1.3.4. Docker Desktop with Compose v2 or newer is required.
 ruby bin/compose-env
 docker compose --env-file .env.docker config --quiet
 docker compose --env-file .env.docker build web
-docker compose --env-file .env.docker up -d --wait web worker
+docker compose --env-file .env.docker up -d --wait web worker scheduler
 ```
 
 Open <http://127.0.0.1:3000/portfolio_demo>. Only the web port is published,
@@ -123,6 +130,12 @@ Existing host PostgreSQL/Redis services and databases are not changed or importe
 The one-shot `prepare` service waits for PostgreSQL, runs `db:prepare`, and must
 succeed before web/worker startup. Health checks verify PostgreSQL readiness,
 Redis PING, Rails `/up`, and this worker's actual Sidekiq heartbeat.
+The retention scheduler has its own successful-enqueue heartbeat. Compose
+explicitly opts into development HTTP for exact loopback/emulator hosts because
+Docker forwards desktop requests from its bridge address. This opt-in never
+applies in production, does not trust forwarded headers, and does not permit
+arbitrary LAN hosts. The web port must stay bound to loopback; devices/LAN need
+reviewed HTTPS rather than expanding that exception.
 
 [bin/compose-env](bin/compose-env) exclusively creates an ignored mode-0600
 `.env.docker` with independently generated database/session/encryption secrets.
@@ -136,9 +149,9 @@ are excluded from the build context.
 ```sh
 # Separate financial_tracker_test database; test Active Job adapter and fake providers.
 docker compose --env-file .env.docker --profile test run --rm test
-docker compose --env-file .env.docker logs --tail 100 web worker
+docker compose --env-file .env.docker logs --tail 100 web worker scheduler
 docker compose --env-file .env.docker stop
-docker compose --env-file .env.docker up -d --wait web worker
+docker compose --env-file .env.docker up -d --wait web worker scheduler
 # Remove containers/network but preserve all named volumes.
 docker compose --env-file .env.docker down
 ```
@@ -147,26 +160,29 @@ Do not use `down -v` or delete `.env.docker` as a routine reset. PostgreSQL's na
 volume mounts its verified `/var/lib/postgresql/data`; Redis persists AOF under
 `/data`; application uploads use a separate storage volume. The code is built
 into the image, not bind-mounted: after changing it, rebuild and recreate web
-and worker with `docker compose --env-file .env.docker up -d --build --wait web worker`.
+and worker/scheduler with `docker compose --env-file .env.docker up -d --build --wait web worker scheduler`.
 
 Sidekiq uses `REDIS_URL`, concurrency 5, and `maintenance`/`default` queues.
 Each process has a five-connection database pool. Redis is dedicated to queues,
 with `noeviction`, AOF enabled, and `appendfsync everysec`; it is not an evictable
 cache. Jobs are **at-least-once**, not exactly-once. Recent queue writes can still
 be lost on Redis failure; a named volume is not a backup or an execution outbox.
-No trading, broker refresh, scheduler, or Sidekiq Web UI is enabled by this setup.
+No trading, broker refresh, or Sidekiq Web UI is enabled by this setup.
+The only periodic work is argument-free Equibles retention maintenance, enqueued
+every five minutes by a separate restartable scheduler. Enqueue failures terminate
+it explicitly; a healthy heartbeat is written only after successful enqueue.
 
 The safe follow-on [ExpireEquiblesEvidenceJob](app/jobs/expire_equibles_evidence_job.rb)
 reuses the existing retention policy under row locks and rechecks current rights
 and original deadlines. It is idempotent, has no arguments or provider requests,
-and does not decrypt credentials. Enqueue it explicitly when needed:
+and does not decrypt credentials. In addition to scheduled cleanup, enqueue it explicitly when needed:
 
 ```sh
 docker compose --env-file .env.docker exec -T web \
   bundle exec ruby bin/rails runner 'ExpireEquiblesEvidenceJob.perform_later'
 ```
 
-There is **no periodic scheduler or wall-clock deletion guarantee**. Access and
+Scheduling is best effort, **not a wall-clock deletion guarantee**. Access and
 explicit refresh still enforce retention independently. A real argument-free
 job was queued while the worker was stopped; its synthetic database row and
 Redis queue survived database/queue container recreation, and the restarted
@@ -186,6 +202,11 @@ Run the following commands from the repository root.
 ### Prerequisites
 
 Install Ruby 3.3.0, a running PostgreSQL server, a JavaScript runtime such as Node.js for ExecJS/asset compilation, and native build tools for gems such as `pg` and `sassc`. PostgreSQL development headers and `pg_config` must be available when compiling `pg`.
+Schema persistence uses SQL to retain append-only sandbox triggers; use PostgreSQL
+client tools compatible with your server. Containers install verified PostgreSQL
+16 client packages from the official signed PGDG repository. The canonical
+[db/structure.sql](db/structure.sql) is generated against the container's PostgreSQL
+16 server; do not replace it with a Ruby schema that drops triggers.
 
 The default database configuration connects over a local socket using your operating-system username. That PostgreSQL role must exist and have permission to create databases. Adjust [config/database.yml](config/database.yml) if your local setup uses a different role, password, or host.
 
@@ -326,9 +347,101 @@ sector, chart/history, performance, and benchmark features remain visibly gated
 on supported fields, classifications, licensed history, and methodology.
 
 The screen is shared Rails/Hotwire UI intended for **Hotwire Native iOS and Android
-apps**, not a claim that responsive web equals a native application. Native shells,
-navigation, authentication/session integration, bridges, and device tests remain
-separate implementation work. Real account connections and trading are not active.
+apps**, not a claim that responsive web equals a native application. Shell
+builds/navigation and the remaining acceptance gates are documented below.
+Real account approvals and broker trading are not established by this demo.
+
+## Private Synthetic Strategy Sandbox
+
+Sign in and open `/sandbox_accounts`. Create a separate fictional USD account
+with positive opening cash up to $10,000 and your current application password.
+It cannot connect to Equibles, Kraken, ALVIS or a model, and does not share the
+real monitoring connection. No funding, deposits, reset, shorting or leverage exists.
+
+The fixed declarative `trend-v1` rule compares two original fictional observations:
+`rise-v1` buys, `fall-v1` sells existing inventory, and `flat-v1` holds.
+These are **synthetic mechanics scenarios**, not licensed historical backtests,
+prospective broker paper fills, US-listed instruments, performance or live returns.
+Fixture loading and its 15-minute validity window describe the simulation, not
+market observation freshness. No uploaded code or caller/provider/model price is accepted.
+
+Create a draft mandate with all five positive limits (capital, per-fill notional,
+integer quantity, exposure, loss) and an expiry within 24 hours. Limits are never
+unlimited when missing; capital cannot exceed $10,000, dependent monetary limits
+cannot exceed capital, and quantity is 1-100. Password-confirm activation/resumption.
+Only one mandate is active per account. Draft can activate or revoke; active can
+pause or revoke; paused can resume or revoke; revoked cannot reactivate.
+Expiry blocks new evaluations. Pause/revoke never liquidates existing holdings.
+
+Account row locks serialize limits, reservations, fills and revocation. Stable
+owner-bound UUID request identities return the original result on retry rather
+than duplicating fills. Synthetic adverse slippage is 0.1%; the fee is 0.1%,
+rounded upward to cents. Cash, inventory, fee-inclusive capital/exposure and
+projected loss checks run deterministically outside any model.
+The screen shows mandate/version/environment, fictional holdings/cost basis,
+recent fills, provenance and audit events.
+
+Orders/events are append-only in PostgreSQL as well as the application. Ordinary
+account deletion is explicitly blocked for sandbox owners; a reviewed retention/
+closure workflow remains unavailable. Do not treat this local audit design as
+immutable against a database administrator. Real execution still needs licensed
+history, strategy approvals, broker identity/product permissions, a durable
+outbox/reconciliation, partial-fill/ambiguous-submission recovery, calendars,
+separate credentials, paper acceptance and regulatory/live release gates.
+
+## Optional Deposit-Information Review
+
+`/deposit_information` is an authenticated owner-only review/status screen.
+Its password-confirmed check makes **no Kraken request** and never grants authority.
+[config/kraken_deposit_information.yml](config/kraken_deposit_information.yml)
+defaults off with no approved owners; even a local review entry cannot activate
+an operational adapter. No deposit key, address, payload or funding credential
+is collected or stored.
+
+Official legacy contracts and exact key/account/scope/expiry and monetary fields
+have offline validators. Legacy `DepositAddresses` does not explicitly identify
+the asset/network or whether a memo/tag is mandatory, so no actionable destination
+is shown. Missing minimums/fees never become zero, and valid-looking addresses
+are still non-actionable. Funding Beta needs its own review; this is not a claim
+that it cannot support the feature. A future adapter must independently verify
+the exact owner/account/product/asset/network and force address creation off.
+Deposit-information rights do not authorize bank debits, wallet transfers,
+withdrawals, AI funding or conventional securities funding.
+
+## Hotwire Native Clients
+
+See [native/README.md](native/README.md) and the reproducible
+[native smoke evidence](native/smoke/README.md).
+
+- iOS: actual HotwireNative 1.3.1 project at
+  [FinancialTracker.xcodeproj](native/ios/FinancialTracker.xcodeproj), built with
+  Xcode 26.5 / Swift 6.3.2. Four URL-policy tests and an isolated simulator
+  fixture-navigation smoke pass; native push/back and external-link rejection
+  were exercised, not merely a responsive-browser preview.
+  A separate real-Rails anonymous smoke passed protected-route redirects and
+  public research navigation. The signed-in follow-up stopped after two UI-test
+  selector/focus failures: no successful signup, sign-in, sign-out or authenticated
+  session continuity is claimed. See the [disposable Rails smoke record](native/smoke/disposable-rails.md).
+- Android: actual Hotwire 1.4.0 Gradle project and wrapper are present. Build
+  validation stops at missing Java/JDK and Android SDK; no Android build/device
+  success is claimed.
+- Both consume public versioned `/configurations/ios_v1.json` and
+  `/configurations/android_v1.json`, with bundled defaults. Configuration changes
+  navigation, not authorization. Rails sessions and password checks remain required.
+- Local iOS simulator uses `127.0.0.1:3000`; Android emulator uses
+  `10.0.2.2:3000`. Current development clients reject cross-origin navigation and
+  invalid/non-loopback configuration. Real-device/LAN/remote access needs reviewed
+  HTTPS, not a public tunnel or broker-key relay.
+- No custom bridges, execution/scheduling on phones, store submission or real-device
+  approval is implied. Authentication/session, recovery and private-device acceptance
+  must be recorded separately from public fixture navigation.
+
+```sh
+swift test --package-path native/ios/URLPolicy
+ruby native/test_configuration.rb
+# Once an appropriate JDK and Android SDK are installed/configured:
+cd native/android && ./gradlew :app:testDebugUnitTest :app:assembleDebug
+```
 
 ## Private Connections and Read-Only Kraken Monitoring
 
@@ -378,7 +491,9 @@ Use a new dedicated key per connection; a unique retained fingerprint prevents
 cross-user key reuse. Row locking serializes per-key nonce generation, refresh,
 and disconnect across processes. Refresh is explicit, at most once per minute,
 with bounded timeouts and **zero automatic retries** (at most three requests with
-history, two without). No worker, Redis, polling loop, or executor is introduced.
+history, two without). Monitoring requests remain synchronous; they do not enqueue
+provider work or use an executor. The shared Sidekiq/Redis runtime handles retention
+maintenance separately.
 Rate-limit/provider failures are visible; previous evidence keeps its real receipt
 time and a failed/stale indication. Balance source time stays unknown; trade
 timestamps remain source times.
@@ -405,6 +520,24 @@ Official contracts checked 2026-11-05:
 [authentication](https://docs.kraken.com/exchange/guides/rest/authentication),
 [Spot OpenAPI](https://docs.kraken.com/openapi/spot-rest.yaml), and
 [xStocks differences](https://support.kraken.com/articles/getting-started-with-xstocks).
+
+## Synthetic Research Policy Lab
+
+Open `/research_demo` for an original-fixture, deterministic structured-observation
+validator. It is not ALVIS output, a model integration, a backtest, or a recommendation.
+It accepts only a versioned observe-only signal for a fictional instrument with
+matching fresh synthetic citations and bounded expiry. Unknown fields, injected
+instructions, endpoints, quantities, changed model/rule/policy versions, stale or
+missing citations, and exhausted budgets are rejected with explicit reasons.
+The fixed fictional evaluation clock is displayed; it is not real market freshness.
+
+No uploaded documents, private accounts, credentials or provider payloads enter
+this lab. It has no model tools, external inference call, order dispatch or money
+movement path. The current [official ALVIS documentation](https://equibles.com/docs/alvis)
+still describes browser research and author exports separately from REST/MCP.
+Supported programmatic inference, ingestion rights, external-model consent,
+licenses/privacy terms and real AI/paper evaluation remain gates, not inferred
+from an accepted fixture.
 
 ## Project Knowledge Retrieval
 
@@ -475,7 +608,7 @@ Current container verification on 2026-11-05:
 
 ```sh
 docker compose --env-file .env.docker --profile test run --rm test
-# 158 tests, 2,278 assertions; zero failures, errors or skips; two test workers.
+# 207 tests, 2,742 assertions; zero failures, errors or skips; two test workers.
 docker compose --env-file .env.docker exec -T web bundle exec ruby bin/rails zeitwerk:check
 ```
 
@@ -483,7 +616,11 @@ The final production image also builds and boots with an ephemeral smoke secret.
 Secret-generation tests verify mode 0600, independent values, no secret output,
 and refusal to overwrite existing secrets. Retention tests cover current rights,
 original retention deadlines, preserved fresh evidence, idempotency, and no
-provider requests. Container recreation/restart verification is described above.
+provider requests. The expanded suite also covers owner isolation, password
+approval, synthetic ledger concurrency/idempotency/expiry, SQL append-only
+protections, explicit account-closure refusal, structured-research rejection,
+disabled deposit contracts and native navigation metadata. Container
+recreation/restart verification is described above.
 
 A-E baseline, before the container/maintenance additions, verified on 2026-11-05
 with Ruby 3.3.0, Rails 7.1.3.4 and Minitest 5.27:
@@ -496,9 +633,27 @@ RAILS_ENV=production SECRET_KEY_BASE_DUMMY=1 bundle exec ruby bin/rails assets:p
 ```
 
 Eager loading and production asset compilation pass. Existing RubyGems constant
-and Rack status-name deprecation warnings remain. Browser checks cover the
-synthetic screen's narrow/wide layouts and keyboard interaction, not native
-shells or real provider accounts.
+and Rack status-name deprecation warnings remain. Browser checks and screenshots
+use original fictional fixtures, not real provider accounts. Native build and
+simulator evidence is recorded separately above.
+
+### Original-fixture walkthrough captures
+
+These captures are engineering demonstrations, not provider data, research
+recommendations, performance evidence or live account screenshots:
+
+- [Desktop portfolio](docs/showcase/portfolio-desktop.png)
+- [Narrow portfolio](docs/showcase/portfolio-mobile.png)
+- [Research-policy rejection](docs/showcase/research-policy.png)
+- [Private synthetic sandbox](docs/showcase/synthetic-sandbox.png)
+
+The local browser walkthrough exercised draft creation, password-confirmed
+activation, a fictional fill, pause and terminal revocation. The sandbox has no
+page overflow at a measured 320 CSS pixels; its wide fills table scrolls within
+an accessible region. The optional deposit-review form also fits that width.
+Its disposable database is separate
+from normal development data. No paid/credentialed provider request, real broker
+paper exercise, funding, public deployment or live trade was performed.
 
 Outstanding A-E gates: actual Equibles subscription and use/display/retention/
 distribution permissions; strategy-specific freshness/rights; Kraken owner

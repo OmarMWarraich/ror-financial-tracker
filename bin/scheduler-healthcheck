@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+path = File.expand_path("../tmp/evidence-maintenance-heartbeat", __dir__)
+healthy = File.file?(path) && (Time.now - File.mtime(path)).between?(0, 600)
+abort "No recent successful retention enqueue heartbeat" unless healthy

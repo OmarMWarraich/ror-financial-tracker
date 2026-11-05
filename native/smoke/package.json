@@ -1,0 +1,8 @@
+{
+  "name": "financial-tracker-native-public-fixtures",
+  "private": true,
+  "description": "Local synthetic HTML fixtures for native simulator acceptance only",
+  "dependencies": {
+    "@hotwired/turbo": "8.0.23"
+  }
+}

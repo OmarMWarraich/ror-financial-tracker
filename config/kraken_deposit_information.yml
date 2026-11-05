@@ -1,0 +1,29 @@
+shared:
+  enabled: false
+  # Independent of monitoring and sandbox approval. No verified owners.
+  # A review is not an API entitlement or permission to move funds.
+  # Future review entries require: reference, expires_at (ISO8601),
+  # account_fingerprint (SHA256 of GetApiKeyInfo.iban), product: exchange_crypto,
+  # revoked: false, and assets mapping exact asset IDs to exact network IDs.
+  approved_users: {}
+  # These sources were read on 2026-11-05. Reverify before implementing transport.
+  documentation:
+    key_info: https://docs.kraken.com/api-reference/account-data/get-api-key-info
+    methods: https://docs.kraken.com/api-reference/funding/get-deposit-methods
+    addresses: https://docs.kraken.com/api-reference/funding/get-deposit-addresses
+    beta_methods: https://docs.kraken.com/api-reference/funding-beta/list-funding-methods
+    beta_guide: https://docs.kraken.com/exchange/guides/rest/funding
+  # Legacy DepositMethods needs query-funds AND add-funds; DepositAddresses
+  # currently documents query-funds alone. Never infer scope from UI labels.
+  # DepositAddresses accepts `new`; any future request MUST set new: false.
+  # Legacy address rows do not bind asset/network or specify memo requirements.
+  # Beta has different paths, identifiers, schemas and signing. Do not mix them.
+  # This slice intentionally has NO credential intake, transport, queue or
+  # address display. Enabling this configuration cannot activate provider reads.
+  # Before adding reads: dedicated encrypted credentials and payloads, filtering,
+  # row-locked monotonic nonces, quota/timeouts, fresh scope/account inspection,
+  # operator/account/asset/network approval, and per-request password step-up.
+
+development: {}
+test: {}
+production: {}

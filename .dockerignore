@@ -41,3 +41,6 @@
 /plan.md
 /todo.md
 /.copilot/
+
+# Native shells have independent build inputs and caches.
+/native/

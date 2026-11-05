@@ -1,0 +1,54 @@
+<style nonce="<%= content_security_policy_nonce %>">
+  .sandbox-panel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .sandbox-panel *,
+  .sandbox-panel *::before,
+  .sandbox-panel *::after {
+    box-sizing: border-box;
+  }
+  .sandbox-panel form,
+  .sandbox-panel section,
+  .sandbox-panel dd {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sandbox-panel form {
+    margin-block: 0.75rem;
+  }
+  .sandbox-panel label {
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  .sandbox-panel input:not([type="hidden"]),
+  .sandbox-panel select {
+    display: block;
+    width: 100%;
+    max-width: 28rem;
+    min-width: 0;
+    font: inherit;
+  }
+  .sandbox-panel button {
+    max-width: 100%;
+    min-width: 0;
+    height: auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .sandbox-panel .sandbox-fills {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+  }
+  .sandbox-panel .sandbox-fills table {
+    min-width: 32rem;
+  }
+  .sandbox-panel .sandbox-audit {
+    padding-inline-start: 1.25rem;
+    overflow-wrap: anywhere;
+  }
+</style>

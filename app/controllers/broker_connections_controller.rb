@@ -75,10 +75,7 @@ class BrokerConnectionsController < ApplicationController
   end
 
   def require_secure_transport
-    unless request.ssl? || (Rails.env.development? || Rails.env.test?) &&
-           request.local? && %w[localhost 127.0.0.1 ::1].include?(request.host)
-      head :forbidden
-    end
+    head :forbidden unless PrivateRequestTransport.allowed?(request)
   end
 
   def connection_params
