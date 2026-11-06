@@ -63,6 +63,15 @@ Wrapped search/list fragments replace their Turbo targets rather than appending
 duplicate frame IDs. Stock-search redirects target the full page so unavailable
 evidence errors remain visible outside the search frame.
 
+The top bar offers Light (default), Grey (charcoal) and Dark themes. Selection
+is local to this browser, persisted in `localStorage`, and synchronized across
+tabs and Turbo navigation. `app/javascript/theme.js` is a small, blocking
+Sprockets asset before stylesheets so a saved theme applies before first paint;
+it does not introduce another JavaScript pipeline. Without JavaScript the
+selector stays hidden and Light remains usable. Storage failures are reported
+and theme changes still work for the current page. Use semantic shadcn colour
+tokens for new surfaces; avoid fixed light backgrounds in page-specific CSS.
+
 UI validation:
 
 ```sh

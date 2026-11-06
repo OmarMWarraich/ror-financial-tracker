@@ -67,6 +67,10 @@ class UiComponentsTest < Minitest::Test
     assert_includes css, ".shell-sidebar"
     assert_includes css, ".search-toolbar"
     assert_includes css, 'data-navigation-open'
+    assert_includes css, ".grey"
+    assert_match(/color-scheme:\s*dark/, css)
+    assert_includes css, "var(--canvas)"
+    assert_includes css, ".theme-select"
     refute_includes css, "@apply"
     refute_includes css, '@import "ui.css"'
     assert_nil Rails.application.config.assets.css_compressor

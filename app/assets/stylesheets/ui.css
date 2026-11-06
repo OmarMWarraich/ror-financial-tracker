@@ -1,7 +1,7 @@
 @layer base {
   body {
     @apply text-sm antialiased;
-    background: #f8fafc;
+    background: hsl(var(--canvas));
   }
   :focus-visible { @apply outline outline-2 outline-offset-2 outline-primary; }
   h1 { @apply mb-3 text-2xl font-semibold tracking-tight text-foreground; }
@@ -73,6 +73,9 @@
   .topbar-breadcrumb { @apply mb-1 text-xs text-muted-foreground; }
   .topbar-breadcrumb span { @apply mx-1; }
   .topbar-title { @apply mb-0 font-medium; }
+  .theme-picker { @apply relative shrink-0; }
+  .theme-select { @apply h-9 max-w-full rounded-md border border-input bg-background py-1 pl-2 pr-7 text-xs text-foreground; }
+  .theme-status:not(.sr-only) { @apply block max-w-48 text-xs text-destructive; }
   .page-content { @apply mx-auto w-full max-w-[1500px] min-w-0 px-6 py-8; }
   .page-content > article, .page-content > .sandbox-panel { @apply w-full min-w-0 p-0; }
   .page-content > form { @apply mb-6 rounded-lg border border-border bg-card p-5; }
@@ -112,13 +115,18 @@
   .card h2:first-child, .card h3:first-child { @apply mt-0; }
   .badge { @apply inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-xs font-medium; white-space: normal; }
   .badge[class~="bg-secondary"] { @apply bg-secondary text-secondary-foreground; }
-  .badge[class~="bg-warning"] { @apply bg-amber-100 text-amber-900; }
+  .badge[class~="bg-warning"] { @apply bg-attention/10 text-attention; }
   .alert { @apply relative mb-4 rounded-lg border border-border bg-card p-4 text-sm; }
   .alert h2 { @apply mt-0; }
-  .alert-info { @apply border-slate-200 bg-slate-50 text-slate-700; }
-  .alert-success { @apply border-emerald-200 bg-emerald-50 text-emerald-900; }
-  .alert-warning { @apply border-amber-200 bg-amber-50 text-amber-900; }
-  .alert-danger { @apply border-red-200 bg-red-50 text-red-900; }
+  .alert-info { --alert-color: var(--info); }
+  .alert-success { --alert-color: var(--success); }
+  .alert-warning { --alert-color: var(--attention); }
+  .alert-danger { --alert-color: var(--destructive); }
+  .alert-info, .alert-success, .alert-warning, .alert-danger {
+    border-color: hsl(var(--alert-color) / 30%);
+    background-color: hsl(var(--alert-color) / 8%);
+    color: hsl(var(--alert-color));
+  }
   .alert-dismissible { @apply pr-12; }
   .alert-dismissible > button { @apply absolute right-2 top-2; }
   .form-group { @apply mb-4; }
@@ -153,6 +161,12 @@
   .ps-0 { @apply pl-0; }
   .results-block { @apply mb-5; }
   .demo-metric { @apply text-3xl font-semibold tabular-nums tracking-tight; }
+  .portfolio-demo meter { appearance: none; }
+  .portfolio-demo meter::-webkit-meter-bar { @apply rounded-md border border-border bg-muted; }
+  .portfolio-demo meter::-webkit-meter-optimum-value { @apply rounded-sm bg-primary; }
+  .portfolio-demo meter::-webkit-meter-suboptimum-value { @apply rounded-sm bg-attention; }
+  .portfolio-demo meter::-webkit-meter-even-less-good-value { @apply rounded-sm bg-destructive; }
+  .portfolio-demo meter::-moz-meter-bar { @apply bg-primary; }
   .search-toolbar { @apply mb-5 flex max-w-2xl flex-wrap items-end gap-3; }
   .search-toolbar > div { @apply min-w-0 flex-1; min-width: min(100%, 16rem); }
   .search-toolbar input { @apply mb-0; }

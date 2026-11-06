@@ -1,6 +1,8 @@
 :root {
+  color-scheme: light;
   --font-sans: "Inter var";
 
+  --canvas: 210 40% 98%;
   --background: 0 0% 100%;
   --foreground: 240 10% 3.9%;
   --card: 0 0% 100%;
@@ -15,51 +17,78 @@
   --muted-foreground: 240 3.8% 46.1%;
   --accent: 240 4.8% 95.9%;
   --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
+  --destructive: 0 72% 48%;
   --destructive-foreground: 0 0% 98%;
   --border: 240 5.9% 90%;
   --input: 240 5.9% 90%;
   --ring: 240 5% 64.9%;
   --radius: 0.5rem;
 
-  --success: 142 72% 29%;
-  --success-foreground: 109 55% 28%;
+  --success: 142 72% 26%;
+  --success-foreground: 0 0% 98%;
 
   --info: 223 78% 42%;
-  --info-foreground: 225 100% 50%;
+  --info-foreground: 0 0% 98%;
 
-  --attention: 45 90% 45%;
-  --attention-foreground: 32 81% 29%;
+  --attention: 32 81% 29%;
+  --attention-foreground: 0 0% 98%;
 }
-@layer base {
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 85.7% 97.3%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --radius: 0.5rem;
+.dark, .grey {
+  color-scheme: dark;
+  --canvas: 240 6% 8%;
+  --background: 240 6% 10%;
+  --foreground: 0 0% 98%;
+  --card: 240 6% 12%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 6% 12%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 240 5.9% 10%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 72%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 85% 75%;
+  --destructive-foreground: 240 6% 10%;
+  --border: 240 4% 24%;
+  --input: 240 4% 43%;
+  --ring: 240 4.9% 83.9%;
+  --radius: 0.5rem;
 
-    --success: 109 55% 28%;
-    --success-foreground: 109 55% 28%;
+  --success: 142 65% 68%;
+  --success-foreground: 240 6% 10%;
 
-    --attention: 45 90% 45%;
-    --attention-foreground: 45 90% 70%;
-  }
+  --info: 213 90% 76%;
+  --info-foreground: 240 6% 10%;
+  --attention: 45 90% 72%;
+  --attention-foreground: 240 6% 10%;
+}
+.grey {
+  color-scheme: dark;
+  --canvas: 0 0% 17%;
+  --background: 0 0% 19%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 21%;
+  --card-foreground: 0 0% 96%;
+  --popover: 0 0% 23%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 0 0% 96%;
+  --primary-foreground: 0 0% 17%;
+  --secondary: 0 0% 27%;
+  --secondary-foreground: 0 0% 96%;
+  --muted: 0 0% 27%;
+  --muted-foreground: 0 0% 78%;
+  --accent: 0 0% 30%;
+  --accent-foreground: 0 0% 96%;
+  --destructive-foreground: 0 0% 17%;
+  --border: 0 0% 36%;
+  --input: 0 0% 52%;
+  --ring: 0 0% 80%;
+  --success-foreground: 0 0% 17%;
+  --info-foreground: 0 0% 17%;
+  --attention-foreground: 0 0% 17%;
 }
 
 @layer base {
@@ -115,9 +144,9 @@ input[type="range"] {
   margin-right: 15px;
   min-width: 200px;
   height: 7px;
-  background: #f4f4f5;
+  background: hsl(var(--muted));
   border-radius: 5px;
-  background-image: linear-gradient(#000, #000);
+  background-image: linear-gradient(hsl(var(--primary)), hsl(var(--primary)));
   background-repeat: no-repeat;
 }
 
@@ -127,7 +156,7 @@ input[type="range"]::-webkit-slider-thumb {
   height: 20px;
   width: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: hsl(var(--primary));
   cursor: ew-resize;
   box-shadow: 0 0 2px 0 #000;
   transition: background 0.3s ease-in-out;
@@ -138,7 +167,7 @@ input[type="range"]::-moz-range-thumb {
   height: 20px;
   width: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: hsl(var(--primary));
   cursor: ew-resize;
   box-shadow: 0 0 2px 0 #000;
   transition: background 0.3s ease-in-out;
@@ -149,7 +178,7 @@ input[type="range"]::-ms-thumb {
   height: 20px;
   width: 20px;
   border-radius: 50%;
-  background: #fff;
+  background: hsl(var(--primary));
   cursor: ew-resize;
   box-shadow: 0 0 2px 0 #000;
   transition: background 0.3s ease-in-out;

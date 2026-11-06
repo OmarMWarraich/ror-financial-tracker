@@ -1,6 +1,6 @@
 .portfolio-demo {
   .demo-eyebrow {
-    color: #536271;
+    color: unquote("hsl(var(--muted-foreground))");
     font-size: .8rem;
     font-weight: 700;
     letter-spacing: .08em;
@@ -58,8 +58,8 @@
     padding: .75rem 0;
 
     li {
-      background: #edf2f7;
-      border: 1px solid #dce3eb;
+      background: unquote("hsl(var(--muted))");
+      border: 1px solid unquote("hsl(var(--border))");
       border-radius: .5rem;
       flex: 1 1 10rem;
       overflow-wrap: anywhere;
@@ -68,7 +68,7 @@
   }
 
   .demo-json {
-    background: #edf2f7;
+    background: unquote("hsl(var(--muted))");
     max-width: 100%;
     padding: 1rem;
     white-space: pre-wrap;
@@ -76,7 +76,7 @@
   }
 
   .demo-calculation {
-    border-left: .25rem solid #dce3eb;
+    border-left: .25rem solid unquote("hsl(var(--border))");
     margin-top: 1rem;
     overflow-wrap: anywhere;
     padding-left: 1rem;
@@ -88,7 +88,7 @@
   }
 
   :focus-visible {
-    outline: 3px solid #005fcc;
+    outline: 3px solid unquote("hsl(var(--ring))");
     outline-offset: 3px;
   }
 

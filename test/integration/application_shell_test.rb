@@ -37,6 +37,7 @@ class ApplicationShellTest < Minitest::Test
     refute_includes doc.text, "Another action"
     assert doc.at_css('link[href*="tailwind"]')
     assert doc.at_css('script[type="importmap"]')
+    assert_theme_control(doc)
   end
 
   def test_authenticated_shell_keeps_profile_signout_and_search_contracts
@@ -55,6 +56,7 @@ class ApplicationShellTest < Minitest::Test
     assert_equal 1, doc.css("#search-form").length
     assert_equal 1, doc.css("#stocks-list").length
     assert_equal 1, doc.css("#flash").length
+    assert_theme_control(doc)
   end
 
   def test_authentication_form_is_unchanged
@@ -82,5 +84,21 @@ class ApplicationShellTest < Minitest::Test
     get "https://example.org/search_friend", { friend: "Example" }, { "HTTP_ACCEPT" => "text/vnd.turbo-stream.html" }
     assert_equal 200, last_response.status
     assert Nokogiri::HTML.fragment(last_response.body).at_css('turbo-stream[action="replace"][target="friend-result"]')
+  end
+
+  private
+
+  def assert_theme_control(doc)
+    assert_equal 1, doc.css("select[data-theme-selector]").length
+    assert_equal %w[light grey dark], doc.css("select[data-theme-selector] option").map { |option| option["value"] }
+    assert doc.at_css('label[for="appearance-theme"]')
+    assert doc.at_css('[data-theme-control][hidden]')
+    assert doc.at_css('#theme-status[role="status"]')
+    theme_script = doc.at_css('head script[src*="/theme-"]')
+    assert theme_script
+    refute theme_script.key?("defer")
+    refute theme_script.key?("async")
+    head_children = doc.at_css("head").element_children
+    assert_operator head_children.index(theme_script), :<, head_children.index(doc.at_css('head link[rel="stylesheet"]'))
   end
 end

@@ -9,6 +9,15 @@
     </div>
   </div>
   <div class="topbar-actions">
+    <div class="theme-picker" data-theme-control hidden>
+      <label for="appearance-theme" class="sr-only">Colour theme</label>
+      <select id="appearance-theme" class="theme-select" data-theme-selector aria-describedby="theme-status">
+        <option value="light">Light</option>
+        <option value="grey">Grey</option>
+        <option value="dark">Dark</option>
+      </select>
+      <span id="theme-status" class="theme-status sr-only" role="status" data-theme-status></span>
+    </div>
     <% if current_user %>
       <details class="profile-menu" data-controller="disclosure" data-action="click@window->disclosure#outside keydown.esc@window->disclosure#escape turbo:before-cache@document->disclosure#close">
         <summary class="profile-trigger">
