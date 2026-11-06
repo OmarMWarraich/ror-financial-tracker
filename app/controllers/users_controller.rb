@@ -20,7 +20,7 @@ class UsersController < ApplicationController
       if @friends
         respond_to do |format|
           format.turbo_stream do
-            render turbo_stream: turbo_stream.append("friend-result", partial: "users/friend_result" ) +
+            render turbo_stream: turbo_stream.replace("friend-result", partial: "users/friend_result" ) +
                                  turbo_stream.replace("friends-search-form", partial: "users/friends_search_form")                                  
           end
         end
@@ -29,7 +29,7 @@ class UsersController < ApplicationController
         respond_to do |format|
           format.turbo_stream do
             render turbo_stream: turbo_stream.replace("flash", partial: "layouts/messages") +
-                                 turbo_stream.append("friend-result", partial: "users/friend_result")
+                                 turbo_stream.replace("friend-result", partial: "users/friend_result")
           end
         end
       end

@@ -59,6 +59,9 @@ drawer with Escape/overlay dismissal, a native HTML profile disclosure,
 keyboard focus styles and reduced-motion support. No unsupported global search
 or notification inbox is shown. Existing page-specific search, private-data
 gates, form names, Turbo IDs and user workflows remain intact.
+Wrapped search/list fragments replace their Turbo targets rather than appending
+duplicate frame IDs. Stock-search redirects target the full page so unavailable
+evidence errors remain visible outside the search frame.
 
 UI validation:
 

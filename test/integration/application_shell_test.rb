@@ -1,6 +1,7 @@
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../../config/environment"
 require "minitest/autorun"
+require "minitest/mock"
 require "rack/test"
 
 class ApplicationShellTest < Minitest::Test
@@ -48,6 +49,7 @@ class ApplicationShellTest < Minitest::Test
     assert doc.at_css('a[href="/users/edit"]')
     assert doc.at_css('a[href="/users/sign_out"][data-turbo-method="delete"]')
     assert doc.at_css('#search-form form[action="/search_stock"][method="get"]')
+    assert doc.at_css('#search-form form[data-turbo-frame="_top"]')
     assert doc.at_css('label[for="stock"]')
     assert_equal "submit", doc.at_css('#search-form button')["type"]
     assert_equal 1, doc.css("#search-form").length
@@ -65,4 +67,20 @@ class ApplicationShellTest < Minitest::Test
     assert doc.at_css('input[name="user[remember_me]"][type="checkbox"]')
   end
 
+  def test_search_streams_replace_wrapped_frames_instead_of_nesting_duplicate_ids
+    post "https://example.org/users/sign_in", user: { email: @user.email, password: "example-password" }
+    stock = Stock.new(ticker: "SYNTH", name: "Synthetic test")
+    Stock.stub(:new_lookup, stock) do
+      2.times do
+        get "https://example.org/search_stock", { stock: "SYNTH" }, { "HTTP_ACCEPT" => "text/vnd.turbo-stream.html" }
+        assert_equal 200, last_response.status
+        doc = Nokogiri::HTML.fragment(last_response.body)
+        assert doc.at_css('turbo-stream[action="replace"][target="posts"] template turbo-frame#posts')
+        assert_empty doc.css('turbo-stream[action="append"]')
+      end
+    end
+    get "https://example.org/search_friend", { friend: "Example" }, { "HTTP_ACCEPT" => "text/vnd.turbo-stream.html" }
+    assert_equal 200, last_response.status
+    assert Nokogiri::HTML.fragment(last_response.body).at_css('turbo-stream[action="replace"][target="friend-result"]')
+  end
 end

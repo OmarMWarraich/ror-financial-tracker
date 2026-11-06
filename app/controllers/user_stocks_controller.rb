@@ -22,7 +22,7 @@ class UserStocksController < ApplicationController
     
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: turbo_stream.append("stocks-list", partial: "stocks/list", locals: { tracked_stocks: @tracked_stocks }) +
+        render turbo_stream: turbo_stream.replace("stocks-list", partial: "stocks/list", locals: { tracked_stocks: @tracked_stocks }) +
                              turbo_stream.replace("posts", partial: "users/result") + 
                              turbo_stream.replace("search-form", partial: "users/search_form") +
                              turbo_stream.replace("flash", partial: "layouts/messages")

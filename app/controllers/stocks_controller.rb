@@ -7,7 +7,7 @@ class StocksController < ApplicationController
       if @stock
         respond_to do |format|
           format.turbo_stream do 
-            render turbo_stream: turbo_stream.append("posts", partial: "users/result", locals: { stock: @stock }) +
+            render turbo_stream: turbo_stream.replace("posts", partial: "users/result", locals: { stock: @stock }) +
                                  turbo_stream.replace("search-form", partial: "users/search_form") +
                                  turbo_stream.replace("flash", partial: "layouts/messages")
           end

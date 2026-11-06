@@ -1,5 +1,5 @@
 <%= turbo_frame_tag "search-form" do %>
-  <%= form_tag search_stock_path, data: { turbo_stream: :form_response }, method: :get, class: "search-toolbar" do %>
+  <%= form_tag search_stock_path, data: { turbo_stream: :form_response, turbo_frame: "_top" }, method: :get, class: "search-toolbar" do %>
       <div>
         <%= label_tag :stock, "Stock ticker symbol" %>
         <%= text_field_tag :stock, nil, placeholder: "e.g. AAPL", autofocus: true, class: "form-control" %>
