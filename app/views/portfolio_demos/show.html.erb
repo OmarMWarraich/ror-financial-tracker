@@ -1,6 +1,6 @@
 <% content_for :title, "Portfolio Demo | FinanceTracker" %>
 
-<main class="portfolio-demo col-12 py-4">
+<article class="portfolio-demo">
   <header class="mb-4">
     <p class="demo-eyebrow">FinanceTracker / Proof of concept</p>
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
@@ -8,7 +8,7 @@
         <h1>Portfolio analytics</h1>
         <p class="text-muted mb-0">One shared Rails screen layer for the web and planned Hotwire Native iOS and Android apps.</p>
       </div>
-      <span class="badge rounded-pill bg-warning text-dark p-3">Fictional portfolio / USD</span>
+      <%= render_badge "Fictional portfolio / USD", variant: :secondary %>
     </div>
   </header>
 
@@ -32,7 +32,7 @@
       <%= form.select :scenario, DemoPortfolio::SCENARIOS.map { |value, label| [label, value] },
                       { selected: @scenario }, class: "form-select" %>
     </div>
-    <%= form.submit "Show scenario", class: "btn btn-primary" %>
+    <%= render_button "Show scenario", type: :submit, name: "commit", value: "Show scenario" %>
   <% end %>
 
   <% if @evidence_state %>
@@ -52,25 +52,25 @@
 
   <section class="row g-3 mb-4" aria-label="Portfolio summary">
     <div class="col-12 col-md-4">
-      <div class="card h-100"><div class="card-body">
+      <%= render_card class: "h-full" do %><div class="p-5">
         <h2 class="h6 text-muted">Portfolio value</h2>
         <p class="demo-metric" data-testid="total-value"><%= demo_money(@portfolio.total_value) %></p>
         <p class="small mb-0"><%= @portfolio.complete_prices? ? "All sample holdings priced" : "Missing price evidence" %></p>
-      </div></div>
+      </div><% end %>
     </div>
     <div class="col-12 col-md-4">
-      <div class="card h-100"><div class="card-body">
+      <%= render_card class: "h-full" do %><div class="p-5">
         <h2 class="h6 text-muted">Declared cost basis</h2>
         <p class="demo-metric" data-testid="cost-basis"><%= demo_money(@portfolio.total_cost_basis) %></p>
         <p class="small mb-0">Fictional acquisition assumptions</p>
-      </div></div>
+      </div><% end %>
     </div>
     <div class="col-12 col-md-4">
-      <div class="card h-100"><div class="card-body">
+      <%= render_card class: "h-full" do %><div class="p-5">
         <h2 class="h6 text-muted">Unrealized gain/loss</h2>
         <p class="demo-metric" data-testid="gain-loss"><%= demo_money(@portfolio.unrealized_gain_loss) %></p>
         <p class="small mb-0">Value minus cost basis; not total return</p>
-      </div></div>
+      </div><% end %>
     </div>
   </section>
 
@@ -209,4 +209,4 @@
       </dl>
     </div>
   </section>
-</main>
+</article>

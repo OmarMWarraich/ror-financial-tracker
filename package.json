@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "overrides": {
+    "@tailwindcss/typography": {
+      "postcss-selector-parser": "6.1.5"
+    }
+  },
+  "scripts": {
+    "test:ui": "node --test test/javascript/*_test.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/aspect-ratio": "0.4.2",
+    "@tailwindcss/container-queries": "0.1.1",
+    "@tailwindcss/forms": "0.5.10",
+    "@tailwindcss/typography": "0.5.19",
+    "tailwindcss": "3.4.19",
+    "tailwindcss-animate": "1.0.7"
+  }
+}

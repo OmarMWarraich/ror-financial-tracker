@@ -1,5 +1,23 @@
 [
   {
+    "id": "shadcn-ui-shell",
+    "title": "Implemented shadcn Tailwind application shell and legacy adapter",
+    "aliases": ["frontend implementation", "UI", "Sprockets", "CSS build", "sidebar", "forms", "Turbo frames", "Bootstrap grid"],
+    "summary": "The shared desktop-first ERB shell uses application-owned shadcn-ui 0.0.15 button/card/badge/alert copies with attribute preservation and fluid cards. tailwindcss-rails 3.3.x delegates to pinned tailwindcss-ruby 3.4.19; Node packages only provide v3 theme plugins, not a JS bundler. Bootstrap supplies Sass grid only; legacy controls use a Tailwind-backed adapter. Link compiled tailwind.css, not Tailwind source files; disable SassC CSS compression while retaining Sass compilation. Keep responsive overrides inside the components layer and scope legacy text-muted to avoid Tailwind color collisions. Docker builds run npm ci and compile assets; Compose needs an image rebuild after source changes. Sidebar has desktop collapse and grouped links, mobile modal/inert focus trapping, Escape/overlay dismissal and no-JS navigation fallback; profile is a native details disclosure. No new provider functions, business logic, fake global search or notification inbox.",
+    "status": "implemented",
+    "updated_on": "2026-11-06",
+    "sources": ["README.md#frontend-and-ui-development", "Gemfile.lock", "package.json", "config/tailwind.config.js", "config/initializers/assets.rb", "app/assets/config/manifest.js", "app/assets/stylesheets/ui.css", "app/views/layouts/application.html.erb", "app/javascript/controllers/shell_controller.js", "test/helpers/ui_components_test.rb", "test/integration/application_shell_test.rb", "test/javascript/shell_test.mjs", "Dockerfile"]
+  },
+  {
+    "id": "shadcn-ui-architecture",
+    "title": "Avi Flombaum shadcn Rails UI with compatible Tailwind",
+    "aliases": ["Avb", "Avi", "shadcn", "Tailwind", "Bootstrap", "frontend", "sidebar", "UI migration"],
+    "summary": "The approved UI direction is Avi Flombaum's shadcn/ui on Rails, not an invented Avb package. Use the published shadcn-ui 0.0.15 gem with Tailwind v3, preserving server-rendered ERB, Sprockets, import maps, Turbo and Stimulus. Incrementally migrate the existing Bootstrap UI rather than introducing React or a JavaScript bundler. Generators copy application-owned code and overwrite customizations; inspect selected releases and component dependencies before running them. The published gem differs from upstream main; the upstream theme uses v3 configuration, not Tailwind v4.",
+    "status": "user_decision",
+    "updated_on": "2026-11-06",
+    "sources": ["Gemfile", "Gemfile.lock", "README.md#frontend-and-ui-development", "https://shadcn-on-rails.avi.nyc/docs/installation", "https://github.com/aviflombaum/shadcn-rails", "https://rubygems.org/gems/shadcn-ui"]
+  },
+  {
     "id": "project-retrieval-workflow",
     "title": "Repository retrieval and ongoing knowledge maintenance",
     "aliases": ["retrieval", "GitHub Copilot", "memory", "session context", "new session", "redundant retrieval", "inference", "todo", "plan", "knowledge maintenance", "commit"],

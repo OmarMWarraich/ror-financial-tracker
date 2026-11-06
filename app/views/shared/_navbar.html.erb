@@ -1,62 +1,33 @@
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-  <div class="container-fluid">
-    <%= link_to "FinanceTracker", root_path, class: "navbar-brand" %>
-    <%= link_to "Demo dashboard", portfolio_demo_path, class: "btn btn-outline-primary me-3" %>
-    <%= link_to "Research policy lab", research_demo_path, class: "btn btn-outline-secondary me-3" %>
-    <% if current_user %>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarSupportedContent">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <li class="nav-item">
-            <%= link_to "My Portfolio", my_portfolio_path, class: "nav-link #{current_path?(my_portfolio_path)}" %>
-          </li>
-          <li class="nav-item">
-            <%= link_to "Private connections", broker_connections_path, class: "nav-link" %>
-          </li>
-          <li class="nav-item">
-            <%= link_to "Deposit information gates", deposit_information_path, class: "nav-link" %>
-          </li>
-          <li class="nav-item">
-            <%= link_to "Synthetic sandbox", sandbox_accounts_path, class: "nav-link" %>
-          </li>
-          <li class="nav-item">
-            <%= link_to "Equibles evidence", equibles_evidence_path, class: "nav-link" %>
-          </li>
-          <li class="nav-item">
-            <%= link_to "My Friends", my_friends_path, class: "nav-link #{current_path?(my_friends_path)}" %>
-          </li>
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Profile
-            </a>
-            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-              <%= link_to edit_user_registration_path, class:"dropdown-item" do %>
-                <%= fa_icon "edit" %> Edit Profile
-              <% end %>
-              <li><a class="dropdown-item" href="#">Another action</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="#">Something else here</a></li>
-            </ul>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Disabled</a>
-          </li>
-        </ul>
-        <ul class="navbar-nav ml-auto">
-          <li class="nav-item pe-2 mt-1">
-            <%= fa_icon "user" %> <%= current_user.full_name %>
-          </li>
-          <li class="nav-item">
-            <%= link_to 'Sign out', destroy_user_session_path, data: { turbo_method: :delete }, class: "btn btn-xs btn-danger me-1" %>
-          </li>
-        </ul>
-        <form class="d-flex">
-          <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
-          <button class="btn btn-outline-success" type="submit">Search</button>
-        </form>
-      </div>
+<aside id="application-navigation" class="shell-sidebar" aria-label="Application navigation" data-shell-target="sidebar" data-action="keydown->shell#trapFocus">
+  <div class="shell-brand">
+    <%= link_to root_path, class: "shell-brand-link", aria: { label: "FinanceTracker home" } do %>
+      <span class="brand-mark" aria-hidden="true"><%= fa_icon "line-chart" %></span>
+      <span class="sidebar-label">FinanceTracker</span>
     <% end %>
+    <button type="button" class="icon-button sidebar-close" aria-label="Close navigation" data-action="shell#close"><%= fa_icon "times", aria: { hidden: true } %></button>
   </div>
-</nav>
+  <nav class="shell-navigation" aria-label="Primary">
+    <p class="nav-group-label sidebar-label">Explore</p>
+    <%= shell_nav_link "Overview", root_path, "home" %>
+    <%= shell_nav_link "Demo dashboard", portfolio_demo_path, "pie-chart" %>
+    <%= shell_nav_link "Research policy lab", research_demo_path, "flask" %>
+    <% if current_user %>
+      <p class="nav-group-label sidebar-label">Your workspace</p>
+      <%= shell_nav_link "My Portfolio", my_portfolio_path, "list" %>
+      <%= shell_nav_link "My Friends", my_friends_path, "users" %>
+      <details class="nav-group" open>
+        <summary><%= fa_icon "lock", aria: { hidden: true } %><span class="sidebar-label">Private evidence</span><span class="sidebar-label nav-chevron" aria-hidden="true">›</span></summary>
+        <%= shell_nav_link "Private connections", broker_connections_path, "plug" %>
+        <%= shell_nav_link "Equibles evidence", equibles_evidence_path, "file-text-o" %>
+        <%= shell_nav_link "Deposit information gates", deposit_information_path, "shield" %>
+      </details>
+      <%= shell_nav_link "Synthetic sandbox", sandbox_accounts_path, "cubes", active: controller_name.start_with?("sandbox_") %>
+    <% end %>
+  </nav>
+  <div class="shell-sidebar-footer">
+    <p class="sidebar-label">Engineering showcase<br><span>Not a brokerage or live feed</span></p>
+    <button type="button" class="shell-nav desktop-collapse" aria-label="Collapse sidebar" aria-controls="application-navigation" aria-expanded="true" data-shell-target="collapseButton" data-action="shell#toggleCollapsed">
+      <%= fa_icon "outdent", aria: { hidden: true } %><span class="sidebar-label">Collapse sidebar</span>
+    </button>
+  </div>
+</aside>

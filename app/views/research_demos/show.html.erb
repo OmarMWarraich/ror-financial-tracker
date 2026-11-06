@@ -1,5 +1,5 @@
 <% content_for :title, "Synthetic Research Policy | FinanceTracker" %>
-<main class="col-12 py-4">
+<article>
   <h1>Synthetic research policy lab</h1>
   <p class="badge bg-warning text-dark">Original fixtures / deterministic baseline / not AI-generated research</p>
   <p>This public demonstration validates untrusted structured observations. It never calls a model or provider,
@@ -16,7 +16,7 @@
     <%= form.label :scenario, "Policy scenario", class: "form-label" %>
     <%= form.select :scenario, SyntheticResearch::SCENARIOS.map { |value, label| [label, value] },
                     { selected: @scenario }, class: "form-select mb-2" %>
-    <%= form.submit "Validate fixture", class: "btn btn-primary" %>
+    <%= render_button "Validate fixture", type: :submit, name: "commit", value: "Validate fixture" %>
   <% end %>
   <section class="alert <%= @result.accepted ? 'alert-success' : 'alert-danger' %>" role="status">
     <h2 class="h5"><%= @result.accepted ? "Accepted observation" : "Rejected observation" %></h2>
@@ -39,4 +39,4 @@
   <p>Models have no tools or credentials in this lab. Deterministic decimal sizing, authorization and
     any future execution controls remain outside model output. Protective broker behavior and
     real AI quality/performance evaluation are not implemented by accepting a fixture.</p>
-</main>
+</article>

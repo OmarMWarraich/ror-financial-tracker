@@ -1,11 +1,12 @@
-<%= turbo_frame_tag "friends-list" do %>
-  <h1 class="my-5">My Friends</h1>
-  <%= turbo_frame_tag "friends-search-form" do %>
-    <%= render "users/friends_search_form" %>
-  <% end %>
+  <h1>My Friends</h1>
+  <p class="text-muted">Find people and explore their shared watchlists.</p>
+  <%= render "users/friends_search_form" %>
   <%= turbo_frame_tag "friend-result" do %>
   <% end %>
   <% if !@friends.empty? %>
     <%= render "friends/list" %>
+  <% else %>
+    <%= turbo_frame_tag "friends-list" do %>
+      <div class="empty-state"><p class="mb-0">You are not following anyone yet. Search by name or email to get started.</p></div>
+    <% end %>
   <% end %>
-<% end %>

@@ -1,24 +1,25 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <title><%= content_for?(:title) ? yield(:title) : "FinanceTracker" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
-
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "tailwind", "inter-font", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
+  <body data-controller="shell" data-action="keydown.esc@window->shell#escape turbo:before-cache@document->shell#beforeCache">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <%= render "shared/navbar" %>
-    <div class="container">
-      <div class="row">
-        <%= turbo_frame_tag "flash" do %>
-          <%= render "layouts/messages" %>
-        <% end %>
+    <button class="shell-overlay" type="button" aria-label="Close navigation" tabindex="-1" data-shell-target="overlay" data-action="shell#close"></button>
+    <div class="shell-workspace" data-shell-target="workspace">
+      <%= render "shared/topbar" %>
+      <main id="main-content" class="page-content <%= 'auth-content' if devise_controller? %>" tabindex="-1">
+        <%= render "layouts/messages" %>
         <%= yield %>
-      </div>
+      </main>
     </div>
   </body>
 </html>

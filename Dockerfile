@@ -35,12 +35,15 @@ ENV RAILS_ENV="development" \
     BUNDLE_WITHOUT=""
 
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev pkg-config && \
+    apt-get install --no-install-recommends -y build-essential git libpq-dev pkg-config npm && \
     rm -rf /var/lib/apt/lists/*
 
 COPY Gemfile Gemfile.lock ./
 RUN bundle install
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
+RUN bundle exec ruby bin/rails tailwindcss:build
 
 RUN useradd rails --create-home --shell /bin/bash && \
     chown -R rails:rails db log storage tmp
@@ -55,7 +58,7 @@ FROM runtime AS build
 
 # Install packages needed to build gems
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev pkg-config
+    apt-get install --no-install-recommends -y build-essential git libpq-dev pkg-config npm
 
 # Install application gems
 COPY Gemfile Gemfile.lock ./
@@ -64,13 +67,16 @@ RUN bundle install && \
     bundle exec bootsnap precompile --gemfile
 
 # Copy application code
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 
 # Precompile bootsnap code for faster boot times
 RUN bundle exec bootsnap precompile app/ lib/
 
 # Precompiling assets for production without requiring secret RAILS_MASTER_KEY
-RUN SECRET_KEY_BASE_DUMMY=1 bundle exec ruby bin/rails assets:precompile
+RUN SECRET_KEY_BASE_DUMMY=1 bundle exec ruby bin/rails assets:precompile && \
+    rm -rf /rails/node_modules
 
 
 # Final stage for app image

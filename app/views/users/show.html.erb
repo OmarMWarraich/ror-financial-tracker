@@ -2,6 +2,7 @@
 
 
 <div class="card card-header results-block">
+  <div class="table-responsive" role="region" aria-label="User details" tabindex="0">
   <table class="col-md-12">
     <tbody>
       <tr>
@@ -20,12 +21,11 @@
       </tr>
     </tbody>
   </table>
+  </div>
 </div>
 
 <% if !@tracked_stocks.empty? %>
-  <%= turbo_frame_tag "stocks-list" do %>
-    <%= render 'stocks/list'%>
-  <% end %>
+  <%= render 'stocks/list'%>
 <% else %>
   <p class='lead'>This user is not tracking any stocks</p>
 <% end %>

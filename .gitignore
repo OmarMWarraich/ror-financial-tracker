@@ -38,3 +38,8 @@ plan.md
 
 # Local implementation checklist.
 /todo.md
+/node_modules/
+/app/assets/builds/*
+!/app/assets/builds/.keep
+/app/assets/builds/*
+!/app/assets/builds/.keep

@@ -1,6 +1,7 @@
 <%= turbo_frame_tag "friends-list" do %>
   <div class="row mt-2">
     <div class="col-12 col-lg-9">
+      <div class="table-responsive" role="region" aria-label="Friends" tabindex="0">
       <table class="table table-bordered table-hover">
         <thead>
           <tr>
@@ -25,6 +26,7 @@
           <% end %>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 <% end %>

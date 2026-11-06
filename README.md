@@ -11,7 +11,65 @@ shell builds and has an isolated simulator navigation smoke; Android is scaffold
 but its local JDK/SDK are missing. Actual broker execution, funding, provider-data
 redistribution, native-device acceptance and distribution remain gated.
 
-## Features
+## Frontend and UI development
+
+The desktop-first shared shell uses Avi Flombaum's
+[shadcn/ui on Rails](https://github.com/aviflombaum/shadcn-rails), pinned to
+`shadcn-ui` 0.0.15, with Tailwind CSS 3.4.19 (`tailwindcss-rails` 3.3.x).
+Rails ERB, Sprockets, import maps, Turbo and Stimulus remain the frontend
+architecture; React and a JavaScript bundler are not required.
+
+Install and build with:
+
+```sh
+bundle install
+npm ci
+bundle exec ruby bin/rails tailwindcss:build
+bin/dev
+```
+
+Node packages supply Tailwind's theme plugins only. The typography plugin's
+selector parser is overridden to patched 6.1.5; keep this override until the
+plugin removes its vulnerable exact dependency. Do not upgrade Tailwind to v4
+without migrating the upstream v3 configuration and checking compatibility.
+Docker development and production builds install the locked CSS dependencies
+and compile Tailwind. After source changes, rebuild the Compose image; Compose
+does not bind-mount this checkout or run a CSS watcher.
+Only compiled Tailwind output is linked by Sprockets. SassC still compiles
+the legacy Sass grid, but CSS compression is disabled because Tailwind already
+minifies its modern CSS and SassC's compressor cannot parse that color syntax.
+
+Components generated from the MIT-licensed gem are application-owned in
+`app/helpers/components` and `app/views/components/ui`. The button, badge,
+card and alert copies preserve HTML/data/accessibility attributes; cards are
+fluid rather than the upstream fixed-width demo. Use `render_button`,
+`render_card`, `render_badge` and `render_alert` for new shared patterns.
+**Generators overwrite component customizations:** inspect a generator in an
+isolated checkout before adding another component; never rerun one blindly.
+
+This is an incremental Bootstrap migration. Only Bootstrap's Sass **grid**
+remains; its component CSS, reboot and JavaScript are no longer loaded.
+`app/assets/stylesheets/ui.css` provides a temporary Tailwind-backed vocabulary
+adapter for legacy ERB classes (`btn`, `card`, `form-control`, `table`, alerts
+and display utilities), plus shared form defaults. Convert remaining legacy
+markup as each page is revised instead of copying long class strings.
+
+The shell has desktop collapse, grouped navigation, a mobile focus-trapped
+drawer with Escape/overlay dismissal, a native HTML profile disclosure,
+keyboard focus styles and reduced-motion support. No unsupported global search
+or notification inbox is shown. Existing page-specific search, private-data
+gates, form names, Turbo IDs and user workflows remain intact.
+
+UI validation:
+
+```sh
+npm run test:ui
+bundle exec ruby test/helpers/ui_components_test.rb
+bundle exec ruby bin/rails test test/integration/application_shell_test.rb
+SECRET_KEY_BASE_DUMMY=1 bundle exec ruby bin/rails assets:precompile
+```
+
+## Application features
 
 - Account registration, sign-in, and password recovery through Devise.
 - Stock search from the owner's approved private Equibles evidence; shared watchlists retain identifier metadata, not a licensed customer feed.

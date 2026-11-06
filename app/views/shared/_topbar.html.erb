@@ -1,0 +1,30 @@
+<header class="shell-topbar">
+  <div class="topbar-context">
+    <button type="button" class="icon-button mobile-menu" aria-label="Open navigation" aria-controls="application-navigation" aria-expanded="false" data-shell-target="menuButton" data-action="shell#open">
+      <%= fa_icon "bars", aria: { hidden: true } %>
+    </button>
+    <div>
+      <p class="topbar-breadcrumb">FinanceTracker <span aria-hidden="true">/</span> <%= current_user ? "Workspace" : "Showcase" %></p>
+      <p class="topbar-title"><%= shell_page_context %></p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <% if current_user %>
+      <details class="profile-menu" data-controller="disclosure" data-action="click@window->disclosure#outside keydown.esc@window->disclosure#escape turbo:before-cache@document->disclosure#close">
+        <summary class="profile-trigger">
+          <span class="profile-avatar" aria-hidden="true"><%= fa_icon "user" %></span>
+          <span class="profile-name"><%= current_user.full_name.presence || "Your account" %></span>
+          <span class="sr-only">Account options</span>
+          <%= fa_icon "angle-down", aria: { hidden: true } %>
+        </summary>
+        <div class="profile-dropdown">
+          <%= link_to "Edit Profile", edit_user_registration_path %>
+          <%= link_to "Sign out", destroy_user_session_path, data: { turbo_method: :delete } %>
+        </div>
+      </details>
+    <% else %>
+      <%= render_button "Sign in", as: :link, href: new_user_session_path, variant: :ghost %>
+      <%= render_button "Create account", as: :link, href: new_user_registration_path %>
+    <% end %>
+  </div>
+</header>

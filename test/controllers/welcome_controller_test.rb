@@ -5,7 +5,8 @@ class WelcomeControllerTest < ActionDispatch::IntegrationTest
     sign_in users(:one)
     get root_path
     assert_response :success
-    assert_select "h1", "Welcome Page"
+    assert_select "h1", "Your financial engineering workspace"
+    assert_select "a[href=?]", portfolio_demo_path, text: "Explore demo dashboard"
   end
 
   test "Devise sign in authenticates valid fixture credentials" do

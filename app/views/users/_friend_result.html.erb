@@ -1,6 +1,7 @@
 <%= turbo_frame_tag "friend-result" do %>
   <% if @friends %>
     <div class="card card-header d-inline-block my-3">
+      <div class="table-responsive" role="region" aria-label="Friend search results" tabindex="0">
       <table class="col-md-12 col-sm-6">
         <tbody>
           <% @friends.each do |friend| %>
@@ -24,6 +25,7 @@
           <% end %>
         </tbody>
       </table>
+      </div>
     </div>
   <% end %>
 <% end %>

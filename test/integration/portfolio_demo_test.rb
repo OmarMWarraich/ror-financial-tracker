@@ -189,7 +189,9 @@ class PortfolioDemoTest < Minitest::Test
     document = Nokogiri::HTML(last_response.body)
     assert_equal "scenario", document.at_css('label[for="scenario"]')["for"]
     assert document.at_css('select#scenario[name="scenario"]')
-    assert document.at_css('input[type="submit"][value="Show scenario"]')
+    submit = document.at_css('button[type="submit"][name="commit"][value="Show scenario"]')
+    assert submit
+    assert_equal "Show scenario", submit.text.strip
     assert document.at_css('.table-responsive[role="region"][tabindex="0"][aria-label]')
     assert document.at_css("table caption")
     assert_equal 9, document.css('thead th[scope="col"]').length

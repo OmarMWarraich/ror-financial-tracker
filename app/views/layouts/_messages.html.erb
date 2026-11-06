@@ -1,14 +1,14 @@
 <%= turbo_frame_tag "flash" do %>
   <% if notice %>
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <%= render_alert title: "Notification", variant: :success, icon: false, role: "status", class: "mb-4 pr-12", data: { controller: "alert" } do %>
       <%= notice %>
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
+      <button type="button" class="icon-button absolute right-2 top-2" data-action="alert#dismiss" aria-label="Dismiss notification"><%= fa_icon "times", aria: { hidden: true } %></button>
+    <% end %>
   <% end %>
   <% if alert %>
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <%= render_alert title: "Unable to complete request", variant: :destructive, icon: false, class: "mb-4 pr-12", data: { controller: "alert" } do %>
       <%= alert %>
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
+      <button type="button" class="icon-button absolute right-2 top-2" data-action="alert#dismiss" aria-label="Dismiss error"><%= fa_icon "times", aria: { hidden: true } %></button>
+    <% end %>
   <% end %>
 <% end %>

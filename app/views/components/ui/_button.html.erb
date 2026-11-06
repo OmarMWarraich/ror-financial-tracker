@@ -1,0 +1,10 @@
+<% case as %>
+<% when :link %>
+ <%= link_to href, **attributes do %>
+    <%= text %>
+  <% end %>
+<% when :button %>
+  <%= button_tag **attributes do %>
+    <%= text %>
+  <% end %>
+<% end %>
