@@ -34,6 +34,16 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "README.md#m0-research-pilot-specification"
   end
 
+  def test_m4_adapters_are_verified_without_claiming_paid_or_chat_access
+    result = @knowledge.search("M4-02").first
+    assert_equal "research-agent-adapters", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "not enabled paid access or a browser chatbot"
+    assert_includes result["summary"], "not a new HTTP/SSE transport or asynchronous timeout wrapper"
+    assert_includes result["summary"], "publication/knowability unknown"
+    assert_includes result["sources"], "test/services/research_agent_adapters_test.rb"
+  end
+
   def test_m0_permission_report_does_not_invent_scope_or_enable_egress
     ["M0-02", "M0-03"].each do |query|
       result = @knowledge.search(query).first

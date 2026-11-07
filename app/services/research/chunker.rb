@@ -5,7 +5,7 @@ module Research
     PREPROCESSING = "utf8-nfc-lines-v1"
     VERSION = "cl100k-speaker-800-overlap50-v1"
     MAX_BYTES = 262_144
-    SECRET = /(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bBearer\s+[A-Za-z0-9._-]{12,}|\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,}|\b(?:api[_ -]?key|account[_ -]?key|password|access[_ -]?token)["']?\s*[:=]\s*\S+)/i
+    SECRET = /(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bBearer\s+[A-Za-z0-9._-]{12,}|\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,}|\beq_[A-Za-z0-9_-]{16,}|\b(?:api[_ -]?key|account[_ -]?key|password|access[_ -]?token)["']?\s*[:=]\s*\S+)/i
 
     def self.normalize(parts, metadata:, forbidden: [])
       unless parts.is_a?(Array) && parts.size.between?(1, 100) && metadata.is_a?(Hash)

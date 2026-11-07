@@ -21,9 +21,12 @@ class ResearchEmbeddingAttempt < ApplicationRecord
     else raise Research::Error.new("invalid_embedding_owner_request")
     end
     transaction do
-      connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK})")
       request.user.lock!
+      connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK})")
       if where(user_id: request.user_id, batch_key: batch_key, state: %w[dispatched uncertain]).exists?
+        raise Research::Error.new("uncertain_usage_requires_review")
+      end
+      if ResearchModelAttempt.where(user_id: request.user_id, state: %w[dispatched uncertain]).exists?
         raise Research::Error.new("uncertain_usage_requires_review")
       end
       today = Time.current.utc.to_date
@@ -31,10 +34,14 @@ class ResearchEmbeddingAttempt < ApplicationRecord
       owner = live.where(user_id: request.user_id)
       cost = paid ? tokens * PRICE_PER_TOKEN : 0
       owner_tokens = owner.sum("COALESCE(actual_tokens, reserved_tokens)")
-      owner_cost = owner.sum("COALESCE(actual_cost_nanos, reserved_cost_nanos)")
       run_cost = where(association => request).where.not(state: "released").sum("COALESCE(actual_cost_nanos, reserved_cost_nanos)")
-      if owner_tokens + tokens > 20_000 || owner_cost + cost > 500_000_000 ||
-         live.sum("COALESCE(actual_cost_nanos, reserved_cost_nanos)") + cost > 1_000_000_000 ||
+      if request.is_a?(ResearchRetrieval) && request.agent_run
+        run = request.agent_run
+        run_cost = run.model_attempts.where.not(state: "released").sum("COALESCE(actual_cost_nanos, reserved_cost_nanos)") +
+          where(retrieval_id: run.retrievals.select(:id)).where.not(state: "released").sum("COALESCE(actual_cost_nanos, reserved_cost_nanos)")
+      end
+      if owner_tokens + tokens > 20_000 || Research::Agent::Spend.cost(user_id: request.user_id) + cost > 500_000_000 ||
+         Research::Agent::Spend.cost + cost > 1_000_000_000 ||
          run_cost + cost > 50_000_000
         raise Research::Error.new("embedding_budget_exceeded")
       end
@@ -45,6 +52,7 @@ class ResearchEmbeddingAttempt < ApplicationRecord
 
   def reconcile!(tokens: nil, error_code: nil)
     user.with_lock do
+      self.class.connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK})")
       reload
       update!(state: tokens.nil? ? "uncertain" : "settled", actual_tokens: tokens,
               actual_cost_nanos: tokens.nil? ? nil : (reserved_cost_nanos.zero? ? 0 : tokens * PRICE_PER_TOKEN),

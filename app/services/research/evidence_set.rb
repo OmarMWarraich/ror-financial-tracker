@@ -29,6 +29,11 @@ module Research
       self
     end
 
+    def check_request!
+      @retriever.guarded { }
+      self
+    end
+
     def dispatch!(publisher:, &model_call)
       raise Error.new("database_transaction_open") if ApplicationRecord.connection.transaction_open?
       raise Error.new("invalid_dispatch_callbacks") unless publisher.respond_to?(:call) && model_call

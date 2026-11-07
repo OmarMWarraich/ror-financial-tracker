@@ -917,6 +917,57 @@ Sources: [current pricing](https://equibles.com/pricing),
 [price timing and adjustments](https://equibles.com/docs/api/endpoints/prices),
 and [terms](https://equibles.com/legal/terms), reviewed 2026-11-07.
 
+### M4 model and MCP adapter foundation
+
+The backend now uses the existing official **openai 0.120.0** SDK and pinned
+**mcp 1.9.0**, **faraday 2.15.1**, and **event_stream_parser 1.0.0**, compatible
+with the unchanged Ruby 3.3/Rails 7.1 application. OpenAI Responses requests use
+`gpt-5.4-mini-2026-03-17`, low reasoning, `store: false`, encrypted reasoning
+continuation, no background execution, parallel tool execution or automatic
+retry/failover. Usage includes billable reasoning output; cached-input discounts
+are not assumed. Final typed SDK responses are recursively serialized through
+the SDK's JSON API, not its shallow `to_h`.
+
+Equibles MCP uses only `https://mcp.equibles.com/mcp`, encrypted owner credentials
+in the Authorization header, an explicit 2025-11-25 handshake and negotiated
+session headers. No query-string authentication, OAuth/browser flow, stdio,
+sampling, roots, elicitation, autonomous URLs or write tools are exposed.
+JSON and SSE decoding, session lifecycle and cancellation belong to the MCP SDK.
+The small Faraday adapter delegates sockets to the existing OpenAI SDK's
+deadline-aware Net::HTTP implementation: it recalibrates socket timeouts across
+headers/body chunks without introducing asynchronous Ruby timeout exceptions.
+The fixed-endpoint guard runs before requests; responses have a 256-KiB total
+cap, requests a five-second remaining-time cap, and resumption GETs are denied.
+The pinned SDK's internal fused-enumerator close helper releases aborted bodies.
+No HTTP transport or SSE parser is reimplemented.
+
+Discovery is bounded to two pages of at most 200 tools each. Only
+`GetEarningsCallEvent`, `GetEarningsBrief`, and `GetEarningsCallTranscript` are
+reviewed. Server descriptions never become system instructions. Flat server
+schemas are checked, remote references rejected, and each call also satisfies a
+strict application schema fixing ticker/year/quarter, brief limit 1 and transcript
+limit 50/offset 0 or 50. Changed schemas, expired sessions, unsupported content
+and provider errors abort rather than silently retry. Rendered financial identity,
+date and transcript-range headers are validated against the documented format;
+date-only UTC sessions remain dates, with publication/knowability explicitly
+unknown. Format or identity changes fail closed instead of inventing metadata.
+
+Owner-bound run/model receipts contain digests, selectors, pinned model/prompt,
+usage, budgets and error codes, not raw questions, prompts, tool results or
+answers. PostgreSQL ownership and immutable run/credential/association guards
+protect audit identity. Inference and embedding reservations share the existing
+owner/application UTC spend ceilings and global lock; all callers acquire owner
+then global locks consistently. Known usage is reconciled; dispatched/uncertain
+model usage blocks further owner calls pending review. These primitives do not
+yet supply conversations, worker/reconnect control, deletion or production
+acceptance. Live authorization remains default off.
+
+Sources: [official OpenAI Ruby SDK](https://github.com/openai/openai-ruby),
+[MCP Ruby transports](https://ruby.sdk.modelcontextprotocol.io/client/transports/),
+[MCP cancellation](https://ruby.sdk.modelcontextprotocol.io/client/cancellation/),
+[Equibles MCP](https://equibles.com/mcp), and
+[earnings tool contracts](https://equibles.com/docs/mcp/tools/earnings).
+
 ### Rails-native conversational research assessment
 
 Architectural direction, assessed 2026-11-07; **not implemented**. Keep the

@@ -5,6 +5,8 @@ class User < ApplicationRecord
   has_many :research_retrievals, dependent: :restrict_with_error
   has_many :research_ingestions, dependent: :restrict_with_error
   has_many :research_embedding_attempts, dependent: :restrict_with_error
+  has_many :research_agent_runs, dependent: :restrict_with_error
+  has_many :research_model_attempts, dependent: :restrict_with_error
   has_many :broker_connections, dependent: :destroy
   has_one :equibles_connection, dependent: :destroy
   has_many :user_stocks
