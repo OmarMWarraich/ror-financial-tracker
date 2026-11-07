@@ -612,6 +612,81 @@ Sources: [CopilotKit architecture](https://docs.copilotkit.ai/concepts/architect
 [MCP Ruby client transports](https://ruby.sdk.modelcontextprotocol.io/client/transports/),
 and [Rails 7.1 Action Cable](https://guides.rubyonrails.org/v7.1/action_cable_overview.html).
 
+### M0 research pilot specification
+
+Decision date: 2026-11-07. This is the implementation contract for the pending
+M1-M9 work, **not an enabled feature or authorization for paid calls**.
+No CopilotKit dependency, React rewrite, autonomous browsing, portfolio writes,
+broker credentials, order execution or promised investment return is in scope.
+
+#### Scope and baseline (M0-01, M0-06)
+
+The first workflow is `latest_earnings_v1`: one exact listed company, its latest
+concluded earnings call, results, outlook, risks and dated source links, with at
+most three follow-up turns about that company/call. A fourth follow-up requires
+a new run/conversation budget check. Changing company/period requires a new
+workflow selection. Questions outside scope receive an explicit explanation.
+Research tools initially permitted for review are `GetEarningsCallEvent`,
+`GetEarningsBrief` and `GetEarningsCallTranscript`; no other discovered tool is
+implicitly authorized. An older approved brief must never stand in for the
+latest call. If the bounded transcript pages are insufficient, report incomplete
+coverage rather than implying the entire call was read.
+
+Build the non-vector baseline first: exact owner/company/period/rights filters,
+latest-event resolution, a directly selected brief or transcript, and PostgreSQL
+full-text search for relevant passages. Return source IDs/line or turn references,
+source and publication times where known, fiscal period, retrieval time and
+coverage limitations. Raw financial figures must remain distinct from model
+interpretation. Vector retrieval must use the same eligible corpus and filters.
+Retain the simpler baseline unless hybrid retrieval improves recall@5 by at
+least 5 percentage points without degrading citation/temporal correctness and
+still meets latency/spend limits. No embeddings are required for an exact-period
+document lookup.
+
+#### Acceptance targets, not measured results (M0-04)
+
+These are conservative application ceilings/targets, not provider entitlements.
+They must be enforced by M5 and verified by M9 before live rollout. Users may
+lower ceilings, never increase them. Each follow-up is separately budgeted and
+also counts toward daily/conversation ceilings.
+
+| Area | Initial acceptance contract |
+| --- | --- |
+| Test corpus | 24 original synthetic documents, 4 fictional companies x 3 fiscal periods x 2 document types; at least 120 passages, 2 owners, plus revision/expiry/unknown-time variants. No copied proprietary transcripts in CI. |
+| Evaluation set | 40 fixed questions: 20 supported, 10 missing/conflicting/out-of-scope, 10 temporal/adversarial; preserve expected evidence IDs and availability times. |
+| Retrieval | Recall@5 >=90% on supported questions; 100% exclusion of other-owner, revoked, expired and future-known evidence in boundary cases. Full-text baseline and vector/hybrid use identical corpus/query sets. |
+| Answers | All material factual claims cite supplied evidence; >=95% claim-level support on human-reviewed evaluation, with zero wrong-company/quarter answers and zero invented numeric claims. Unsupported cases abstain or identify the gap. These are release criteria, not automatic guarantees. |
+| Latest-period freshness | Re-resolve latest call metadata if older than 15 minutes; the actual source quarter/date remains explicit. Never require old-but-valid historical statements to masquerade as fresh observations. |
+| Context and output | User message <=2,000 tokens; each model input <=10,000 tokens; cumulative model input <=12,000 tokens/run, output <=4,096 tokens/run including billable reasoning. Reject/trim safely before dispatch; no silent historical-context truncation. |
+| Loop/network | <=4 model requests and <=6 provider data-tool calls/run; <=2 transcript pages of <=50 turns each; 90-second total run deadline; per-request deadlines cannot exceed remaining time. No automatic charged-run replay. |
+| Concurrency | 1 active run/owner, 2 active application-wide; Equibles calls sequential within each run. These app limits do not replace the provider's shared account limits. |
+| Spend | <=$0.05 reserved/run, <=$0.20/conversation, <=$0.50/owner/UTC day and <=$1.00/application/UTC day across inference and embeddings; reserve/reconcile atomically. Live authorization remains off. |
+| Ingestion | <=20,000 embedding input tokens/owner/UTC day; <=800 tokens/passage and <=50 overlap; count ingestion and query embeddings in the same spend ledger. No whole-database embedding. |
+| Latency | Offline fixture workflow p95 <=2 seconds; authorized live pilot target first visible progress <=1 second and final answer p95 <=45 seconds over >=20 runs; 90-second deadline is mandatory even if targets fail. Measure cold/warm runs separately. |
+| Disposal | Every retrieval excludes expired/revoked material at its validity check, even if cleanup has not run. Target physical logical-row deletion within 15 minutes with a 5-minute scheduler; measure worker outages explicitly. Recheck before model egress/publication. No instantaneous backup or provider erasure claim. |
+| Pilot retention | Original synthetic corpus/chat/evaluations <=30 days; synthetic backup retention <=7 days. Real-source text/vector/answer/cache/backup retention remains disabled until provider-specific permission defines deadlines. |
+
+#### Dependency order and permitted parallel work (M0-05)
+
+```text
+M0 scope/thresholds ---------> offline fixtures + non-vector baseline
+M0 model selection ---------> M4 model/tool adapters (stubbed first)
+M0 real-data permissions ---> any real-source ingestion or external model egress
+M1 restored pgvector DB ----> M2 vector ingestion ---> M3 indexed retrieval
+M4 adapters + M5 limits ----> any authorized paid agent run
+M5 durable owner/run state -> M6 authenticated streaming
+M3 + M4 + M5 + M6 ----------> M7 end-to-end research workflow
+M8 tested disposal --------> retention of licensed source/derived material
+M9 verifies each slice ----> feature-flagged pilot acceptance
+```
+
+Non-vector M3 behavior, original fixtures, fake-provider evaluations and UI
+scaffolding need not wait for pgvector or external permissions. M1 can be
+prepared/tested in an isolated restored database independently. M8's schema and
+expiry guards must be designed with M2, not added after licensed data is stored.
+M9 testing accompanies each workstream, rather than beginning only at the end.
+All dependencies above are prerequisites, not evidence that the slices exist.
+
 ### Prepare the Database and Start Rails
 
 ```sh

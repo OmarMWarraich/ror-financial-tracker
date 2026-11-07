@@ -1,5 +1,23 @@
 [
   {
+    "id": "m0-research-pilot-contract",
+    "title": "M0 scoped earnings research pilot acceptance and dependencies",
+    "aliases": ["M0", "latest_earnings_v1", "pilot ceilings", "non-vector baseline", "acceptance targets"],
+    "summary": "M0 scope/acceptance/dependency decisions are specified, not runtime-implemented: latest_earnings_v1 covers one company/latest call and at most three follow-ups; reviewed tool candidates are GetEarningsCallEvent/GetEarningsBrief/GetEarningsCallTranscript. Exact-period/full-text baseline precedes vectors; hybrid needs >=5 percentage-point recall@5 gain without correctness/budget/latency regression. Targets include 24 synthetic documents/120+ passages and 40 questions, recall@5 >=90%, claim support >=95%, zero ownership/temporal leaks or invented numbers. Ceilings: 12000 cumulative input and 4096 output tokens/run, 4 model requests, 6 data-tool calls, 90 seconds, 1 active run/owner and 2 globally. Spend reservations <=$0.05/run, $0.20/conversation, $0.50/owner/day, $1/application/day include embeddings; no paid calls are authorized. Latest-call metadata rechecked after 15 minutes; expired/revoked sources excluded on reads before asynchronous deletion. Synthetic retention <=30 days/backups <=7; real retention requires permission. README records exact graph: M1->M2->indexed M3, M4+M5 before paid runs, M5->M6, M3-M6->M7, M8 before licensed retention and M9 alongside every slice. Model selection and real-data permissions are separate pending prerequisites.",
+    "status": "user_decision",
+    "updated_on": "2026-11-07",
+    "sources": ["README.md#m0-research-pilot-specification", "todo.md#m0-scope-prerequisites-and-dependency-order"]
+  },
+  {
+    "id": "temporal-rag-planning",
+    "title": "Shared PostgreSQL vector storage and time-aware RAG planning",
+    "aliases": ["RAG", "pgvector", "embeddings", "temporal retrieval", "evidence disposal", "M0", "M9"],
+    "summary": "The current planning direction extends the existing PostgreSQL database with pgvector for embeddings alongside relational records, rather than replacing it or adding a mandatory separate vector database. Rails owns the research agent, workflow controls, limits and tests. The appended M0-M9 checklist covers safe database extension/restore, permission-aware ingestion, versioned embeddings, hybrid retrieval, provider/MCP adapters, budgets, authenticated streaming, grounded workflows and disposal/evaluation. This is planning only: pgvector, RAG and model/MCP chat integration are not implemented. Evidence must distinguish event, publication/known-available, received/indexed, freshness and retention times; receipt is not source freshness. Owner/rights/expiry and exact company/fiscal-period filters govern retrieval; historical as-of use excludes later-known evidence and revisions. Latest-event resolution precedes brief/transcript retrieval. Old historical context is not automatically disposable. Expired/revoked material is excluded synchronously; idempotent cleanup handles text, vectors and derived caches with separate backup/restore rules and no instantaneous erasure claim. Source storage, embeddings and model egress require reviewed permissions. No live trading, guaranteed returns or paid-call authorization follows from the checklist.",
+    "status": "user_decision",
+    "updated_on": "2026-11-07",
+    "sources": ["todo.md#m-rails-native-research-agent-shared-vector-storage-and-time-aware-rag", "README.md#rails-native-conversational-research-assessment"]
+  },
+  {
     "id": "rails-native-research-agent",
     "title": "Application-owned Rails conversational research runtime direction",
     "aliases": ["agent runtime", "conversational agent", "CopilotKit assessment", "native workflows", "inference budgets", "model adapters", "chat streaming"],

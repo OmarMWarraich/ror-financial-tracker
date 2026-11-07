@@ -24,6 +24,16 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_equal "open_question", result["status"]
   end
 
+  def test_m0_contract_is_planning_not_enabled_inference
+    result = @knowledge.search("latest_earnings_v1 pilot ceilings").first
+    assert_equal "m0-research-pilot-contract", result["id"]
+    assert_equal "user_decision", result["status"]
+    assert_includes result["summary"], "not runtime-implemented"
+    assert_includes result["summary"], "no paid calls are authorized"
+    assert_includes result["summary"], "baseline precedes vectors"
+    assert_includes result["sources"], "README.md#m0-research-pilot-specification"
+  end
+
   def test_retrieves_native_agent_direction_without_claiming_implemented_chat
     result = @knowledge.search("conversational agent").first
     assert_equal "rails-native-research-agent", result["id"]
