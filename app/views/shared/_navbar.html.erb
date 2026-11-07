@@ -12,6 +12,9 @@
     <%= shell_nav_link "Demo dashboard", portfolio_demo_path, "pie-chart" %>
     <%= shell_nav_link "Research policy lab", research_demo_path, "flask" %>
     <% if current_user %>
+      <% if MarketDashboard.enabled? %>
+        <%= shell_nav_link "Stocks and earnings", market_dashboard_path, "bar-chart" %>
+      <% end %>
       <% if Research::Chat.enabled? %>
         <%= shell_nav_link "Research chat", research_chats_path, "comments" %>
       <% end %>

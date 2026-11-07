@@ -6,10 +6,8 @@
 # Ignore bundler config.
 /.bundle
 
-# Ignore all environment files (except templates).
+# Environment files, including templates, stay on the host.
 /.env*
-!/.env.example
-!/.env*.erb
 
 # Ignore all default key files.
 /config/master.key

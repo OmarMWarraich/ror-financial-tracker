@@ -1,4 +1,7 @@
 Rails.application.routes.draw do
+  resource :market_dashboard, only: :show, controller: "market_dashboards" do
+    post :refresh
+  end
   get "portfolio_demo", to: "portfolio_demos#show", as: :portfolio_demo
   get "research_demo", to: "research_demos#show", as: :research_demo
   get "configurations/ios_v1", to: "native_configurations#show", defaults: { platform: "ios", format: :json }

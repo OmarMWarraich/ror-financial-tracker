@@ -14,6 +14,7 @@ module ApplicationHelper
     {
       "welcome" => "Overview",
       "portfolio_demos" => "Portfolio analytics",
+      "market_dashboards" => "Stocks and earnings",
       "research_demos" => "Research policy lab",
       "research_chats" => "Research chat",
       "broker_connections" => "Private connections",

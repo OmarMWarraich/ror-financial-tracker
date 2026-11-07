@@ -65,6 +65,10 @@ services:
 
   web:
     <<: *app
+    environment:
+      <<: *app-environment
+      EQUIBLES_API_KEY: ${EQUIBLES_API_KEY:-}
+      MARKET_DASHBOARD_ENABLED: ${MARKET_DASHBOARD_ENABLED:-0}
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:

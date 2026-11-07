@@ -18,6 +18,18 @@ class ProjectKnowledgeTest < Minitest::Test
     end
   end
 
+  def test_live_market_dashboard_does_not_claim_cache_redistribution_or_ai_approval
+    result = @knowledge.search("C01 dashboard").first
+    assert_equal "equibles-market-dashboard", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "production remains denied"
+    assert_includes result["summary"], "no polling, OpenAI, trading or screener-price fallback"
+    assert_includes result["summary"], "cap30/key/day"
+    assert_includes result["summary"], "date-only"
+    assert_includes result["summary"], "exact named billing plan/expiry"
+    assert_includes result["sources"], "app/services/market_dashboard.rb"
+  end
+
   def test_distinguishes_unverified_api_access_from_provider_fact
     result = @knowledge.search("ALVIS inference endpoint").first
     assert_equal "alvis-programmatic-access", result["id"]

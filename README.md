@@ -790,6 +790,70 @@ none is implied by these private-display configuration flags.
 
 Official reference: [REST API](https://equibles.com/docs/api), [authentication](https://equibles.com/docs/authentication), [paid quotes](https://equibles.com/docs/api/endpoints/prices), [company screener](https://equibles.com/docs/api/endpoints/capital), and [errors and limits](https://equibles.com/docs/api/errors).
 
+#### C01 real-data stocks and earnings dashboard
+
+`/market_dashboard` is a separate **authenticated local** Equibles showcase;
+the public `/portfolio_demo` remains entirely fictional. Opening the page makes
+no provider request. An explicit, non-Turbo POST loads up to three normalized US
+symbols (default AAPL, MSFT, NVDA): one batch `/v1/screener/stocks` issuer request,
+three `/v1/stocks/{ticker}/quote` requests and three
+`/v1/stocks/{ticker}/financial-facts/eps-diluted` requests. There is no OpenAI call,
+trading, automatic polling or screener-price substitution.
+
+Enable locally with `MARKET_DASHBOARD_ENABLED=1`; the flag defaults off and cannot
+enable this surface in production. The host must be loopback/approved development
+emulator and pass existing private-transport checks. Docker receives
+`EQUIBLES_API_KEY` **only in web**, not as an image/build argument or in worker job
+payloads. The local operator can let Docker load existing environment files
+without opening or displaying their contents:
+
+```sh
+MARKET_DASHBOARD_ENABLED=1 docker compose --env-file .env --env-file .env.docker \
+  up -d --build --wait web
+```
+
+The environment files remain protected/ignored. Never print interpolated Compose
+configuration, credentials or raw provider responses. Removing the key or
+disabling the flag stops further dashboard access; a key's presence does not
+authorize AI requests, caching or hosted redistribution.
+
+Quotes retain exact ticker/USD identity, provider market/session time and receipt
+time. Delayed quotes are supported and labelled; stale, malformed, wrong-currency
+or future-source-time quotes are unavailable, not relabelled live. Diluted EPS
+shows at most four captured discrete quarters with period end, filed date, unit
+and split basis. Negative/zero EPS remain real values; missing earnings are not
+zero. Source dates stay date-only. Latest-restated XBRL facts and today's split
+basis are not point-in-time/backtest evidence, forecasts or an earnings-call
+summary. Stock selection is not a holdings ledger.
+
+Prices, financial facts and profile text remain in the response, not SQL,
+embeddings, sessions or a shared watchlist. Pages use no-store and no Turbo
+cache. Only quota receipts with irreversible key digest and UTC date/count are
+stored through existing `ResearchSourceUsage`. Each exchange reserves capacity
+atomically before networking and shares key-group accounting with REST/MCP and
+queued research holds. Local ceiling:30 requests/key/UTC day; remote clients can
+consume additional allowance. Observed exhaustion/auth failures stop later calls;
+accepted errors/timeouts keep reservations and there are no retries. A 20-second
+admission deadline stops starting further exchanges; an already accepted request
+may finish afterward. Database locks do not cover network work.
+
+One authorized local check on 2026-11-07 returned HTTP200 in5.889s: AAPL/MSFT/NVDA
+rendered three delayed quote cards and twelve quarterly EPS rows, using seven
+requests, no alerts and no AI calls. Narrow layout had no page-level horizontal
+overflow at the observed312px viewport; tables remain scrollable. The embedded
+browser was backgrounded, so submission used the native DOM form path rather
+than physical pointer/device acceptance. No actual prices, earnings figures,
+keys or real-data screenshots are retained in shared acceptance records.
+
+Final offline validation:394 Rails tests/4,485 assertions and36 curated-knowledge
+tests/553 assertions passed, including concurrent refresh reservations and
+production-gate denial. Eager loading and development/production image builds
+passed; the final development image is running with a healthy local web service.
+
+This completes the requested local real-data dashboard, **not** C01's still
+unverified exact named account plan/expiry, C03 caching/redistribution permissions,
+public hosting/screenshots/mobile distribution or any commercial launch.
+
 #### C01-C03 verification review (2026-11-07)
 
 An explicitly authorized, read-only exercise used eight HTTPS requests, with
