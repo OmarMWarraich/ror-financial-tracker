@@ -14,7 +14,8 @@ logout assertions. No paid/provider request occurred.
 The failed experimental method was removed rather than adding an unconditional
 failure or presenting an opt-in skip as acceptance. The existing anonymous smoke
 test is unchanged. The proxy was stopped and only the new simulator was shut
-down/deleted. Disposable accounts are removed after web acceptance. Android
+down/deleted. Both disposable accounts and their owned research records were
+removed after web acceptance. Android
 also remains blocked by missing Java/SDK tooling; no licenses were accepted or
 SDK/emulator downloads performed. M6-06 stays open. Browser acceptance and the
 20 bundled route cases are separate evidence, not device acceptance.

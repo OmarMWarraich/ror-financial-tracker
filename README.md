@@ -1182,6 +1182,16 @@ disconnect/reconnect and logout acceptance remain open; sharing a WebView
 proves neither device acceptance nor a Swift/Kotlin-native chatbot. See
 [native smoke evidence](native/smoke/disposable-rails.md).
 
+Final local M6 verification (2026-11-07): **360 Rails tests / 4,191 assertions**
+and **32 knowledge tests / 508 assertions**, with no failures or skips.
+Development/production builds, eager loading and all Compose service health
+checks passed. Browser logout/back navigation removed protected messages;
+expiry stopped refresh and rejected a simulated late snapshot. Two disposable
+accounts and their completed fixture records were removed. Isolated full-schema
+row/index/trigger/rollback and populated-vector dump/restore passed, preserving
+the original database volume; private backups remain protected and ignored.
+This does not close native M6-06 or enable paid/private research.
+
 ### Rails-native conversational research assessment
 
 Architectural direction, assessed 2026-11-07; **the M4 backend is implemented
