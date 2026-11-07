@@ -44,6 +44,19 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "test/services/research_agent_adapters_test.rb"
   end
 
+  def test_m4_native_loop_is_implemented_without_claiming_browser_or_live_acceptance
+    %w[M4 M4-05 M4-06 M4-07].each do |query|
+      result = @knowledge.search(query).first
+      assert_equal "research-native-agent-loop", result["id"], query
+      assert_equal "implemented", result["status"]
+      assert_includes result["summary"], "zero external calls/spend"
+      assert_includes result["summary"], "No-evidence/stale-only retained states avoid inference"
+      assert_includes result["summary"], "not full claim entailment/financial correctness"
+      assert_includes result["summary"], "remain M5-M9"
+      assert_includes result["sources"], "test/services/research_agent_runtime_test.rb"
+    end
+  end
+
   def test_m0_permission_report_does_not_invent_scope_or_enable_egress
     ["M0-02", "M0-03"].each do |query|
       result = @knowledge.search(query).first
@@ -108,7 +121,8 @@ class ProjectKnowledgeTest < Minitest::Test
     result = @knowledge.search("conversational agent").first
     assert_equal "rails-native-research-agent", result["id"]
     assert_equal "user_decision", result["status"]
-    assert_includes result["summary"], "not implemented model/MCP/chat access"
+    assert_includes result["summary"], "not enabled paid/provider access or implemented browser chat"
+    assert_includes result["summary"], "M4 locally implements"
     assert_includes result["summary"], "AG-UI is optional"
     assert_includes result["summary"], "cross-process worker broadcasts"
     assert_includes result["sources"], "config/cable.yml"

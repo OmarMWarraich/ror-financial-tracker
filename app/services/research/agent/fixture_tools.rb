@@ -34,7 +34,7 @@ module Research
             "- Call date (UTC): 2026-10-28\n- Turns: 1-2 of 2\n\n" \
             "Fictional Chief Executive: revenue was 120 demonstration units.\nOperator: this is original fictional data."
         end
-        { "text" => Agent.safe_text!(text, forbidden: forbidden), "structured" => nil }
+        { "text" => Agent.safe_text!(text, forbidden: forbidden), "structured" => nil, "synthetic" => true }
       end
 
       def close

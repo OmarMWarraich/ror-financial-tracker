@@ -62,15 +62,16 @@ module Research
           raise Research::Error.new("agent_tool_not_authorized")
         end
         raise Research::Error.new("future_mcp_event") if Date.iso8601(date) > Time.current.utc.to_date
+        synthetic = @synthetic || result["synthetic"] == true
         { "source_id" => "mcp:#{Digest::SHA256.hexdigest(JSON.generate([name, arguments, text]))}",
-          "origin" => @synthetic ? "fixture" : "live_mcp", "tool" => name, "content" => text,
+          "origin" => synthetic ? "fixture" : "live_mcp", "tool" => name, "content" => text,
           "listing_identity" => @listing, "fiscal_year" => @year, "fiscal_quarter" => @quarter,
           "provider_event_id" => @event["id"], "event_date" => date, "event_time_precision" => "date_only",
           "source_timezone" => "UTC", "published_at" => nil, "known_at" => nil,
           "received_at" => Time.current.utc.iso8601(6), "publication_unknown" => true,
-          "coverage" => coverage, "synthetic" => @synthetic,
+          "coverage" => coverage, "synthetic" => synthetic,
           "mcp_protocol_version" => result["protocol_version"],
-          "citation_url" => @synthetic ? "https://example.invalid/research/alpha" : "https://equibles.com/stocks/#{@ticker}" }
+          "citation_url" => synthetic ? "https://example.invalid/research/alpha" : "https://equibles.com/stocks/#{@ticker}" }
       rescue KeyError, ArgumentError
         raise Research::Error.new("mcp_evidence_unverified"), cause: nil
       end

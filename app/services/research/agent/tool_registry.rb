@@ -37,7 +37,8 @@ module Research
                  Array(schema["required"]).include?("ticker") &&
                  properties.all? { |key, value| safe_property?(key, value) } &&
                  (schema.keys - %w[type properties required additionalProperties description title $schema]).empty? &&
-                 (tool.annotations.nil? || (tool.annotations.is_a?(Hash) && tool.annotations["readOnlyHint"] != false))
+                 (tool.annotations.nil? || (tool.annotations.is_a?(Hash) && tool.annotations["readOnlyHint"] != false &&
+                   tool.annotations["destructiveHint"] != true))
             raise Research::Error.new("mcp_tool_schema_changed")
           end
           @discovered[tool.name] = schema.deep_dup

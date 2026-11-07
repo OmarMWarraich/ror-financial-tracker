@@ -50,7 +50,8 @@ module Research
           Agent.safe_text!(part["text"], forbidden: forbidden, bytes: 262_144)
         end.join("\n")
         Agent.safe_text!(text, forbidden: forbidden, bytes: 262_144)
-        { "text" => text, "structured" => result["structuredContent"], "protocol_version" => @client.protocol_version }
+        { "text" => text, "structured" => result["structuredContent"], "protocol_version" => @client.protocol_version,
+          "synthetic" => @injected }
       rescue MCP::CancelledError
         raise Research::Error.new("agent_cancelled"), cause: nil
       rescue MCP::Client::RequestHandlerError, MCP::Client::ServerError, MCP::Client::ValidationError, MCP::Client::InputRequiredError

@@ -648,8 +648,8 @@ permissions and budget ledger; private access still defaults off.
   selected passage/revision/document rows and rechecks before invoking the
   local transactional publisher. Revoked/expired/changed evidence prevents
   publication; already-transmitted data cannot be recalled. The model block
-  and local-only publisher are integration contracts for M4-M7, not an
-  implemented inference adapter, conversation store or streaming UI.
+  and local-only publisher are used by the M4 native loop below. M3 itself
+  supplies no inference adapter, conversation store or streaming UI.
 
 Example with an already ingested, owned original-fixture space:
 
@@ -968,9 +968,80 @@ Sources: [official OpenAI Ruby SDK](https://github.com/openai/openai-ruby),
 [Equibles MCP](https://equibles.com/mcp), and
 [earnings tool contracts](https://equibles.com/docs/mcp/tools/earnings).
 
+### M4 application-owned native loop
+
+`Research::Agent::Runtime` is a synchronous server-side service, not a browser
+chat endpoint or background agent job. The safe default runs original fixtures
+without OpenAI, Equibles or embedding requests:
+
+```ruby
+result = Research::Agent::Runtime.new(
+  user: owner, request_key: SecureRandom.uuid,
+  query: "Summarize original fictional Alpha earnings.",
+  listing_identity: "SYNTH:ALPHA", fiscal_year: 2026, fiscal_quarter: 3
+).call
+```
+
+The result has `run_id`, `status`, `text`, attributed `sources` and per-step
+`usage`. The owner-bound receipt retains audit metadata, not the raw answer.
+Modes must be explicit: `fixture`, `retained` (M3 `evidence:` only, no MCP
+discovery), `live_mcp` (no implicit retained passages), or `mixed` (both).
+Retained/mixed require an owned M3 EvidenceSet matching the exact listing,
+period and mode. `query_mode: "as_of"` requires retained evidence and its
+confirmed cutoff. `latest_earnings` requires guarded M3 authoritative event
+metadata even if local passages are absent; MCP event identity must match it.
+Missing/stale-only retained evidence returns `no_evidence`/`stale_only` without
+calling a model. Live MCP publication/knowability is unknown, not as-of proof.
+
+Each step checks approval, credentials, cancellation, deadline and selected
+evidence; validates allowlisted calls; reserves usage before network work;
+normalizes evidence; then continues. Repeated name/arguments reuse evidence,
+not another request. Tool text/descriptions/documents are untrusted data, not
+authority to change instructions, tools, scope or budgets. Sources keep
+`retained`/`live_mcp`/`fixture` origins and synthetic markers; injected SDK clients
+are test fixtures, not evidence of live provider acceptance.
+
+Admission is one active run/owner, two application-wide. Limits are four model
+steps, six data calls including linked latest-event requests, 90 seconds,
+10,000 reserved input tokens/step, 12,000 cumulative input and 4096 cumulative
+output including reasoning. No tools execute after the fourth step. Source
+context is at most six sources, 6000 JSON tokens and 64 KiB; serialized model
+history/tools must remain within 9000 tokens before a 1000-token framing
+allowance. Token reservations are conservative estimates, not a guarantee of
+provider billing. Spend is shared with embeddings: $0.05/run, $0.50/owner UTC
+day and $1/application UTC day. MCP control/data exchanges share the existing
+quote quota, with at most 16 exchanges/run and the verified allocation capped
+at 30/owner/day. Unknown dispatched model usage blocks new paid reservations;
+request keys cannot silently replay or switch providers.
+
+Validated answer text must contain an available source ID; this is **citation
+presence, not complete claim-entailment or financial-correctness verification**.
+M9 quality acceptance remains required. Final local publication rechecks and
+locks selected retained evidence, owner/run and credentials. Revocation,
+correction, expiry or stale live observations prevent publication; known usage
+still settles. Already-transmitted evidence cannot be recalled.
+
+`events:` accepts an internal callback with version 1, run ID, sequence,
+UTC time, lifecycle/tool progress, safe errors and text deltas. Financial text
+deltas are buffered until full-output validation and guarded publication; tool
+progress contains no raw results or credentials. Expected local persistence/
+delivery errors surface explicitly; delivery failure after committed publication
+does not relabel the run unpublished. These are **not AG-UI events**, authenticated
+browser streaming or reconnect guarantees. Keep publishers local-only and
+transactional; caller-supplied adapters are trusted application/test code.
+
+Private research additionally requires `agent_enabled`, `derived_answers`,
+the pinned `inference_models`, and all existing verified research permissions.
+MCP modes also require `mcp_enabled` and an explicit reviewed `mcp_tools` subset.
+Populated environment keys alone authorize nothing. Conversation/follow-up
+budgets, durable worker recovery, workflow controls, owner-authenticated
+cross-process chat/reconnect, disposal and live/quality acceptance remain
+M5-M9. No real model/MCP account call or private approval was performed for M4.
+
 ### Rails-native conversational research assessment
 
-Architectural direction, assessed 2026-11-07; **not implemented**. Keep the
+Architectural direction, assessed 2026-11-07; **the M4 backend is implemented
+locally, not the complete conversational UI/workflow**. Keep the
 existing ERB/Turbo/Stimulus and shadcn/Tailwind surfaces. Build a small,
 application-owned research orchestrator rather than a general-purpose agent
 framework. Borrow CopilotKit's separation of UI, runtime and agent, not its code

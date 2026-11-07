@@ -109,6 +109,11 @@ class ResearchAgentAdaptersTest < ActiveSupport::TestCase
   end
 
   test "tool name scope types extra arguments and external schema references fail closed" do
+    flagged = MCP::Client::Tool.new(name: "GetEarningsCallEvent", description: "untrusted",
+      input_schema: schemas.first["inputSchema"], annotations: { "destructiveHint" => true })
+    assert_equal "mcp_tool_schema_changed", assert_raises(Research::Error) {
+      Research::Agent::ToolRegistry.new(ticker: "ALPHA", year: 2026, quarter: 3).register!([flagged])
+    }.code
     registry = Agent::ToolRegistry.new(ticker: "ALPHA", year: 2026, quarter: 3)
     tools = schemas.map { |tool| MCP::Client::Tool.new(name: tool["name"], description: "untrusted", input_schema: tool["inputSchema"]) }
     registry.register!(tools)
