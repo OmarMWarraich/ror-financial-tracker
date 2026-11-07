@@ -444,6 +444,67 @@ key. No ticket was submitted and no missing permission was assumed.
 Until that evidence and the actual owner are established, the empty approval
 configuration and all history/AI/distribution/trading gates remain unchanged.
 
+#### Free/Plus educational research scope
+
+The next evaluation stage uses Free/Plus resources first; Pro is not a
+prerequisite for learning or source-linked company research. These are research
+inputs, not evidence that a profitable strategy exists or that the app currently
+implements one.
+
+- Free provides filings, financial/ownership research and historical/end-of-day
+  prices; API/MCP daily prices are released four hours after the market close,
+  with 100 shared requests per day.
+- Plus adds 15-minute-delayed US quotes, delayed/indicative option-chain data,
+  10,000 shared API/MCP requests per day and 100 ALVIS credits per week. Some
+  forecasts are available, but are not necessarily forecasts of a stock's return
+  and do not establish an execution edge.
+- ALVIS is usable on Equibles' own site. Its official documentation charges one
+  credit per message/follow-up and three per workflow, subject to both weekly
+  and rolling five-hour limits. Deep Thinking requires Pro. There is still no
+  verified public ALVIS inference API for this Rails application. That is not
+  a blocker for research: REST serves data and provider-generated earnings briefs
+  and insight scores, while MCP supports research with a connected assistant.
+  A separate model is optional for additional synthesis, not required merely to
+  display documented research outputs; its costs/permissions would be separate.
+- These resources can support end-of-day research and slower hypotheses. Delayed
+  quotes are not live order prices and do not support claims of reliable
+  intraday execution. No historical intraday candle/streaming service, complete
+  point-in-time backtest dataset or automated profitable strategy is established.
+- The existing sandbox uses fictional synchronous fills. It is not a live-data
+  paper brokerage, a validated backtester, or a functioning stock-order adapter.
+  Learning can begin with provider-site research and a manual paper journal;
+  app-based retained research and real execution retain their separate gates.
+- Evaluate a written hypothesis, invalidation/risk conditions, timestamped
+  evidence, realistic fills, spread/fees, subscription costs, drawdown and an
+  appropriate benchmark. A single winning trade does not establish skill or
+  justify scaling risk. No return or time to profit is guaranteed.
+
+The official [screen-and-deep-dive recipe](https://equibles.com/docs/recipes/screen-and-deep-dive)
+provides a concrete starting workflow: screening, ownership/insider evidence,
+fundamentals/valuation and an earnings brief. The
+[REST/MCP comparison](https://equibles.com/docs/mcp-vs-rest) recommends REST for
+backends/dashboards and MCP for conversational exploration; they may be combined
+but have overlapping, not identical coverage. The
+[earnings reference](https://equibles.com/docs/api/endpoints/earnings) documents
+provider-generated briefs and insight scores, distinct from invoking ALVIS.
+These research surfaces are documented capabilities, not yet credential-tested
+in the eight-request quote/history exercise. Validate each selected endpoint's
+plan access, provenance and availability rather than treating missing ALVIS
+inference access as a general lack of usable insights.
+
+For support, distinguish plan access from usage permission. Request confirmation
+of Plus personal automated/non-display research and backtesting, permitted local
+caching and backup retention/deletion, external-model inference versus training,
+ALVIS programmatic access and five-hour limits, point-in-time history/delistings/
+adjustment revisions, and any separate grants for public screenshots, native
+delivery or redistribution. Do not describe an unverified feature as absent or
+an unresolved permission as an outright ban.
+
+Sources: [current pricing](https://equibles.com/pricing),
+[ALVIS usage and limits](https://equibles.com/docs/alvis),
+[price timing and adjustments](https://equibles.com/docs/api/endpoints/prices),
+and [terms](https://equibles.com/legal/terms), reviewed 2026-11-07.
+
 ### Prepare the Database and Start Rails
 
 ```sh

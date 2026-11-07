@@ -48,10 +48,10 @@
     "id": "alvis-programmatic-access",
     "title": "ALVIS browser feature is not proof of an ALVIS inference API",
     "aliases": ["Elvis endpoint", "ALVIS API", "Equibles MCP", "REST"],
-    "summary": "Official ALVIS documentation describes browser chats, research workflows, and author-only PDF/Markdown exports. It directs developers using their own AI agent to Equibles MCP. A supported programmatic ALVIS chat/inference endpoint and automated export-ingestion rights have not been verified. Do not invent an endpoint or automate private browser APIs. Equibles data REST/MCP access is a separate integration surface.",
+    "summary": "Official ALVIS documentation describes browser chats, research workflows, and author-only PDF/Markdown exports. It directs developers using their own AI agent to Equibles MCP. A supported programmatic ALVIS chat/inference endpoint and automated export-ingestion rights have not been verified. Do not invent an endpoint or automate private browser APIs. This is not a general research blocker: REST documents provider-generated earnings briefs and insight scores, and MCP supports connected-assistant research. A separate model is optional for additional synthesis, not required merely to display documented research outputs. REST is recommended for backends/dashboards and MCP for conversation; coverage overlaps but is not identical. The screen-and-deep-dive recipe combines screening, ownership/insider evidence, fundamentals/valuation and earnings briefs. These research endpoints were not credential-tested by the eight-request quote/history exercise; validate selected endpoint access and availability separately.",
     "status": "open_question",
-    "updated_on": "2026-11-05",
-    "sources": ["https://equibles.com/docs/alvis", "https://equibles.com/docs"]
+    "updated_on": "2026-11-07",
+    "sources": ["https://equibles.com/docs/alvis", "https://equibles.com/docs", "https://equibles.com/docs/mcp-vs-rest", "https://equibles.com/docs/recipes/screen-and-deep-dive", "https://equibles.com/docs/api/endpoints/earnings", "README.md#freeplus-educational-research-scope"]
   },
   {
     "id": "kraken-connection-modes",
@@ -84,10 +84,10 @@
     "id": "showcase-and-hobby",
     "title": "Equibles engineering showcase with personal hobby trading",
     "aliases": ["portfolio", "architecture", "current direction", "robo advisory"],
-    "summary": "The current direction is a professional portfolio analytics showcase using Rails ERB/Hotwire and Equibles, with personal hobby algorithmic trading allowed and proposed elevated per-user paper mode. The former commercial hub/community/marketplace roadmap is historical, not the current backlog. Public demo fixtures, private account data, paper state, and live state must remain distinct.",
+    "summary": "The current direction is a professional portfolio analytics showcase using Rails ERB/Hotwire and Equibles, with personal hobby algorithmic trading allowed and proposed elevated per-user paper mode. The next evaluation stage prioritizes educational, source-linked research using Free/Plus resources; do not assume Pro is required or promise a target return/time to profit. Assess usefulness and state data, application and permission limitations accurately for provider escalation. Existing synthetic fills are not a live-data paper broker or validated backtester. The former commercial hub/community/marketplace roadmap is historical, not the current backlog. Public demo fixtures, private account data, paper state, and live state must remain distinct.",
     "status": "user_decision",
-    "updated_on": "2026-11-05",
-    "sources": ["plan.md#current-direction-demonstrate-engineering-not-launch-a-trading-business"]
+    "updated_on": "2026-11-07",
+    "sources": ["plan.md#current-direction-demonstrate-engineering-not-launch-a-trading-business", "README.md#freeplus-educational-research-scope", "https://equibles.com/pricing", "https://equibles.com/docs/alvis"]
   },
   {
     "id": "implemented-watchlist",
