@@ -24,6 +24,16 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_equal "open_question", result["status"]
   end
 
+  def test_retrieves_native_agent_direction_without_claiming_implemented_chat
+    result = @knowledge.search("conversational agent").first
+    assert_equal "rails-native-research-agent", result["id"]
+    assert_equal "user_decision", result["status"]
+    assert_includes result["summary"], "not implemented model/MCP/chat access"
+    assert_includes result["summary"], "AG-UI is optional"
+    assert_includes result["summary"], "cross-process worker broadcasts"
+    assert_includes result["sources"], "config/cable.yml"
+  end
+
   def test_retrieves_equibles_contract_review_without_claiming_complete_account_verification
     %w[C01 C02].each do |query|
       result = @knowledge.search(query).first

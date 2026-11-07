@@ -1,5 +1,14 @@
 [
   {
+    "id": "rails-native-research-agent",
+    "title": "Application-owned Rails conversational research runtime direction",
+    "aliases": ["agent runtime", "conversational agent", "CopilotKit assessment", "native workflows", "inference budgets", "model adapters", "chat streaming"],
+    "summary": "The chosen direction is to assess a small application-owned Ruby research orchestrator using existing ERB/Turbo/Stimulus and shadcn/Tailwind, not adopt CopilotKit or rewrite the frontend. CopilotKit is a UI/runtime/agent design reference. OpenAI or Anthropic Claude supplies inference; Equibles MCP supplies allowlisted research tools. Workflows, owner-scoped conversations, tests, versioned prompts, limits, usage accounting and cancellation belong in Rails. These are planned capabilities, not implemented model/MCP/chat access. Existing Devise/PostgreSQL/Sidekiq/Redis are reusable foundations; Action Cable connection authentication is absent and development async cannot deliver cross-process worker broadcasts. Add authenticated owner-authorized streaming and compatible shared adapter, durable message/run state and reconnect recovery. Reserve budgets atomically before provider calls without holding locks over network calls; uncertain spend needs reconciliation and local limits cannot guarantee provider billing caps. Native shells may reuse Rails chat HTML but require device validation. Start with one provider and a latest-earnings workflow that checks event recency before using a brief/transcript. No portfolio-write/trading tools, silent provider switching or implicit expansion of data rights. AG-UI is optional interoperability, not required for Hotwire. Exact model, SDK compatibility, budgets and egress/retention rights remain to be verified.",
+    "status": "user_decision",
+    "updated_on": "2026-11-07",
+    "sources": ["README.md#rails-native-conversational-research-assessment", "plan.md#current-direction-demonstrate-engineering-not-launch-a-trading-business", "app/controllers/application_controller.rb", "app/channels/application_cable/connection.rb", "config/cable.yml", "config/application.rb", "config/sidekiq.yml", "native/README.md", "https://docs.copilotkit.ai/concepts/architecture", "https://github.com/openai/openai-ruby", "https://github.com/anthropics/anthropic-sdk-ruby", "https://ruby.sdk.modelcontextprotocol.io/client/transports/"]
+  },
+  {
     "id": "flash-toast-lifecycle",
     "title": "Animated three-second flash toasts",
     "aliases": ["toast", "flash", "notifications", "animation", "dismissal"],

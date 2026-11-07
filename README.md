@@ -505,6 +505,113 @@ Sources: [current pricing](https://equibles.com/pricing),
 [price timing and adjustments](https://equibles.com/docs/api/endpoints/prices),
 and [terms](https://equibles.com/legal/terms), reviewed 2026-11-07.
 
+### Rails-native conversational research assessment
+
+Architectural direction, assessed 2026-11-07; **not implemented**. Keep the
+existing ERB/Turbo/Stimulus and shadcn/Tailwind surfaces. Build a small,
+application-owned research orchestrator rather than a general-purpose agent
+framework. Borrow CopilotKit's separation of UI, runtime and agent, not its code
+or a mandatory frontend/runtime dependency.
+
+Proposed flow:
+
+```text
+Authenticated Rails research page
+  -> persist message/run and enqueue Active Job
+  -> Sidekiq: application-owned agent loop
+  -> OpenAI or Anthropic Claude adapter
+  -> validate requested tool and reserve quota
+  -> owner-scoped Equibles MCP client
+  -> evidence and tool result back to model
+  -> persisted answer + batched Turbo/Action Cable updates
+```
+
+GPT is an OpenAI model family; Claude is Anthropic's. Neither model supplies our
+authorization, workflow policies or budgets. Official Ruby SDKs document both
+providers; their current minimum Ruby versions admit this checkout's Ruby
+version, but exact releases and dependency compatibility still require a locked
+installation/test. Start with one provider, keep a narrow adapter for the other,
+and do not silently switch providers because that changes data egress and spend.
+The official MCP Ruby SDK documents Streamable HTTP clients; HTTP/SSE parser
+dependencies, release compatibility and Equibles authentication remain to be
+tested. Do not implement MCP framing or model HTTP streaming from scratch.
+
+#### Existing foundation and concrete gaps
+
+- Devise authenticates ordinary controller requests. New conversation, message,
+  run, usage and evidence records must be owner-scoped; no such chat records or
+  routes exist today.
+- Active Job already uses Sidekiq; Redis and workers exist. Research needs its
+  own bounded queue/concurrency allocation so long model calls do not starve
+  evidence maintenance. Jobs carry IDs, not credentials or raw transcripts.
+- Action Cable's connection class is currently empty. Development uses `async`,
+  which cannot deliver worker broadcasts across processes. Add verified
+  Rails-session authentication and owner-authorized subscriptions; configure and
+  test a shared adapter/dependency compatible with the locked Rails version.
+  Controller authentication does not automatically protect WebSocket channels.
+- Use Turbo updates for batched text/progress and Stimulus for stop, scrolling
+  and reconnect UX. Persist canonical message/run state and reload it on
+  reconnect; broadcasts alone are not durable delivery. Escape partial text;
+  sanitize any final Markdown rendering, and validate source links.
+- Existing encrypted owner credentials, explicit entitlement checks and bounded
+  Equibles requests are useful patterns. The current snapshot is one USD quote,
+  not a research corpus. Research retention, transcripts and model egress need
+  their own reviewed scope; do not extend quote approval flags by implication.
+- The synthetic research-policy lab demonstrates fixtures only. It is not a
+  production prompt-injection detector, budget ledger or model evaluation suite.
+- Hotwire Native shells load Rails HTML with their own cookie sessions. The
+  same chat page is plausible without React/React Native, but streaming,
+  background/resume, keyboard, cancellation and logout need real-device checks.
+
+#### Native workflow and policy layer
+
+Keep the first workflow narrow: latest earnings summary with follow-ups. Resolve
+the latest call event before selecting its brief; use the exact-period transcript
+when the newest approved brief is older. Record what was actually consulted and
+link evidence. Unknown or missing material must be visible, not invented.
+
+Store versioned workflow/prompt definitions, permitted tools and provider/model
+configuration. Users may lower their limits; they must not raise operator caps.
+Enforce limits outside the model: per-run input/output bounds, tool calls,
+steps, elapsed time, concurrent runs, and daily owner/application spend.
+Atomically reserve conservative capacity before each external call, settle
+against reported usage, and retain uncertain reservations for reconciliation
+after timeouts. Billing can exceed observed partial usage on cancellation or
+ambiguous failures; local enforcement is not a guaranteed provider billing cap.
+Equibles quota is also shared with REST/MCP clients outside this app, so check
+provider rate limits and do not treat our local ledger as the global counter.
+
+Use explicit queued/running/completed/failed/cancelled/interrupted states,
+request deduplication and guarded state transitions. Check cancellation between
+steps and during provider streaming where supported; do not promise refund of
+work already accepted. Avoid replaying an entire charged run automatically after
+a worker failure. Do not hold database locks throughout model/network calls.
+
+Expose only reviewed research tools and validated arguments, even if MCP
+discovery returns additional tools. Do not expose portfolio mutations, broker
+credentials, arbitrary URLs, shell execution or trading tools. Treat retrieved
+content as untrusted evidence. Validate citations against retrieved evidence IDs;
+valid IDs alone do not prove that the generated claim is supported.
+
+Test workflows with deterministic fake model/tool adapters by default: stale
+brief fallback, missing transcript, unsupported citations, malicious tool
+instructions, cross-owner access, quota races, duplicate jobs, cancellation,
+disconnect/reconnect and worker interruption. Live evaluations should be
+explicitly authorized, budgeted and scored for factual/citation support,
+recency, latency and measured usage cost. They must not be mandatory CI calls.
+
+AG-UI is optional interoperability, not a prerequisite for our own Hotwire UI.
+MCP remains the external tool protocol. An internal, versioned event vocabulary
+can represent run progress, text deltas, tool status and errors without claiming
+AG-UI compatibility. Model API streams, MCP transport and browser streaming are
+three separate connections.
+
+Sources: [CopilotKit architecture](https://docs.copilotkit.ai/concepts/architecture),
+[OpenAI Ruby SDK](https://github.com/openai/openai-ruby),
+[Anthropic Ruby SDK](https://github.com/anthropics/anthropic-sdk-ruby),
+[MCP Ruby client transports](https://ruby.sdk.modelcontextprotocol.io/client/transports/),
+and [Rails 7.1 Action Cable](https://guides.rubyonrails.org/v7.1/action_cable_overview.html).
+
 ### Prepare the Database and Start Rails
 
 ```sh
