@@ -1,5 +1,14 @@
 [
   {
+    "id": "vector-index-decision",
+    "title": "M1 exact-search decision from filtered ANN comparison",
+    "aliases": ["M1-07", "HNSW", "IVFFlat", "vector benchmark", "filtered recall", "ANN index decision"],
+    "summary": "M1 keeps exact cosine search with no persistent ANN index. bin/research-vector-benchmark refuses non-test environments/databases, generates 24 original synthetic documents/120 passages for two owners at 1536 dimensions, and compares 20 exact-company/period filtered top-five queries against independent Ruby cosine ground truth. Trial HNSW/IVFFlat indexes and data are transactionally rolled back; index use and returned owner/period eligibility are asserted and test statistics refreshed afterward. Sample standalone warm-cache SQL candidate-ID results on 2026-11-07: exact recall@5 1.00/p95 1.183ms; HNSW ef_search=40 recall 0.77/p95 1.438ms/build 37ms/index 991232 bytes; IVFFlat lists=10/probes=1 recall 0.32/p95 1.235ms/build 22.063ms/index 1073152 bytes. Stored vector payload 737760 bytes; relational p95 baseline 0.187ms, with HNSW 0.198ms and IVFFlat 0.161ms. Forced ANN plans and small synthetic warm-cache timing are not production benchmarks or M0/M9 end-to-end acceptance. Larger search/probe values can improve recall; remeasure filtered recall, latency, build/storage/write cost and relational impact at representative permitted growth/load before any adoption. No live provider or inference/embedding calls are made. Other ingestion/RAG/agent/disposal milestones remain pending.",
+    "status": "implemented",
+    "updated_on": "2026-11-07",
+    "sources": ["bin/research-vector-benchmark", "README.md#m1-index-decision-and-repeatable-benchmark", "https://github.com/pgvector/pgvector/tree/v0.8.1"]
+  },
+  {
     "id": "research-vector-storage",
     "title": "Owner-scoped versioned research schema and exact cosine storage primitive",
     "aliases": ["M1-04", "M1-05", "M1-06", "M1-08", "ResearchDocument", "ResearchEmbeddingSpace", "ResearchEmbedding", "Neighbor", "exact cosine storage"],

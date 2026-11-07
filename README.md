@@ -385,6 +385,49 @@ cross-owner/checksum/version constraints even with model validations bypassed,
 invalid vectors, retention/availability boundaries, deliberate version cutover,
 normal relational transactions/rollback and surviving ledger triggers.
 
+#### M1 index decision and repeatable benchmark
+
+[bin/research-vector-benchmark](bin/research-vector-benchmark) refuses non-test
+environments/databases and creates only original synthetic evidence in a rolled
+back transaction. It uses 24 documents, 120 passages, two owners, 1,536 dimensions
+and 20 exact-company/period-filtered queries. Independent Ruby cosine calculations
+verify exact top-five ground truth. ANN query plans are checked to ensure the
+requested index was actually exercised; forced planner settings are
+transaction-local. All returned IDs must satisfy the same owner/company/period
+filters. Generated records and trial indexes are rolled back; the script refreshes
+test-table statistics afterward.
+
+```sh
+docker compose --env-file .env.docker --profile test run --rm test \
+  bash -ec 'bundle exec ruby bin/rails db:prepare && bundle exec ruby bin/research-vector-benchmark'
+```
+
+Sample standalone local result, 2026-11-07 (warm cache; SQL candidate IDs only):
+
+| Search | Filtered recall@5 | Query p95 (ms) | Index build (ms) | Extra index bytes | Relational-query p95 with index (ms) |
+| --- | --- | --- | --- | --- | --- |
+| Exact cosine | 1.00 | 1.183 | none | 0 | 0.187 baseline |
+| HNSW, `ef_search=40` | 0.77 | 1.438 | 37.000 | 991,232 | 0.198 |
+| IVFFlat, 10 lists / 1 probe | 0.32 | 1.235 | 22.063 | 1,073,152 | 0.161 |
+
+Stored vector payload was 737,760 bytes, excluding other columns/indexes.
+**Keep exact search; no persistent HNSW/IVFFlat index is installed.** The trial
+ANN settings missed filtered neighbors without making this small workload
+faster. Higher search/probe settings can improve recall but need their own
+measurements; this is not a general claim against ANN. Timing/index-build
+variation is expected. These warm-cache, local, small-sample measurements do not
+include embedding generation, Rails workflow/answer latency, concurrent ingestion,
+production I/O contention or a claim that all M0/M9 acceptance targets passed.
+Rerun on representative permitted growth/load before adopting an approximate
+index; measure filtered recall, latency, space/build/write cost and relational
+impact again rather than relying on these sample numbers.
+
+M1 is verified locally: the full container suite passed 238 tests / 3,063
+assertions with two parallel workers; eager loading and production image build
+passed. The rebuilt web/worker/scheduler are healthy and sign-in remains available.
+M2 ingestion and later RAG/agent/disposal work are not included. No live provider
+or paid inference/embedding request was made.
+
 ## Local Setup (Without Containers)
 
 Run the following commands from the repository root.

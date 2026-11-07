@@ -1,0 +1,143 @@
+#!/usr/bin/env ruby
+ENV["RAILS_ENV"] ||= "test"
+abort "Benchmark requires RAILS_ENV=test" unless ENV["RAILS_ENV"] == "test"
+require_relative "../config/environment"
+require "json"
+
+connection = ActiveRecord::Base.connection
+unless connection.select_value("SELECT current_database()").match?(/_test(?:[-_]\d+)?\z/)
+  abort "Benchmark refuses a non-test database"
+end
+unless connection.select_value("SELECT extversion FROM pg_extension WHERE extname='vector'") == "0.8.1"
+  abort "Benchmark requires pgvector 0.8.1"
+end
+
+def milliseconds
+  started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  value = yield
+  [value, (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000]
+end
+
+def p95(values)
+  values.sort.fetch((values.size * 0.95).ceil - 1).round(3)
+end
+
+def index_used?(plan, name)
+  plan["Index Name"] == name || Array(plan["Plans"]).any? { |child| index_used?(child, name) }
+end
+
+report = { dimensions: 1536, owners: 2, documents: 24, passages: 120, queries: 20,
+           note: "Original synthetic SQL candidate-ID microbenchmark; forced ANN plans, warm cache, no inference or production-load claim." }
+ActiveRecord::Base.transaction do
+  now = Time.current.change(usec: 0)
+  random = Random.new(20261107)
+  candidates = []
+  2.times do |owner_number|
+    owner = User.create!(email: "vector-benchmark-#{SecureRandom.hex(8)}@example.test", password: "synthetic-benchmark-password")
+    space = owner.research_embedding_spaces.create!(
+      provider: "synthetic", model: "fixture1536", model_version: "seed-20261107",
+      preprocessing_version: "plain-v1", chunker_version: "lines-v1"
+    )
+    2.times do |company|
+      %w[Q1 Q2 Q3].each do |period|
+        %w[earnings_brief earnings_transcript].each do |kind|
+          listing = "SYNTH:#{owner_number}-#{company}"
+          document = owner.research_documents.create!(
+            provider: "synthetic", source_kind: kind, source_id: "#{listing}-#{period}-#{kind}",
+            instrument_identity: listing, listing_identity: listing, fiscal_year: 2026,
+            fiscal_period: period, citation_url: "https://example.test/fictional-call",
+            entitlement_reference: "original-benchmark-v1", rights_expires_at: now + 30.days
+          )
+          lines = 5.times.map { |position| "Fictional #{listing} #{period} #{kind} fact #{position}." }
+          revision = document.revisions.create!(
+            user: owner, source_revision: "original", content: lines.join("\n"),
+            event_at: now - 3.days, published_at: now - 2.days, known_at: now - 2.days,
+            received_at: now - 1.day, expires_at: now + 7.days
+          )
+          offset = 0
+          lines.each_with_index do |content, position|
+            passage = revision.passages.create!(
+              user: owner, preprocessing_version: space.preprocessing_version, chunker_version: space.chunker_version,
+              position: position, start_char: offset, end_char: offset + content.length,
+              start_line: position + 1, end_line: position + 1, token_count: 20, content: content
+            )
+            offset += content.length + 1
+            vector = Array.new(1536) { random.rand * 2 - 1 }
+            embedding = space.embeddings.create!(user: owner, passage: passage, embedding: vector)
+            candidates << { space: space, listing: listing, period: period, vector: vector, id: embedding.id }
+          end
+        end
+      end
+    end
+    space.activate!(at: now)
+  end
+  raise "Unexpected benchmark corpus size" unless candidates.size == report[:passages]
+  queries = 20.times.map do |number|
+    target = candidates.fetch(number * 6)
+    eligible = candidates.select do |item|
+      item[:space].id == target[:space].id && item[:listing] == target[:listing] && item[:period] == target[:period]
+    end
+    query = target[:vector]
+    query_norm = Math.sqrt(query.sum { |value| value * value })
+    expected = eligible.sort_by do |item|
+      values = item[:vector]
+      dot = values.zip(query).sum { |left, right| left * right }
+      1 - dot / (Math.sqrt(values.sum { |value| value * value }) * query_norm)
+    end.first(5).map { |item| item[:id] }
+    passages = ResearchPassage.eligible_for(target[:space], at: now)
+      .where(research_documents: { listing_identity: target[:listing], fiscal_period: target[:period] })
+    sql = ResearchEmbedding.where(space_id: target[:space].id, passage_id: passages.select(:id))
+      .nearest_neighbors(:embedding, query, distance: "cosine").reselect(:id).limit(5).to_sql
+    { sql: sql, expected: expected, eligible_ids: eligible.map { |item| item[:id] } }
+  end
+  connection.execute("ANALYZE research_embeddings")
+  relational_sql = "SELECT count(*) FROM research_documents WHERE user_id = #{candidates.first[:space].user_id}"
+  relational_p95 = -> { p95(20.times.map { milliseconds { connection.select_value(relational_sql) }.last }) }
+  measure = lambda do |index_name|
+    samples = []
+    recalls = []
+    plans = []
+    queries.each do |query|
+      rows, elapsed = milliseconds { connection.select_values(query[:sql]).map(&:to_i) }
+      samples << elapsed
+      recalls << (rows & query[:expected]).size / 5.0
+      plan = JSON.parse(connection.select_value("EXPLAIN (FORMAT JSON) #{query[:sql]}")).first.fetch("Plan")
+      plans << index_used?(plan, index_name) if index_name
+      raise "Owner/period filter leaked" unless (rows - query[:eligible_ids]).empty?
+    end
+    { p95_ms: p95(samples), recall_at_5: (recalls.sum / recalls.size).round(3),
+      index_used_for_all_queries: index_name ? plans.all? : nil }
+  end
+  # Exclude first-use SQL/type-cache setup from the warm-cache comparison.
+  queries.each { |query| connection.select_values(query[:sql]) }
+  report[:exact] = measure.call(nil)
+  raise "Exact cosine results disagree with independent Ruby ground truth" unless report[:exact][:recall_at_5] == 1
+  report[:relational_before_p95_ms] = relational_p95.call
+  report[:stored_vector_bytes] = connection.select_value(
+    "SELECT sum(pg_column_size(embedding)) FROM research_embeddings WHERE space_id IN (#{candidates.map { |item| item[:space].id }.uniq.join(',')})"
+  ).to_i
+  { hnsw: "USING hnsw (embedding vector_cosine_ops)",
+    ivfflat: "USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10)" }.each do |kind, definition|
+    name = "research_benchmark_#{kind}"
+    _, build_time = milliseconds { connection.execute("CREATE INDEX #{name} ON research_embeddings #{definition}") }
+    connection.execute("SET LOCAL enable_seqscan = off")
+    connection.execute("SET LOCAL enable_bitmapscan = off")
+    connection.execute("SET LOCAL enable_sort = off")
+    connection.execute("SET LOCAL hnsw.ef_search = 40")
+    connection.execute("SET LOCAL ivfflat.probes = 1")
+    measurements = measure.call(name)
+    raise "#{kind} index was not exercised; refusing misleading ANN timing" unless measurements[:index_used_for_all_queries]
+    connection.execute("SET LOCAL enable_seqscan = on")
+    connection.execute("SET LOCAL enable_bitmapscan = on")
+    connection.execute("SET LOCAL enable_sort = on")
+    report[kind] = measurements.merge(
+      build_ms: build_time.round(3), index_bytes: connection.select_value("SELECT pg_relation_size('#{name}')").to_i,
+      relational_p95_ms: relational_p95.call
+    )
+    connection.execute("DROP INDEX #{name}")
+  end
+  report[:decision] = "Keep exact search for the bounded corpus; no persistent ANN index. Rerun on representative permitted growth/load before adoption."
+  raise ActiveRecord::Rollback
+end
+connection.execute("ANALYZE research_embeddings")
+puts JSON.pretty_generate(report)

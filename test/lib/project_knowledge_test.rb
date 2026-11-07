@@ -70,6 +70,16 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "test/models/research_storage_test.rb"
   end
 
+  def test_ann_decision_is_bounded_to_the_measured_workload
+    result = @knowledge.search("M1-07").first
+    assert_equal "vector-index-decision", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "no persistent ANN index"
+    assert_includes result["summary"], "independent Ruby cosine ground truth"
+    assert_includes result["summary"], "not production benchmarks or M0/M9 end-to-end acceptance"
+    assert_includes result["sources"], "bin/research-vector-benchmark"
+  end
+
   def test_retrieves_native_agent_direction_without_claiming_implemented_chat
     result = @knowledge.search("conversational agent").first
     assert_equal "rails-native-research-agent", result["id"]
