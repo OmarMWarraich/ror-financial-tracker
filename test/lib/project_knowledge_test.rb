@@ -34,6 +34,20 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "README.md#m0-research-pilot-specification"
   end
 
+  def test_m0_model_choices_do_not_resolve_egress_or_source_rights
+    ["M0-02", "M0-03"].each do |query|
+      result = @knowledge.search(query).first
+      assert_equal "m0-model-permission-readiness", result["id"]
+      assert_equal "user_decision", result["status"]
+      assert_includes result["summary"], "M0-02 remains partial"
+      assert_includes result["summary"], "M0-03 is blocked"
+      assert_includes result["summary"], "no real-source egress approved"
+      assert_includes result["summary"], "default abuse logs up to 30 days"
+      assert_includes result["summary"], "1536 dimensions/cosine"
+      assert_includes result["sources"], "https://equibles.com/legal/terms"
+    end
+  end
+
   def test_retrieves_native_agent_direction_without_claiming_implemented_chat
     result = @knowledge.search("conversational agent").first
     assert_equal "rails-native-research-agent", result["id"]

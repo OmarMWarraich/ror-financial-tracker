@@ -624,7 +624,7 @@ broker credentials, order execution or promised investment return is in scope.
 The first workflow is `latest_earnings_v1`: one exact listed company, its latest
 concluded earnings call, results, outlook, risks and dated source links, with at
 most three follow-up turns about that company/call. A fourth follow-up requires
-a new run/conversation budget check. Changing company/period requires a new
+a new conversation and budget check; daily ceilings still apply. Changing company/period requires a new
 workflow selection. Questions outside scope receive an explicit explanation.
 Research tools initially permitted for review are `GetEarningsCallEvent`,
 `GetEarningsBrief` and `GetEarningsCallTranscript`; no other discovered tool is
@@ -660,11 +660,91 @@ also counts toward daily/conversation ceilings.
 | Context and output | User message <=2,000 tokens; each model input <=10,000 tokens; cumulative model input <=12,000 tokens/run, output <=4,096 tokens/run including billable reasoning. Reject/trim safely before dispatch; no silent historical-context truncation. |
 | Loop/network | <=4 model requests and <=6 provider data-tool calls/run; <=2 transcript pages of <=50 turns each; 90-second total run deadline; per-request deadlines cannot exceed remaining time. No automatic charged-run replay. |
 | Concurrency | 1 active run/owner, 2 active application-wide; Equibles calls sequential within each run. These app limits do not replace the provider's shared account limits. |
+| Equibles quota | <=30 research calls/owner/UTC day, or the smaller verified allowance/remaining capacity after existing REST/MCP use. Accepted error responses can consume quota. External clients share capacity: local reservations cannot guarantee their remaining quota. |
 | Spend | <=$0.05 reserved/run, <=$0.20/conversation, <=$0.50/owner/UTC day and <=$1.00/application/UTC day across inference and embeddings; reserve/reconcile atomically. Live authorization remains off. |
 | Ingestion | <=20,000 embedding input tokens/owner/UTC day; <=800 tokens/passage and <=50 overlap; count ingestion and query embeddings in the same spend ledger. No whole-database embedding. |
 | Latency | Offline fixture workflow p95 <=2 seconds; authorized live pilot target first visible progress <=1 second and final answer p95 <=45 seconds over >=20 runs; 90-second deadline is mandatory even if targets fail. Measure cold/warm runs separately. |
-| Disposal | Every retrieval excludes expired/revoked material at its validity check, even if cleanup has not run. Target physical logical-row deletion within 15 minutes with a 5-minute scheduler; measure worker outages explicitly. Recheck before model egress/publication. No instantaneous backup or provider erasure claim. |
+| Disposal | Every retrieval excludes expired/revoked material at its validity check, even if cleanup has not run. Target deletion of primary text/vector/derived-cache rows within 15 minutes with a 5-minute scheduler; measure worker outages explicitly. Recheck before model egress/publication. No instantaneous backup, disk-page or provider erasure claim. |
 | Pilot retention | Original synthetic corpus/chat/evaluations <=30 days; synthetic backup retention <=7 days. Real-source text/vector/answer/cache/backup retention remains disabled until provider-specific permission defines deadlines. |
+
+#### Provider selection and unresolved gates (M0-02, M0-03)
+
+Selected design candidates, verified against public documentation on 2026-11-07:
+
+| Purpose | Selection and documented limits | Published standard USD price |
+| --- | --- | --- |
+| Inference | OpenAI Responses API, pinned `gpt-5.4-mini-2026-03-17`; 400,000 context window, 272,000 maximum input, 128,000 maximum output. Supports streaming, function calls and structured outputs. Start with low reasoning; the much smaller application ceilings above prevail. | Per 1M tokens: $0.75 input, $0.075 cached input, $4.50 output; regional processing adds 10% and is not included in this pilot estimate. |
+| Embeddings | OpenAI `/v1/embeddings`, `text-embedding-3-small`; 1,536 dimensions, documented 8,192-token maximum input. Select default 1,536 dimensions and cosine distance in pgvector, pending M1 compatibility/restore tests. | $0.02 per 1M input tokens; no inference output charge for embeddings. |
+
+Use one inference provider first, with no silent model/provider failover.
+GPT-5-mini was considered but its current model page marks it deprecated; it is
+not the selected pilot model. Claude/Anthropic remains a future alternative,
+requiring its own access, price, retention, adapter and evaluation review.
+No exact paid-account model access, rate tier, billing cap, regional routing,
+or zero-data-retention approval has been established here.
+
+At the full run ceilings, uncached inference costs
+`12,000 * $0.75/1M + 4,096 * $4.50/1M = $0.027432`.
+The entire 20,000-token daily embedding allowance adds $0.0004. These estimates
+exclude tax, currency conversion, Equibles subscriptions, hosting, optional
+provider tools and future price changes; no caching discount is assumed.
+Revalidate prices before enabling calls. Reserve worst-case cumulative tokens
+and retain uncertain charges after timeout/cancellation until reconciled;
+local budgets are not a guarantee of the provider's final invoice.
+
+Embedding provenance must include model ID, dimensions, chunker/normalization
+version and source revision/hash. Never compare vectors from incompatible
+versions; re-embedding is a separately budgeted migration, not an overwrite of
+historical availability times. The embedding model has no dated snapshot listed;
+detect/review service changes and retain that limitation in evaluations.
+
+Proposed request policy: foreground Responses requests with explicit
+`store: false`, no provider conversation/file/vector-store state, no background
+mode and no hosted tools. Request in-memory rather than extended prompt caching
+where supported and verify the actual model settings in M4. This is **not**
+a zero-retention claim: OpenAI documents default abuse-monitoring retention
+of up to 30 days, subject to legal/safety extensions; optional Zero Data
+Retention/Modified Abuse Monitoring requires approval. Responses normally
+stores application state for at least 30 days unless the storage control is
+used; embeddings has no application state retention but still has default
+abuse monitoring. Prompt caching has separate retention controls. API data is
+not used for training by default unless opted in. Account settings and the
+applicable service agreement must be checked before approved content is sent.
+
+| Material/action | Evidence and decision | What unlocks live use |
+| --- | --- | --- |
+| Original synthetic fixtures, local fake inference | Safe implementation/test starting point; no external calls or proprietary corpus needed. | M1-M9 offline work may proceed now. |
+| Earnings event/brief/transcript read | Published REST/MCP research tools exist; earlier quote probes do not prove earnings access for this account or exact plan identity. Free/Plus first; no automatic Pro upgrade. | Verify account plan, actual endpoint/tool availability and smallest bounded contract probe after review. |
+| Transcript/brief text storage and full-text index | Exact permitted duration, scope and source-specific exceptions are unresolved. | Written terms/support clarification covering this private app, text, indexes, caches and deletion. |
+| Embeddings of source text and queries | Embeddings are derived source artifacts; vector storage and sending text to an embedding service are distinct permissions. Neither is implied by quote-only entitlements. | Approval for derivatives, OpenAI processing, storage/expiry and versioned re-embedding. |
+| Inference egress | Source excerpts, ticker/period and minimized research questions only are proposed; **no real-source egress is approved**. No API keys, passwords, broker credentials, account IDs, holdings, trade history or unrelated user records in prompts/traces. | Source processing permission plus owner-approved OpenAI account, spend, retention/region and request settings. Synthetic paid tests also need explicit account/spend authorization. |
+| Derived answers/private display | Public terms describe supported AI clients but do not settle this app's exact Free/Plus derived-output retention/use case. Attribute Equibles beside citations; no promised returns. | Clarify private-owner use versus showing data/answers to reviewers or other users; record dataset exceptions and retention. |
+| Public/multi-user redistribution | Section 6's general active-Pro distribution grant is not a Free/Plus grant and excludes quotes, daily prices, options and FINRA datasets. It does not permit downstream bulk/API feeds. | Dataset-specific permission or applicable written agreement; otherwise keep this surface off. |
+| Backups, logs and revocation | No agreed real-source backup window or restore erasure procedure; local deletion cannot remove provider logs/backups. | Approved deadlines for raw text, vectors, derived answers/caches/logs/backups and post-restore deletion replay; M8 verification. |
+
+Support clarification to obtain (not sent): for a single-owner educational
+Free/Plus Rails app, may event metadata, transcripts and approved briefs be
+retrieved via MCP/REST, cached and full-text indexed; embedded by OpenAI and
+stored in PostgreSQL; sent as bounded excerpts to OpenAI under the documented
+default logging policy; and summarized with Equibles attribution? Specify allowed
+retention for each raw/derived/backup artifact, expiry/revocation obligations,
+dataset exceptions and whether private reviewer access changes the license.
+If Free/Plus cannot cover a particular action, request its exact restriction
+and available alternative, rather than assuming a wholesale plan upgrade.
+
+M0-01/04/05/06 are specified. **M0-02 remains partial** (selection/public facts
+complete, account controls and approved egress unverified); **M0-03 is blocked**
+on source-use clarification. No permission request was sent, no paid inference
+or embedding call was made, and existing entitlements remain default-disabled.
+
+Sources: [inference model](https://developers.openai.com/api/docs/models/gpt-5.4-mini),
+[deprecated alternative](https://developers.openai.com/api/docs/models/gpt-5-mini),
+[embedding model/pricing](https://developers.openai.com/api/docs/models/text-embedding-3-small),
+[embedding dimensions/limits](https://developers.openai.com/api/docs/guides/embeddings),
+[API data controls](https://developers.openai.com/api/docs/guides/your-data),
+[prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching),
+[Equibles research documentation](https://equibles.com/docs) and
+[Equibles terms, sections 5-6](https://equibles.com/legal/terms).
 
 #### Dependency order and permitted parallel work (M0-05)
 
