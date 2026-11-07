@@ -1,6 +1,7 @@
 class ResearchEmbeddingSpace < ApplicationRecord
   include ResearchOwnership
   has_many :ingestions, class_name: "ResearchIngestion", foreign_key: :space_id, dependent: :restrict_with_error
+  has_many :retrievals, class_name: "ResearchRetrieval", foreign_key: :space_id, dependent: :restrict_with_error
   has_many :embeddings, class_name: "ResearchEmbedding", foreign_key: :space_id,
            inverse_of: :space, dependent: :restrict_with_error
 
@@ -15,7 +16,7 @@ class ResearchEmbeddingSpace < ApplicationRecord
     user.with_lock do
       reload
       raise ArgumentError, "Only a building space can be activated" unless state == "building"
-      passages = ResearchPassage.eligible_for(self, at: at)
+      passages = ResearchPassage.indexed_for(self, at: at)
       if !passages.exists? || passages.where.not(id: embeddings.select(:passage_id)).exists?
         raise ArgumentError, "Complete the eligible passage embeddings before cutover"
       end

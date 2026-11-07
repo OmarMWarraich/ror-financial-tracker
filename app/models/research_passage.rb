@@ -30,4 +30,13 @@ class ResearchPassage < ApplicationRecord
       .where("research_revisions.expires_at > ?", Time.current)
       .merge(ResearchDocument.retained_at(Time.current))
   end
+
+  def self.indexed_for(space, at:)
+    joins(revision: :document)
+      .where(user_id: space.user_id, preprocessing_version: space.preprocessing_version, chunker_version: space.chunker_version)
+      .where(research_revisions: { revoked_at: nil, index_state: "ready", superseded_at: nil })
+      .where("research_revisions.id = research_documents.current_revision_id AND research_revisions.received_at <= ? AND research_revisions.expires_at > ?", at, at)
+      .where("research_revisions.known_at IS NULL OR research_revisions.known_at <= ?", at)
+      .merge(ResearchDocument.retained_at(Time.current))
+  end
 end

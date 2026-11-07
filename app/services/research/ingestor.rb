@@ -156,20 +156,9 @@ module Research
 
     def reserve_source!
       guarded do |approval|
-        connection = @owner.equibles_connection.reload
-        connection.with_lock("FOR UPDATE NOWAIT") do
-          today = Time.current.utc.to_date
-          used = connection.quota_date == today ? connection.requests_used : 0
-          if used >= approval.settings.fetch("daily_source_requests") || @request.source_requests >= 3
-            raise Error.new("source_request_budget_exceeded")
-          end
-          connection.update!(quota_date: today, requests_used: used + 1, last_attempt_at: Time.current)
-          @request.update!(source_requests: @request.source_requests + 1)
-        end
+        SourceQuota.reserve!(@request, allocation: approval.settings.fetch("daily_source_requests"), limit: 3)
         remaining
       end
-    rescue ActiveRecord::LockWaitTimeout
-      raise Error.new("source_account_busy")
     end
 
     def fetch!
@@ -177,7 +166,8 @@ module Research
       key = @request.provider == "equibles" ? @owner.equibles_connection.reload.api_key.to_s.strip : nil
       adapter = @source || (@request.provider == "synthetic" ? SyntheticSource.new : EquiblesSource.new)
       data = adapter.call(@request, before_request: -> { reserve_source! }, api_key: key)
-      normalized = Chunker.normalize(data.fetch(:parts), metadata: data.fetch(:metadata),
+      temporal = TemporalEvidence.source(data, provider: @request.provider)
+      normalized = Chunker.normalize(data.fetch(:parts), metadata: data.fetch(:metadata).merge("source_temporal" => temporal[:fingerprint]),
                                      forbidden: [key, ENV["OPENAI_API_KEY"].to_s.strip])
       guarded do |approval|
         document = @request.document
@@ -186,14 +176,17 @@ module Research
           if revision.revoked_at || revision.expires_at <= Time.current || revision.superseded_at
             raise Error.new("revision_revoked_expired_or_superseded")
           end
+          verified = data.fetch(:received_at)
+          revision.update!(verified_at: verified,
+            fresh_until: [verified + approval.freshness(@request), revision.expires_at, approval.deadline(@request)].min)
         else
           if ResearchIngestion.where(document_id: document.id, source_revision: normalized[:source_revision]).where.not(id: @request.id).exists?
             raise Error.new("previous_revision_deleted")
           end
           received = data.fetch(:received_at)
           expires = [received + approval.retention(@request), document.rights_expires_at, approval.deadline(@request)].min
-          revision.assign_attributes(normalized.merge(user: @owner, received_at: received,
-            event_at: data[:event_at], published_at: data[:published_at], known_at: data[:known_at],
+          revision.assign_attributes(normalized.merge(temporal[:values]).merge(user: @owner,
+            temporal_metadata: temporal[:metadata], verified_at: received,
             expires_at: expires, fresh_until: [received + approval.freshness(@request), expires].min))
           revision.save!
         end

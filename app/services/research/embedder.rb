@@ -50,7 +50,7 @@ module Research
         raise Error.new("invalid_embedding_response", actual_tokens: usage)
       end
       vectors = data.sort_by(&:index).map(&:embedding)
-      unless vectors.all? { |values| valid_vector?(values) }
+      unless vectors.all? { |values| self.class.valid_vector?(values) }
         raise Error.new("invalid_embedding_vector", actual_tokens: usage)
       end
       if usage > passages.sum(&:token_count)
@@ -67,9 +67,7 @@ module Research
       raise Error.new("invalid_embedding_response")
     end
 
-    private
-
-    def valid_vector?(values)
+    def self.valid_vector?(values)
       values.is_a?(Array) && values.length == 1536 &&
         values.all? { |value| value.is_a?(Numeric) && value.real? && value.to_f.finite? && value.to_f.abs <= 3.4028234e38 } &&
         values.any? { |value| [value.to_f].pack("f").unpack1("f") != 0.0 }

@@ -15,7 +15,8 @@ class ResearchRevision < ApplicationRecord
   validate do
     errors.add(:document, "must belong to the same owner") if document && document.user_id != user_id
   end
-  attr_readonly :user_id, :document_id, :source_revision, :source_metadata
+  attr_readonly :user_id, :document_id, :source_revision, :source_metadata, :temporal_metadata
+  validate { errors.add(:temporal_metadata, "must be an object") unless temporal_metadata.is_a?(Hash) }
   self.filter_attributes += [:content, :source_metadata]
 
   scope :available_at, ->(time) {

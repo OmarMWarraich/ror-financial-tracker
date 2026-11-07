@@ -340,12 +340,13 @@ The existing relational database now also contains:
 | Model/table | Stored identity and lifecycle |
 | --- | --- |
 | `ResearchDocument` / `research_documents` | Owner, provider/source kind/stable source ID, issuer/instrument and exact listing identity, fiscal year/period, citation URL, entitlement reference, rights deadline, revocation, current revision and ingestion generation. |
-| `ResearchRevision` / `research_revisions` | Source revision ID, immutable content/checksum and source provenance, pending/ready/failed indexing state, supersession, event/publication/known-available/received/indexed times, freshness deadline, retention expiry and revocation. Unknown source availability remains null, not invented from receipt time. |
-| `ResearchPassage` / `research_passages` | Revision/owner, preprocessing and chunker versions, passage position, character/line spans, speaker, token count and immutable text/checksum. |
+| `ResearchRevision` / `research_revisions` | Source revision ID, immutable content/checksum and temporal/source provenance, pending/ready/failed indexing state, supersession, event/publication/known-available/first-received/verified/indexed times, freshness deadline, retention expiry and revocation. Unknown source availability remains null, not invented from receipt time. |
+| `ResearchPassage` / `research_passages` | Revision/owner, preprocessing and chunker versions, passage position, character/line spans, speaker, token count, immutable text/checksum and generated English full-text vector. |
 | `ResearchEmbeddingSpace` / `research_embedding_spaces` | Owner, provider/model/model version, 1,536 dimensions, cosine metric, preprocessing/chunker versions and building/active/retired state. |
 | `ResearchEmbedding` / `research_embeddings` | Owner, passage, space, input checksum, matching preprocessing/chunker versions and `vector(1536)`. |
 | `ResearchIngestion` / `research_ingestions` | Owner-scoped idempotency key, allowlisted source selectors, stage/error, source request count, short claim lease and generation fence. No credentials or source text in the job arguments. |
 | `ResearchEmbeddingAttempt` / `research_embedding_attempts` | Durable batch/generation identity, UTC budget date, reserved/actual tokens and nanodollar costs; reserved/dispatched/settled/uncertain/released outcome. |
+| `ResearchRetrieval` / `research_retrievals` | Owner/space, query digest (not raw question), immutable exact selectors and idempotency key, bounded latest-event metadata, selected passage IDs/fingerprints, deadline and status. Query and ingestion attempts share one budget ledger. |
 
 Neighbor **0.6.0** supports the locked Ruby 3.3/Rails 7.1 stack; newer 1.x requires
 Rails/Active Record 7.2 or newer and is intentionally not selected.
@@ -576,6 +577,20 @@ calls/spend; its temporary owner/corpus/receipts were then removed. The stricter
 benchmark returned exact recall@5 1.00/p95 1.731 ms with no persistent ANN index.
 Web/worker/scheduler and sign-in are healthy. This verifies local implementation,
 not live provider acceptance or complete RAG/agent behavior.
+
+#### M3 temporal and hybrid retrieval
+
+M3's local storage/provenance slice adds timestamp basis/confidence and original
+offsets or raw date-only/placeholder values without inventing historical
+availability. Legacy provenance remains explicitly unverified. Source verification
+is separate from first receipt: a successful unchanged-source refetch can refresh
+the relevance recheck deadline without renewing knowability or deletion.
+Generated PostgreSQL English full-text storage and owner-scoped query usage
+receipts coexist with the existing relational/vector tables. A completed current
+corpus can activate with unknown publication history; the M1 strict nearest
+primitive still excludes it. Hybrid/current/as-of retrieval, latest-event
+selection and guarded model-context dispatch are validated in the next slice.
+No live permissions or model inference/chat is enabled by this schema.
 
 ## Local Setup (Without Containers)
 

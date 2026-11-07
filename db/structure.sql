@@ -1,4 +1,4 @@
-\restrict v1yMUahfQZoVtakpKcU16Ex1PTFJenjkxTSagygtFr0i50yNj6750GLA4ZQRYKf
+\restrict QXiMzzDJN09vfVfgXaVvuDkKKVNQSJwYOxZUKpP6CS4EVLIv2G5vcfD6PPZAMiA
 
 -- Dumped from database version 16.15 (Debian 16.15-1.pgdg13+2)
 -- Dumped by pg_dump version 16.15 (Debian 16.15-1.pgdg12+2)
@@ -254,7 +254,7 @@ ALTER SEQUENCE public.research_documents_id_seq OWNED BY public.research_documen
 CREATE TABLE public.research_embedding_attempts (
     id bigint NOT NULL,
     user_id bigint NOT NULL,
-    ingestion_id bigint NOT NULL,
+    ingestion_id bigint,
     batch_key character varying NOT NULL,
     generation integer NOT NULL,
     budget_date date NOT NULL,
@@ -266,7 +266,9 @@ CREATE TABLE public.research_embedding_attempts (
     error_code character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT research_embedding_attempt_budget CHECK ((((state)::text = ANY ((ARRAY['reserved'::character varying, 'dispatched'::character varying, 'settled'::character varying, 'uncertain'::character varying, 'released'::character varying])::text[])) AND ((reserved_tokens >= 1) AND (reserved_tokens <= 3200)) AND (reserved_cost_nanos >= 0) AND ((actual_tokens IS NULL) OR (actual_tokens >= 0)) AND ((actual_cost_nanos IS NULL) OR (actual_cost_nanos >= 0))))
+    retrieval_id bigint,
+    CONSTRAINT research_embedding_attempt_budget CHECK ((((state)::text = ANY ((ARRAY['reserved'::character varying, 'dispatched'::character varying, 'settled'::character varying, 'uncertain'::character varying, 'released'::character varying])::text[])) AND ((reserved_tokens >= 1) AND (reserved_tokens <= 3200)) AND (reserved_cost_nanos >= 0) AND ((actual_tokens IS NULL) OR (actual_tokens >= 0)) AND ((actual_cost_nanos IS NULL) OR (actual_cost_nanos >= 0)))),
+    CONSTRAINT research_embedding_attempt_owner_request CHECK (((ingestion_id IS NULL) <> (retrieval_id IS NULL)))
 );
 
 
@@ -439,6 +441,7 @@ CREATE TABLE public.research_passages (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     source_metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    search_vector tsvector GENERATED ALWAYS AS (to_tsvector('english'::regconfig, content)) STORED,
     CONSTRAINT research_passage_content_and_position CHECK ((((preprocessing_version)::text <> ''::text) AND ((chunker_version)::text <> ''::text) AND ("position" >= 0) AND (start_char >= 0) AND (end_char > start_char) AND ((end_char - start_char) = char_length(content)) AND (token_count > 0) AND (token_count <= 800) AND ((checksum)::text = encode(sha256(convert_to(content, 'UTF8'::name)), 'hex'::text)) AND (((start_line IS NULL) AND (end_line IS NULL)) OR ((start_line IS NOT NULL) AND (end_line IS NOT NULL) AND (start_line > 0) AND (end_line >= start_line)))))
 );
 
@@ -460,6 +463,50 @@ CREATE SEQUENCE public.research_passages_id_seq
 --
 
 ALTER SEQUENCE public.research_passages_id_seq OWNED BY public.research_passages.id;
+
+
+--
+-- Name: research_retrievals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_retrievals (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    space_id bigint NOT NULL,
+    request_key character varying NOT NULL,
+    query_digest character varying NOT NULL,
+    selectors jsonb NOT NULL,
+    latest_event jsonb DEFAULT '{}'::jsonb NOT NULL,
+    selection jsonb DEFAULT '[]'::jsonb NOT NULL,
+    state character varying DEFAULT 'pending'::character varying NOT NULL,
+    generation integer DEFAULT 0 NOT NULL,
+    source_requests integer DEFAULT 0 NOT NULL,
+    credential_fingerprint character varying,
+    error_code character varying,
+    deadline_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT research_retrieval_contract CHECK ((((request_key)::text <> ''::text) AND ((query_digest)::text ~ '^[0-9a-f]{64}$'::text) AND (generation >= 0) AND ((source_requests >= 0) AND (source_requests <= 2)) AND ((state)::text = ANY ((ARRAY['pending'::character varying, 'retrieving'::character varying, 'ready'::character varying, 'no_evidence'::character varying, 'stale_only'::character varying, 'failed'::character varying])::text[])) AND (jsonb_typeof(selectors) = 'object'::text) AND (jsonb_typeof(latest_event) = 'object'::text) AND (jsonb_typeof(selection) = 'array'::text)))
+);
+
+
+--
+-- Name: research_retrievals_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_retrievals_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_retrievals_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_retrievals_id_seq OWNED BY public.research_retrievals.id;
 
 
 --
@@ -486,8 +533,12 @@ CREATE TABLE public.research_revisions (
     index_state character varying DEFAULT 'pending'::character varying NOT NULL,
     source_metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     superseded_at timestamp(6) without time zone,
+    temporal_metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    verified_at timestamp(6) without time zone,
     CONSTRAINT research_revision_content_and_lifetime CHECK ((((source_revision)::text <> ''::text) AND (content <> ''::text) AND ((checksum)::text = encode(sha256(convert_to(content, 'UTF8'::name)), 'hex'::text)) AND (expires_at > received_at) AND ((fresh_until IS NULL) OR (fresh_until <= expires_at)))),
-    CONSTRAINT research_revision_index_state CHECK (((index_state)::text = ANY ((ARRAY['pending'::character varying, 'ready'::character varying, 'failed'::character varying])::text[])))
+    CONSTRAINT research_revision_index_state CHECK (((index_state)::text = ANY ((ARRAY['pending'::character varying, 'ready'::character varying, 'failed'::character varying])::text[]))),
+    CONSTRAINT research_temporal_metadata_object CHECK ((jsonb_typeof(temporal_metadata) = 'object'::text)),
+    CONSTRAINT research_verification_after_receipt CHECK (((verified_at IS NULL) OR (verified_at >= received_at)))
 );
 
 
@@ -847,6 +898,13 @@ ALTER TABLE ONLY public.research_passages ALTER COLUMN id SET DEFAULT nextval('p
 
 
 --
+-- Name: research_retrievals id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_retrievals ALTER COLUMN id SET DEFAULT nextval('public.research_retrievals_id_seq'::regclass);
+
+
+--
 -- Name: research_revisions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -980,6 +1038,14 @@ ALTER TABLE ONLY public.research_ingestions
 
 ALTER TABLE ONLY public.research_passages
     ADD CONSTRAINT research_passages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_retrievals research_retrievals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_retrievals
+    ADD CONSTRAINT research_retrievals_pkey PRIMARY KEY (id);
 
 
 --
@@ -1202,10 +1268,45 @@ CREATE INDEX index_research_passages_on_revision_id ON public.research_passages 
 
 
 --
+-- Name: index_research_passages_on_search_vector; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_passages_on_search_vector ON public.research_passages USING gin (search_vector);
+
+
+--
 -- Name: index_research_passages_on_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_research_passages_on_user_id ON public.research_passages USING btree (user_id);
+
+
+--
+-- Name: index_research_retrievals_on_id_and_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_retrievals_on_id_and_user_id ON public.research_retrievals USING btree (id, user_id);
+
+
+--
+-- Name: index_research_retrievals_on_space_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_retrievals_on_space_id ON public.research_retrievals USING btree (space_id);
+
+
+--
+-- Name: index_research_retrievals_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_retrievals_on_user_id ON public.research_retrievals USING btree (user_id);
+
+
+--
+-- Name: index_research_retrievals_on_user_id_and_request_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_retrievals_on_user_id_and_request_key ON public.research_retrievals USING btree (user_id, request_key);
 
 
 --
@@ -1374,6 +1475,13 @@ CREATE UNIQUE INDEX research_passage_identity ON public.research_passages USING 
 --
 
 CREATE UNIQUE INDEX research_passage_position ON public.research_passages USING btree (revision_id, preprocessing_version, chunker_version, "position");
+
+
+--
+-- Name: research_query_embedding_attempt; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX research_query_embedding_attempt ON public.research_embedding_attempts USING btree (retrieval_id, generation, batch_key);
 
 
 --
@@ -1547,6 +1655,14 @@ ALTER TABLE ONLY public.sandbox_accounts
 
 
 --
+-- Name: research_retrievals fk_rails_9c4c5cb670; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_retrievals
+    ADD CONSTRAINT fk_rails_9c4c5cb670 FOREIGN KEY (space_id, user_id) REFERENCES public.research_embedding_spaces(id, user_id);
+
+
+--
 -- Name: research_passages fk_rails_a0d59c922d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1635,14 +1751,32 @@ ALTER TABLE ONLY public.friendships
 
 
 --
+-- Name: research_embedding_attempts fk_rails_e476e973ba; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_embedding_attempts
+    ADD CONSTRAINT fk_rails_e476e973ba FOREIGN KEY (retrieval_id, user_id) REFERENCES public.research_retrievals(id, user_id);
+
+
+--
+-- Name: research_retrievals fk_rails_f6c6afe8e4; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_retrievals
+    ADD CONSTRAINT fk_rails_f6c6afe8e4 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict v1yMUahfQZoVtakpKcU16Ex1PTFJenjkxTSagygtFr0i50yNj6750GLA4ZQRYKf
+\unrestrict QXiMzzDJN09vfVfgXaVvuDkKKVNQSJwYOxZUKpP6CS4EVLIv2G5vcfD6PPZAMiA
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107080100'),
+('20261107080000'),
 ('20261107070000'),
 ('20261107060000'),
 ('20261105050000'),

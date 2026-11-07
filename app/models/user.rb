@@ -2,6 +2,7 @@ class User < ApplicationRecord
   has_one :sandbox_account, dependent: :restrict_with_error
   has_many :research_documents, dependent: :restrict_with_error
   has_many :research_embedding_spaces, dependent: :restrict_with_error
+  has_many :research_retrievals, dependent: :restrict_with_error
   has_many :research_ingestions, dependent: :restrict_with_error
   has_many :research_embedding_attempts, dependent: :restrict_with_error
   has_many :broker_connections, dependent: :destroy

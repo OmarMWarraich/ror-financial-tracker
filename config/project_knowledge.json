@@ -1,5 +1,14 @@
 [
   {
+    "id": "research-temporal-retrieval",
+    "title": "M3 temporal provenance and shared retrieval storage foundation",
+    "aliases": ["M3", "M3-01", "timestamp confidence", "verification clock", "full-text storage", "query embedding accounting"],
+    "summary": "M3 storage/provenance foundation is implemented locally, with retrieval orchestration validation in the next slice. Eight distinct UTC clocks cover event, publication, known-available, first receipt, last successful source verification, indexing, relevance recheck and deletion. Immutable temporal_metadata records timestamp basis/confidence/original offset or raw unconfirmed date; no receipt-to-publication/knowability substitution or invented legacy backfill. Source temporal proof joins the canonical revision fingerprint, and the original v2 correction has its own later publication/known date. A real successful unchanged-source refetch advances verification/recheck only, never receipt/known/deletion; replay of an already-ready request does not reverify. Generated english tsvector plus GIN coexist with vector storage. Owner-composite retrieval/space/embedding-attempt foreign keys and an exactly-one-ingestion-or-retrieval constraint preserve usage provenance. Query embeddings share the existing UTC/global/owner reservation ledger, uncertainty guard and full request cost cap; no second allowance is introduced. Shared SourceQuota preserves quote-account counters and short locks. Complete current indexing can activate a space with unknown source knowability; the M1 nearest primitive still excludes it. Current/as-of SQL policy, hybrid orchestration, authoritative latest discovery and dispatch/publish guards are being integrated separately. No private permission enablement, live source/paid request, inference or chat is authorized.",
+    "status": "implemented",
+    "updated_on": "2026-11-07",
+    "sources": ["db/migrate/20261107080000_add_research_retrieval.rb", "db/migrate/20261107080100_add_research_verification_clock.rb", "app/services/research/temporal_evidence.rb", "app/services/research/temporal_policy.rb", "app/services/research/ingestor.rb", "app/services/research/source_quota.rb", "app/models/research_embedding_attempt.rb", "app/models/research_retrieval.rb", "test/services/research_temporal_test.rb", "README.md#m3-temporal-and-hybrid-retrieval", "https://www.postgresql.org/docs/16/textsearch-tables.html"]
+  },
+  {
     "id": "research-ingestion",
     "title": "M2 permission-aware owner ingestion and bounded server-side embeddings",
     "aliases": ["M2", "M2-01", "M2-02", "M2-03", "M2-04", "M2-05", "M2-06", "M2-07", "research ingestion", "ingestion allowlist", "embedding reservations", "correction publication", "cross-request uncertain batch", "server credential rotation"],
