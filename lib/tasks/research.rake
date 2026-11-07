@@ -1,4 +1,9 @@
 namespace :research do
+  desc "Evaluate fixed original synthetic retrieval/support/temporal baselines only in the test database"
+  task evaluate: :environment do
+    require Rails.root.join("lib/research/acceptance")
+    puts JSON.pretty_generate(Research::Acceptance.new.call)
+  end
   desc "Purge disallowed research text/vectors/derived bodies, preserving tombstones and billing receipts"
   task dispose: :environment do
     puts JSON.generate(Research::Disposal.sweep!)

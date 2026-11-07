@@ -34,6 +34,19 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "README.md#m0-research-pilot-specification"
   end
 
+  def test_m9_evaluation_reports_failed_baselines_and_separate_rollout_gates
+    result = @knowledge.search("M9-07").first
+    assert_equal "research-acceptance", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "production SYNTH:ALPHA FY2026/Q3 fixture gate is unchanged"
+    assert_includes result["summary"], "vector=.0"
+    assert_includes result["summary"], "without iterative scan recovered .44"
+    assert_includes result["summary"], "strict_order iterative scanning recovered1.0"
+    assert_includes result["summary"], "simulated foreground visibility"
+    assert_includes result["summary"], "M9-08 precise rights/account/model/budgets"
+    assert_includes result["sources"], "lib/research/acceptance.rb"
+  end
+
   def test_m4_adapters_are_verified_without_claiming_paid_or_chat_access
     result = @knowledge.search("M4-02").first
     assert_equal "research-agent-adapters", result["id"]

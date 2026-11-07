@@ -2,8 +2,12 @@ module Research
   class HybridRanker
     CANDIDATES = 100
 
-    def initialize(rows:, space:, query:, vector:, recency:)
+    def initialize(rows:, space:, query:, vector:, recency:, keyword: true)
+      unless [true, false].include?(keyword) && (keyword || vector)
+        raise Error.new("invalid_retrieval_channel")
+      end
       @rows, @space, @query, @vector, @recency = rows, space, query, vector, recency
+      @keyword = keyword
     end
 
     def call
@@ -13,7 +17,7 @@ module Research
       channels = connection.transaction(requires_new: true) do
         previous = connection.select_value("SHOW statement_timeout")
         connection.execute("SET LOCAL statement_timeout = '5s'")
-        keyword = connection.select_values(<<~SQL).map(&:to_i)
+        keyword = @keyword ? connection.select_values(<<~SQL).map(&:to_i) : []
           WITH eligible AS MATERIALIZED (#{eligible})
           SELECT id FROM eligible
           WHERE search_vector @@ websearch_to_tsquery('english', #{query})

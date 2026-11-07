@@ -1124,6 +1124,85 @@ completion (encrypted messages/receipts, zero external calls or cost), and full
 schema/data/index/trigger/populated-vector restore passed without replacing
 the original database volume.
 
+### M9 offline acceptance and gated rollout
+
+`RAILS_ENV=test bundle exec rails research:evaluate` runs
+`original-earnings-acceptance-v1` only in the test database, outside an open
+transaction. It creates and removes 24 original documents (four fictional
+companies × three fiscal periods × transcript/brief), 120 passages and two
+owners. Forty fixed questions comprise 20 supported, ten missing/out-of-scope
+and ten temporal/adversarial cases. Separate tests cover corrections,
+revocation, disposal/embedding races, malformed streams, injection, accounting,
+interruption and cancellation. No live credentials, copied transcripts,
+provider calls or charges are required.
+Development execution and open transactions are explicitly rejected without
+creating corpus. Disabling both retrieval channels raises rather than returning
+success-shaped empty evidence.
+
+The evaluator injects a **test-only** original-company permission scope through
+the existing policy factory; production fixtures remain restricted to
+`SYNTH:ALPHA`, FY2026/Q3. Independent golden owner/period/type/availability IDs
+check ranked results, rather than treating the retrieval filter itself as truth.
+The corpus fingerprint includes scope, ownership class, source type, availability,
+expiry and content:
+`45a287e768c35d8a02fbb7cc53337e67a7309ba6d0dc03b76a027f8c8ab3b652`.
+
+Measured locally on 2026-11-07 with Ruby 3.3.0, Rails 7.1.3.4, PostgreSQL 16.15,
+pgvector 0.8.1, OpenAI Ruby 0.120.0 and MCP Ruby 1.9.0:
+
+| Baseline | Recall@5 (20 supported) | Retrieval p95 | Extractive fixture support | Unsupported-number probes rejected |
+| --- | --- | --- | --- | --- |
+| Keyword | 90% (18/20) | 53.908 ms | 100% | 18/18 |
+| Vector | 0% | 41.805 ms | Not measurable: no claims | 0 attempted |
+| Hybrid | 90% (18/20) | 48.676 ms | 100% | 18/18 |
+
+All three returned zero evidence for the 20 negative cases and zero golden
+ownership/temporal/scope leaks. SHA256 fixture embeddings are deliberately not a
+semantic model; vector failure and two synonym misses are reported, not hidden
+with unrelated evidence. Hybrid gain is zero, below the five-point adoption
+threshold: keyword and exact eligible vector search remain the defaults, with
+no persistent approximate index.
+
+A temporary actual HNSW plan with `ef_search=40` recovered only **44%** of exact
+filtered candidates with iterative scanning off. The same plan with
+`hnsw.iterative_scan=strict_order` recovered **100%**, without eligibility leaks.
+This candidate-only experiment has no relevance cutoff and is not ANN rollout
+approval. It demonstrates why unfiltered nearest neighbours plus post-filtering
+can lose valid evidence. Both configurations and the index-use proof are recorded;
+the index is removed even on evaluation failure.
+
+Twenty independently persisted original-fixture earnings workflows measured
+314.577 ms first/cold execution, 188.923 ms warm p95 and 188.923 ms overall p95,
+below the 2-second offline contract. Known zero-cost usage is settled; workflow
+records and evaluation owners are cleaned afterward. These are in-process fixture
+measurements, not remote inference, queue-inclusive p95 or human-reviewed financial
+entailment. Extractive support does not establish real-world accuracy.
+
+The actual rebuilt Compose web/dedicated research worker completed a zero-cost
+fixture with three model steps, two tools, two saved messages and lowering-only
+1500-output-token/three-tool/60-second controls. Authenticated Redis/Cable
+connection and canonical Turbo recovery were checked with **simulated foreground
+visibility** in the embedded browser; an unsent draft was preserved and no second
+run appeared. Background visibility intentionally suppresses snapshot refresh.
+This is not physical-screen or iOS/Android acceptance.
+
+Final Rails regression: **382 tests / 4,401 assertions**, plus **35 curated
+knowledge tests / 539 assertions** and successful eager loading.
+Development/production asset builds, existing Rails regressions, 20 native route
+cases, four Swift URL-policy tests and isolated complete-fingerprint database
+restore/SQL rollback passed. Feature disablement returns authenticated 404 without
+deleting saved research records; reenablement uses the same database volume.
+Disable chat first for rollback; never drop relational tables or use
+`DROP EXTENSION ... CASCADE`. Restored traffic remains subject to M8 quarantine.
+
+**Not production-ready:** M9-08 paid/live checks require separately recorded
+rights, account/model and budgets; at least 20 authorized live runs and human
+claim review remain unperformed. M6-06 physical iOS/Android session, keyboard and
+background acceptance, operational encrypted/PITR/offsite backup retention,
+provider erasure and production-load acceptance remain open. Defaults still
+disable chat and private/paid inference; an explicitly enabled fixture page grants
+none of those permissions and no trading capability.
+
 ### M8 expiry, dependency invalidation and restore quarantine
 
 Research maintenance is separate from quote-snapshot approval. Every 300 seconds
