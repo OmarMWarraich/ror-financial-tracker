@@ -61,6 +61,20 @@ class UiComponentsTest < Minitest::Test
     assert_empty alert.css("svg")
   end
 
+  def test_flash_toasts_keep_accessibility_and_dismissal_actions
+    @view.define_singleton_method(:notice) { "Saved successfully" }
+    @view.define_singleton_method(:alert) { "Unable to save" }
+    doc = Nokogiri::HTML.fragment(@view.render(partial: "layouts/messages"))
+    assert_equal 1, doc.css("turbo-frame#flash").length
+    toasts = doc.css('#flash .toast[data-controller="alert"]')
+    assert_equal 2, toasts.length
+    assert_equal %w[status alert], toasts.map { |toast| toast["role"] }
+    toasts.each do |toast|
+      assert_equal "turbo:before-cache@document->alert#remove", toast["data-action"]
+      assert toast.at_css('button[type="button"][data-action="alert#dismiss"][aria-label]')
+    end
+  end
+
   def test_tailwind_build_contains_real_shell_styles_not_source_directives
     css = File.read(Rails.root.join("app/assets/builds/tailwind.css"))
     assert_includes css, "tailwindcss v3.4.19"
@@ -71,6 +85,10 @@ class UiComponentsTest < Minitest::Test
     assert_match(/color-scheme:\s*dark/, css)
     assert_includes css, "var(--canvas)"
     assert_includes css, ".theme-select"
+    assert_includes css, ".toast.toast-dismissing"
+    assert_includes css, "@keyframes toast-enter"
+    assert_includes css, "@keyframes toast-exit"
+    assert_includes css, "prefers-reduced-motion"
     refute_includes css, "@apply"
     refute_includes css, '@import "ui.css"'
     assert_nil Rails.application.config.assets.css_compressor

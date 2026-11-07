@@ -1,12 +1,12 @@
 <%= turbo_frame_tag "flash" do %>
   <% if notice %>
-    <%= render_alert title: "Notification", variant: :success, icon: false, role: "status", class: "mb-4 pr-12", data: { controller: "alert" } do %>
+    <%= render_alert title: "Notification", variant: :success, icon: false, role: "status", class: "toast mb-4 pr-12", data: { controller: "alert", action: "turbo:before-cache@document->alert#remove" } do %>
       <%= notice %>
       <button type="button" class="icon-button absolute right-2 top-2" data-action="alert#dismiss" aria-label="Dismiss notification"><%= fa_icon "times", aria: { hidden: true } %></button>
     <% end %>
   <% end %>
   <% if alert %>
-    <%= render_alert title: "Unable to complete request", variant: :destructive, icon: false, class: "mb-4 pr-12", data: { controller: "alert" } do %>
+    <%= render_alert title: "Unable to complete request", variant: :destructive, icon: false, class: "toast mb-4 pr-12", data: { controller: "alert", action: "turbo:before-cache@document->alert#remove" } do %>
       <%= alert %>
       <button type="button" class="icon-button absolute right-2 top-2" data-action="alert#dismiss" aria-label="Dismiss error"><%= fa_icon "times", aria: { hidden: true } %></button>
     <% end %>

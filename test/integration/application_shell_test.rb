@@ -56,6 +56,11 @@ class ApplicationShellTest < Minitest::Test
     assert_equal 1, doc.css("#search-form").length
     assert_equal 1, doc.css("#stocks-list").length
     assert_equal 1, doc.css("#flash").length
+    toast = doc.at_css('#flash .toast[data-controller="alert"]')
+    assert toast
+    assert_equal "status", toast["role"]
+    assert_equal "turbo:before-cache@document->alert#remove", toast["data-action"]
+    assert toast.at_css('button[data-action="alert#dismiss"]')
     assert_theme_control(doc)
   end
 

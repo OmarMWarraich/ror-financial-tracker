@@ -105,10 +105,74 @@ test("profile disclosure closes only for outside click or Escape", () => {
   assert.equal(document.activeElement, trigger)
 })
 
-test("dismissing an alert removes only its own notification", () => {
+function alert() {
   const instance = new Alert()
-  let removed = false
-  instance.element = { remove() { removed = true } }
+  const classes = new Set()
+  instance.element = {
+    removed: false,
+    classList: {
+      add(name) { classes.add(name) },
+      remove(name) { classes.delete(name) },
+      contains(name) { return classes.has(name) }
+    },
+    remove() { this.removed = true }
+  }
+  instance.connect()
+  return instance
+}
+
+test("alerts stay visible for 3 seconds then animate out before removal", context => {
+  context.mock.timers.enable({ apis: ["setTimeout"] })
+  const instance = alert()
+  context.mock.timers.tick(2999)
+  assert.equal(instance.element.classList.contains("toast-dismissing"), false)
+  assert.equal(instance.element.removed, false)
+  context.mock.timers.tick(1)
+  assert.equal(instance.element.classList.contains("toast-dismissing"), true)
+  context.mock.timers.tick(199)
+  assert.equal(instance.element.removed, false)
+  context.mock.timers.tick(1)
+  assert.equal(instance.element.removed, true)
+})
+
+test("manual dismissal animates only its own toast and repeated clicks do not delay removal", context => {
+  context.mock.timers.enable({ apis: ["setTimeout"] })
+  const instance = alert()
+  const other = alert()
   instance.dismiss()
-  assert.equal(removed, true)
+  assert.equal(instance.element.removed, false)
+  context.mock.timers.tick(100)
+  instance.dismiss()
+  context.mock.timers.tick(100)
+  assert.equal(instance.element.removed, true)
+  assert.equal(other.element.removed, false)
+  assert.equal(other.element.classList.contains("toast-dismissing"), false)
+  other.disconnect()
+})
+
+test("disconnect clears both auto-dismiss and exit timers and reconnect starts fresh", context => {
+  context.mock.timers.enable({ apis: ["setTimeout"] })
+  const instance = alert()
+  instance.disconnect()
+  context.mock.timers.tick(4000)
+  assert.equal(instance.element.classList.contains("toast-dismissing"), false)
+  instance.connect()
+  instance.dismiss()
+  instance.disconnect()
+  context.mock.timers.tick(4000)
+  assert.equal(instance.element.removed, false)
+  instance.connect()
+  assert.equal(instance.element.classList.contains("toast-dismissing"), false)
+  context.mock.timers.tick(3000)
+  context.mock.timers.tick(200)
+  assert.equal(instance.element.removed, true)
+})
+
+test("removing before Turbo caches the page prevents stale toasts on history restoration", context => {
+  context.mock.timers.enable({ apis: ["setTimeout"] })
+  const instance = alert()
+  instance.remove()
+  assert.equal(instance.element.removed, true)
+  context.mock.timers.tick(4000)
+  assert.equal(instance.element.classList.contains("toast-dismissing"), false)
 })

@@ -1,5 +1,14 @@
 [
   {
+    "id": "flash-toast-lifecycle",
+    "title": "Animated three-second flash toasts",
+    "aliases": ["toast", "flash", "notifications", "animation", "dismissal"],
+    "summary": "Shared notice and alert flash messages use the Stimulus alert controller and toast CSS: 180 ms slide/fade entry, automatic dismissal after 3000 ms, then 200 ms slide/fade exit before removal. Manual dismissal uses the same exit animation without resetting it on repeated clicks. Disconnect clears timers; Turbo before-cache removes toasts to prevent stale history restoration. Existing reduced-motion CSS minimizes animations. Inline warnings without the alert controller remain persistent.",
+    "status": "implemented",
+    "updated_on": "2026-11-07",
+    "sources": ["app/javascript/controllers/alert_controller.js", "app/views/layouts/_messages.html.erb", "app/assets/stylesheets/ui.css", "test/javascript/shell_test.mjs", "test/integration/application_shell_test.rb", "README.md#frontend-and-ui-development"]
+  },
+  {
     "id": "shadcn-ui-shell",
     "title": "Implemented shadcn Tailwind application shell and legacy adapter",
     "aliases": ["frontend implementation", "UI", "Sprockets", "CSS build", "sidebar", "forms", "Turbo frames", "Bootstrap grid", "dark theme", "grey theme", "appearance"],

@@ -62,6 +62,11 @@ gates, form names, Turbo IDs and user workflows remain intact.
 Wrapped search/list fragments replace their Turbo targets rather than appending
 duplicate frame IDs. Stock-search redirects target the full page so unavailable
 evidence errors remain visible outside the search frame.
+Flash toasts slide/fade in, remain visible for 3 seconds, then fade out over
+200 ms and are removed. Manual dismissal uses the same exit animation.
+Reduced-motion preferences minimize animations; Turbo caching removes stale
+toasts so they do not reappear when navigating back. Inline page warnings stay
+visible.
 
 The top bar offers Light (default), Grey (charcoal) and Dark themes. Selection
 is local to this browser, persisted in `localStorage`, and synchronized across

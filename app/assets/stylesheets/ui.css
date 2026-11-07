@@ -44,6 +44,16 @@
 }
 
 @layer components {
+  .toast { animation: toast-enter 180ms ease-out both; }
+  .toast.toast-dismissing { animation: toast-exit 200ms ease-in both; pointer-events: none; }
+  @keyframes toast-enter {
+    from { opacity: 0; transform: translateY(-0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes toast-exit {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-0.5rem); }
+  }
   .skip-link { @apply sr-only; }
   .skip-link:focus { @apply fixed left-4 top-4 z-50 not-sr-only rounded-md bg-primary px-4 py-3 text-primary-foreground; }
   .icon-button { @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-transparent bg-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground; }
