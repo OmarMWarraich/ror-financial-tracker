@@ -4,9 +4,10 @@ require "openai"
 module Research
   module Agent
     class McpHttpAdapter < Faraday::Adapter
-      def initialize(app, client: OpenAI::NetHTTPClient.new)
+      def initialize(app, client: OpenAI::NetHTTPClient.new, check: nil, on_headers: nil)
         super(app)
         @client = client
+        @check, @on_headers = check, on_headers
       end
 
       def call(env)
@@ -14,9 +15,11 @@ module Research
         request = OpenAI::HTTPClient::Request.new(method: env.method, url: env.url,
           headers: env.request_headers.to_h, body: env.body, timeout: env.request.timeout)
         response = @client.execute(request)
+        @on_headers&.call(response.status, response.headers)
         save_response(env, response.status, "", response.headers)
         bytes = 0
         response.body.each do |chunk|
+          @check&.call
           bytes += chunk.bytesize
           raise Research::Error.new("mcp_response_too_large") if bytes > 262_144
           if env.request.on_data

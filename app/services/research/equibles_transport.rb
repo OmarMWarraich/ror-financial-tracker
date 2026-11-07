@@ -3,6 +3,10 @@ require "timeout"
 
 module Research
   class EquiblesTransport
+    def initialize(on_headers: nil)
+      @on_headers = on_headers
+    end
+
     def call(uri:, api_key:, timeout:)
       unless uri.scheme == "https" && uri.host == "api.equibles.com" && uri.port == 443
         raise Error.new("source_endpoint_rejected")
@@ -20,6 +24,7 @@ module Research
         request["Accept"] = "application/json"
         request["Accept-Encoding"] = "identity"
         http.request(request) do |response|
+          observed_status, observed_headers = response.code.to_i, response.each_header.to_h
           case response.code.to_i
           when 200
             unless response["content-type"].to_s.match?(/\Aapplication\/json(?:;|\z)/i)
@@ -46,6 +51,8 @@ module Research
       raise Error.new("source_timeout")
     rescue SocketError, IOError, SystemCallError, OpenSSL::SSL::SSLError
       raise Error.new("source_connection_error")
+    ensure
+      @on_headers&.call(observed_status, observed_headers) if observed_headers
     end
   end
 end

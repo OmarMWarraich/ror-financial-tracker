@@ -12,6 +12,8 @@ class ResearchAgentRuntimeTest < ActiveSupport::TestCase
   teardown do
     @users.each do |user|
       user.with_lock do
+        ResearchToolAttempt.where(user: user).delete_all
+        ResearchMessage.where(user: user).delete_all
         ResearchModelAttempt.where(user: user).delete_all
         ResearchEmbeddingAttempt.where(user: user).delete_all
         ResearchRetrieval.where(user: user).delete_all
@@ -23,6 +25,7 @@ class ResearchAgentRuntimeTest < ActiveSupport::TestCase
         ResearchDocument.where(user: user).delete_all
         ResearchEmbeddingSpace.where(user: user).delete_all
         ResearchAgentRun.where(user: user).delete_all
+        ResearchConversation.where(user: user).delete_all
       end
       user.destroy!
     end
@@ -276,6 +279,39 @@ class ResearchAgentRuntimeTest < ActiveSupport::TestCase
   def build(**options)
     Agent::Runtime.new(**{ user: @user, query: "Summarize original fictional Alpha earnings.", request_key: SecureRandom.uuid,
       listing_identity: "SYNTH:ALPHA", fiscal_year: 2026, fiscal_quarter: 3 }.merge(options))
+  end
+
+  test "durable retained current and historical reads outlive dispatch deadlines but never bypass revision guards" do
+    %w[current as_of].each do |mode|
+      evidence = retained_evidence(mode: mode)
+      policy = ApprovedFixturePolicy.new
+      policy.check!(nil)["chat_retention_seconds"] = 3600
+      fake = ScriptedModel.new do |input, _|
+        source = JSON.parse(input.last.fetch("content")).fetch("evidence").first
+        "Original durable retained answer [#{source.fetch('source_id')}]"
+      end
+      with_model_marker do
+        Agent::Policy.stub(:new, policy) do
+          run = Agent::Lifecycle.submit!(user: @user, query: "Original retained research question",
+            request_key: SecureRandom.uuid, listing_identity: "SYNTH:ALPHA", fiscal_year: 2026, fiscal_quarter: 3,
+            evidence_mode: "retained", query_mode: mode, evidence: evidence, enqueue: false)
+          result = Agent::Execution.call(run, model: fake, tools_factory: ->(*) { flunk "no implicit MCP" })
+          assert_equal "completed", run.reload.state
+          assert_equal 0, fake.transactions
+          answer = run.messages.find_by!(role: "assistant")
+          travel 91.seconds do
+            assert_equal result.text, answer.readable_content!
+            display = Research::EvidenceSet.restore!(evidence.request, display_only: true)
+            assert_raises(Research::Error) { display.dispatch!(publisher: ->(*) { flunk "display cannot publish" }) { flunk "display cannot dispatch" } }
+            document = ResearchRevision.find(result.sources.first.fetch("revision_id")).document
+            document.update!(revoked_at: Time.current)
+            assert_raises(Research::Error) { answer.readable_content! }
+          end
+          assert_equal "completed", run.reload.state
+          assert_equal 1, run.model_attempts.count
+        end
+      end
+    end
   end
 
   def owner

@@ -1,4 +1,4 @@
-\restrict mkXBWMwAufKXZdsqDHEWFklq2viqTchjKRaHPVcaLeBmQqXdl0giyN9zpjGw7yw
+\restrict bj7YAv1GOF6VFyl4zZZNcllC5DUadEmRsUOZefgPEKtifO4PuE3kFBprDhIXNaL
 
 -- Dumped from database version 16.15 (Debian 16.15-1.pgdg13+2)
 -- Dumped by pg_dump version 16.15 (Debian 16.15-1.pgdg12+2)
@@ -44,6 +44,43 @@ BEGIN
   THEN
     RAISE EXCEPTION 'research agent request identity is immutable';
   END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: research_conversation_identity_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.research_conversation_identity_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF ROW(NEW.user_id, NEW.scope, NEW.limits, NEW.expires_at)
+    IS DISTINCT FROM ROW(OLD.user_id, OLD.scope, OLD.limits, OLD.expires_at)
+  THEN RAISE EXCEPTION 'research conversation identity is immutable'; END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: research_durable_identity_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.research_durable_identity_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF ROW(NEW.conversation_id, NEW.limits, NEW.pricing, NEW.workflow_version, NEW.budget_date,
+         NEW.reserved_cost_nanos, NEW.reserved_source_requests, NEW.source_connection_id)
+    IS DISTINCT FROM ROW(OLD.conversation_id, OLD.limits, OLD.pricing, OLD.workflow_version, OLD.budget_date,
+         OLD.reserved_cost_nanos, OLD.reserved_source_requests, OLD.source_connection_id)
+    OR (OLD.state <> NEW.state AND NOT (
+      (OLD.state = 'queued' AND NEW.state IN ('running','failed','cancelled','interrupted')) OR
+      (OLD.state = 'running' AND NEW.state IN ('completed','no_evidence','failed','cancelled','interrupted'))))
+  THEN RAISE EXCEPTION 'research durable run identity or transition is invalid'; END IF;
   RETURN NEW;
 END;
 $$;
@@ -183,6 +220,8 @@ CREATE TABLE public.equibles_connections (
     last_error character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    quota_observation jsonb DEFAULT '{}'::jsonb NOT NULL,
+    quota_key_digest character varying,
     CONSTRAINT equibles_nonnegative_usage CHECK ((requests_used >= 0))
 );
 
@@ -259,8 +298,22 @@ CREATE TABLE public.research_agent_runs (
     error_code character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    conversation_id bigint,
+    limits jsonb DEFAULT '{}'::jsonb NOT NULL,
+    pricing jsonb DEFAULT '{}'::jsonb NOT NULL,
+    workflow_version character varying,
+    budget_date date,
+    reserved_cost_nanos bigint DEFAULT 0 NOT NULL,
+    reserved_source_requests integer DEFAULT 0 NOT NULL,
+    cancel_requested_at timestamp(6) without time zone,
+    lease_token character varying,
+    lease_until timestamp(6) without time zone,
+    enqueued_at timestamp(6) without time zone,
+    enqueue_attempts integer DEFAULT 0 NOT NULL,
+    finished_at timestamp(6) without time zone,
+    source_connection_id bigint,
     CONSTRAINT research_agent_provider_model CHECK (((((provider)::text = 'fixture'::text) AND ((model)::text = 'original-fixture-v1'::text)) OR (((provider)::text = 'openai'::text) AND ((model)::text = 'gpt-5.4-mini-2026-03-17'::text)))),
-    CONSTRAINT research_agent_run_contract CHECK ((((query_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((request_key)::text <> ''::text) AND ((provider)::text = ANY ((ARRAY['openai'::character varying, 'fixture'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['running'::character varying, 'completed'::character varying, 'no_evidence'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])) AND ((source_requests >= 0) AND (source_requests <= 16)) AND ((tool_calls >= 0) AND (tool_calls <= 6)) AND (jsonb_typeof(selectors) = 'object'::text) AND (jsonb_typeof(credential_fingerprints) = 'object'::text)))
+    CONSTRAINT research_agent_run_contract CHECK ((((query_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((request_key)::text <> ''::text) AND ((provider)::text = ANY ((ARRAY['openai'::character varying, 'fixture'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying, 'completed'::character varying, 'no_evidence'::character varying, 'failed'::character varying, 'cancelled'::character varying, 'interrupted'::character varying])::text[])) AND ((source_requests >= 0) AND (source_requests <= 16)) AND ((tool_calls >= 0) AND (tool_calls <= 6)) AND (jsonb_typeof(selectors) = 'object'::text) AND (jsonb_typeof(credential_fingerprints) = 'object'::text) AND (jsonb_typeof(limits) = 'object'::text) AND (jsonb_typeof(pricing) = 'object'::text) AND ((reserved_cost_nanos >= 0) AND (reserved_cost_nanos <= 50000000)) AND ((reserved_source_requests >= 0) AND (reserved_source_requests <= 16)) AND ((conversation_id IS NULL) OR ((budget_date IS NOT NULL) AND (workflow_version IS NOT NULL)))))
 );
 
 
@@ -281,6 +334,40 @@ CREATE SEQUENCE public.research_agent_runs_id_seq
 --
 
 ALTER SEQUENCE public.research_agent_runs_id_seq OWNED BY public.research_agent_runs.id;
+
+
+--
+-- Name: research_conversations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_conversations (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    scope jsonb NOT NULL,
+    limits jsonb NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: research_conversations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_conversations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_conversations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_conversations_id_seq OWNED BY public.research_conversations.id;
 
 
 --
@@ -502,6 +589,45 @@ ALTER SEQUENCE public.research_ingestions_id_seq OWNED BY public.research_ingest
 
 
 --
+-- Name: research_messages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_messages (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    conversation_id bigint NOT NULL,
+    run_id bigint NOT NULL,
+    role character varying NOT NULL,
+    state character varying NOT NULL,
+    content text,
+    source_ids jsonb DEFAULT '[]'::jsonb NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT research_message_contract CHECK ((((role)::text = ANY ((ARRAY['user'::character varying, 'assistant'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['submitted'::character varying, 'complete'::character varying, 'incomplete'::character varying, 'redacted'::character varying])::text[])) AND (jsonb_typeof(source_ids) = 'array'::text)))
+);
+
+
+--
+-- Name: research_messages_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_messages_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_messages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_messages_id_seq OWNED BY public.research_messages.id;
+
+
+--
 -- Name: research_model_attempts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -685,6 +811,45 @@ CREATE SEQUENCE public.research_revisions_id_seq
 --
 
 ALTER SEQUENCE public.research_revisions_id_seq OWNED BY public.research_revisions.id;
+
+
+--
+-- Name: research_tool_attempts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_tool_attempts (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    run_id bigint NOT NULL,
+    call_id character varying NOT NULL,
+    name character varying NOT NULL,
+    arguments_digest character varying NOT NULL,
+    state character varying NOT NULL,
+    source_id character varying,
+    error_code character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT research_tool_attempt_contract CHECK ((((name)::text = ANY ((ARRAY['GetEarningsCallEvent'::character varying, 'GetEarningsBrief'::character varying, 'GetEarningsCallTranscript'::character varying])::text[])) AND ((arguments_digest)::text ~ '^[0-9a-f]{64}$'::text) AND ((state)::text = ANY ((ARRAY['dispatched'::character varying, 'settled'::character varying, 'cached'::character varying, 'failed'::character varying, 'uncertain'::character varying])::text[]))))
+);
+
+
+--
+-- Name: research_tool_attempts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_tool_attempts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_tool_attempts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_tool_attempts_id_seq OWNED BY public.research_tool_attempts.id;
 
 
 --
@@ -989,6 +1154,13 @@ ALTER TABLE ONLY public.research_agent_runs ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
+-- Name: research_conversations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_conversations ALTER COLUMN id SET DEFAULT nextval('public.research_conversations_id_seq'::regclass);
+
+
+--
 -- Name: research_documents id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1024,6 +1196,13 @@ ALTER TABLE ONLY public.research_ingestions ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
+-- Name: research_messages id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_messages ALTER COLUMN id SET DEFAULT nextval('public.research_messages_id_seq'::regclass);
+
+
+--
 -- Name: research_model_attempts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1049,6 +1228,13 @@ ALTER TABLE ONLY public.research_retrievals ALTER COLUMN id SET DEFAULT nextval(
 --
 
 ALTER TABLE ONLY public.research_revisions ALTER COLUMN id SET DEFAULT nextval('public.research_revisions_id_seq'::regclass);
+
+
+--
+-- Name: research_tool_attempts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_tool_attempts ALTER COLUMN id SET DEFAULT nextval('public.research_tool_attempts_id_seq'::regclass);
 
 
 --
@@ -1141,6 +1327,14 @@ ALTER TABLE ONLY public.research_agent_runs
 
 
 --
+-- Name: research_conversations research_conversations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_conversations
+    ADD CONSTRAINT research_conversations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: research_documents research_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1181,6 +1375,14 @@ ALTER TABLE ONLY public.research_ingestions
 
 
 --
+-- Name: research_messages research_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_messages
+    ADD CONSTRAINT research_messages_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: research_model_attempts research_model_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1210,6 +1412,14 @@ ALTER TABLE ONLY public.research_retrievals
 
 ALTER TABLE ONLY public.research_revisions
     ADD CONSTRAINT research_revisions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_tool_attempts research_tool_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_tool_attempts
+    ADD CONSTRAINT research_tool_attempts_pkey PRIMARY KEY (id);
 
 
 --
@@ -1291,6 +1501,20 @@ CREATE INDEX index_broker_connections_on_user_id ON public.broker_connections US
 
 
 --
+-- Name: index_equibles_connections_on_id_and_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_equibles_connections_on_id_and_user_id ON public.equibles_connections USING btree (id, user_id);
+
+
+--
+-- Name: index_equibles_connections_on_quota_key_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_equibles_connections_on_quota_key_digest ON public.equibles_connections USING btree (quota_key_digest);
+
+
+--
 -- Name: index_equibles_connections_on_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1312,6 +1536,13 @@ CREATE INDEX index_friendships_on_user_id ON public.friendships USING btree (use
 
 
 --
+-- Name: index_research_agent_runs_on_conversation_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_agent_runs_on_conversation_id ON public.research_agent_runs USING btree (conversation_id);
+
+
+--
 -- Name: index_research_agent_runs_on_id_and_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1330,6 +1561,20 @@ CREATE INDEX index_research_agent_runs_on_user_id ON public.research_agent_runs 
 --
 
 CREATE UNIQUE INDEX index_research_agent_runs_on_user_id_and_request_key ON public.research_agent_runs USING btree (user_id, request_key);
+
+
+--
+-- Name: index_research_conversations_on_id_and_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_conversations_on_id_and_user_id ON public.research_conversations USING btree (id, user_id);
+
+
+--
+-- Name: index_research_conversations_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_conversations_on_user_id ON public.research_conversations USING btree (user_id);
 
 
 --
@@ -1435,6 +1680,20 @@ CREATE INDEX index_research_ingestions_on_user_id ON public.research_ingestions 
 --
 
 CREATE UNIQUE INDEX index_research_ingestions_on_user_id_and_request_key ON public.research_ingestions USING btree (user_id, request_key);
+
+
+--
+-- Name: index_research_messages_on_run_id_and_role; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_messages_on_run_id_and_role ON public.research_messages USING btree (run_id, role);
+
+
+--
+-- Name: index_research_messages_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_messages_on_user_id ON public.research_messages USING btree (user_id);
 
 
 --
@@ -1554,6 +1813,20 @@ CREATE INDEX index_research_revisions_on_user_id ON public.research_revisions US
 --
 
 CREATE INDEX index_research_revisions_on_user_id_and_known_at ON public.research_revisions USING btree (user_id, known_at);
+
+
+--
+-- Name: index_research_tool_attempts_on_run_id_and_call_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_tool_attempts_on_run_id_and_call_id ON public.research_tool_attempts USING btree (run_id, call_id);
+
+
+--
+-- Name: index_research_tool_attempts_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_tool_attempts_on_user_id ON public.research_tool_attempts USING btree (user_id);
 
 
 --
@@ -1697,6 +1970,13 @@ CREATE UNIQUE INDEX research_revision_document_identity ON public.research_revis
 
 
 --
+-- Name: research_run_conversation_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX research_run_conversation_owner ON public.research_agent_runs USING btree (id, conversation_id, user_id);
+
+
+--
 -- Name: research_space_identity; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1715,6 +1995,20 @@ CREATE UNIQUE INDEX research_space_version ON public.research_embedding_spaces U
 --
 
 CREATE TRIGGER research_agent_identity_immutable BEFORE UPDATE ON public.research_agent_runs FOR EACH ROW EXECUTE FUNCTION public.research_agent_identity_guard();
+
+
+--
+-- Name: research_conversations research_conversation_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER research_conversation_identity BEFORE UPDATE ON public.research_conversations FOR EACH ROW EXECUTE FUNCTION public.research_conversation_identity_guard();
+
+
+--
+-- Name: research_agent_runs research_durable_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER research_durable_identity BEFORE UPDATE ON public.research_agent_runs FOR EACH ROW EXECUTE FUNCTION public.research_durable_identity_guard();
 
 
 --
@@ -1770,11 +2064,27 @@ ALTER TABLE ONLY public.user_stocks
 
 
 --
+-- Name: research_tool_attempts fk_rails_1f38659908; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_tool_attempts
+    ADD CONSTRAINT fk_rails_1f38659908 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: research_ingestions fk_rails_30463d7e2a; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.research_ingestions
     ADD CONSTRAINT fk_rails_30463d7e2a FOREIGN KEY (document_id, user_id) REFERENCES public.research_documents(id, user_id);
+
+
+--
+-- Name: research_conversations fk_rails_30ee8495b5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_conversations
+    ADD CONSTRAINT fk_rails_30ee8495b5 FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
@@ -1794,11 +2104,27 @@ ALTER TABLE ONLY public.equibles_connections
 
 
 --
+-- Name: research_agent_runs fk_rails_4ae8e71229; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_agent_runs
+    ADD CONSTRAINT fk_rails_4ae8e71229 FOREIGN KEY (conversation_id, user_id) REFERENCES public.research_conversations(id, user_id);
+
+
+--
 -- Name: research_ingestions fk_rails_50c0f35169; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.research_ingestions
     ADD CONSTRAINT fk_rails_50c0f35169 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: research_messages fk_rails_525b9d79f1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_messages
+    ADD CONSTRAINT fk_rails_525b9d79f1 FOREIGN KEY (run_id, user_id) REFERENCES public.research_agent_runs(id, user_id);
 
 
 --
@@ -1823,6 +2149,14 @@ ALTER TABLE ONLY public.user_stocks
 
 ALTER TABLE ONLY public.research_ingestions
     ADD CONSTRAINT fk_rails_657d1d3b1a FOREIGN KEY (space_id, user_id) REFERENCES public.research_embedding_spaces(id, user_id);
+
+
+--
+-- Name: research_messages fk_rails_67c8175ca5; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_messages
+    ADD CONSTRAINT fk_rails_67c8175ca5 FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
@@ -1898,6 +2232,14 @@ ALTER TABLE ONLY public.research_passages
 
 
 --
+-- Name: research_agent_runs fk_rails_a4eac73836; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_agent_runs
+    ADD CONSTRAINT fk_rails_a4eac73836 FOREIGN KEY (source_connection_id, user_id) REFERENCES public.equibles_connections(id, user_id);
+
+
+--
 -- Name: research_embeddings fk_rails_a7f4fe293b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1919,6 +2261,14 @@ ALTER TABLE ONLY public.research_model_attempts
 
 ALTER TABLE ONLY public.sandbox_orders
     ADD CONSTRAINT fk_rails_ad434e8514 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: research_messages fk_rails_b0020c36f9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_messages
+    ADD CONSTRAINT fk_rails_b0020c36f9 FOREIGN KEY (conversation_id, user_id) REFERENCES public.research_conversations(id, user_id);
 
 
 --
@@ -2010,6 +2360,14 @@ ALTER TABLE ONLY public.research_embedding_attempts
 
 
 --
+-- Name: research_tool_attempts fk_rails_ea1717f550; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_tool_attempts
+    ADD CONSTRAINT fk_rails_ea1717f550 FOREIGN KEY (run_id, user_id) REFERENCES public.research_agent_runs(id, user_id);
+
+
+--
 -- Name: research_retrievals fk_rails_f6c6afe8e4; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2018,14 +2376,23 @@ ALTER TABLE ONLY public.research_retrievals
 
 
 --
+-- Name: research_messages research_message_run_conversation; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_messages
+    ADD CONSTRAINT research_message_run_conversation FOREIGN KEY (run_id, conversation_id, user_id) REFERENCES public.research_agent_runs(id, conversation_id, user_id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict mkXBWMwAufKXZdsqDHEWFklq2viqTchjKRaHPVcaLeBmQqXdl0giyN9zpjGw7yw
+\unrestrict bj7YAv1GOF6VFyl4zZZNcllC5DUadEmRsUOZefgPEKtifO4PuE3kFBprDhIXNaL
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107100000'),
 ('20261107090100'),
 ('20261107090000'),
 ('20261107080100'),

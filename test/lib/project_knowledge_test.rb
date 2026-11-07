@@ -55,6 +55,20 @@ class ProjectKnowledgeTest < Minitest::Test
       assert_includes result["summary"], "remain M5-M9"
       assert_includes result["sources"], "test/services/research_agent_runtime_test.rb"
     end
+
+  end
+
+  def test_m5_durable_core_preserves_unknown_budget_and_no_paid_replay_gates
+    %w[M5 M5-03 M5-04 M5-05 M5-07].each do |query|
+      result = @knowledge.search(query).first
+      assert_equal "research-durable-lifecycle", result["id"], query
+      assert_equal "implemented", result["status"]
+      assert_includes result["summary"], "no raw tool results"
+      assert_includes result["summary"], "whole paid runs never auto-replay"
+      assert_includes result["summary"], "source_budget_unknown"
+      assert_includes result["summary"], "does not verify actual provider header"
+      assert_includes result["sources"], "test/services/research_agent_lifecycle_test.rb"
+    end
   end
 
   def test_m0_permission_report_does_not_invent_scope_or_enable_egress

@@ -4,6 +4,11 @@ class EquiblesConnection < ApplicationRecord
   self.filter_attributes += [:api_key, :snapshot]
 
   validates :user_id, uniqueness: true
+  before_save do
+    if (quota_key_digest.blank? || will_save_change_to_api_key?) && self.class.encryption_configured?
+      self.quota_key_digest = api_key.nil? ? nil : Digest::SHA256.hexdigest(api_key.strip)
+    end
+  end
 
   def expire_evidence!(entitlement, now: Time.current)
     retention = [entitlement.settings["retention_seconds"], snapshot.dig("entitlement", "retention_seconds")]

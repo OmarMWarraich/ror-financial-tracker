@@ -1,15 +1,19 @@
 module Research
   class EquiblesSource
-    def initialize(transport: EquiblesTransport.new)
+    def initialize(transport: nil)
       @transport = transport
     end
 
     def call(request, before_request:, api_key:)
       ticker = request.listing_identity.delete_prefix("US:")
       path = "/v1/stocks/#{URI.encode_www_form_component(ticker)}/earnings-calls/#{request.fiscal_year}/#{request.fiscal_quarter}"
+      transport = @transport || EquiblesTransport.new(on_headers: ->(status, headers) {
+        SourceQuota.observe_connection!(request.user.equibles_connection, status, headers,
+          settings: Policy.new(request.user).settings)
+      })
       get = ->(suffix) do
         remaining = before_request.call
-        @transport.call(uri: URI("https://api.equibles.com#{suffix}"), api_key: api_key, timeout: [5.0, remaining].min)
+        transport.call(uri: URI("https://api.equibles.com#{suffix}"), api_key: api_key, timeout: [5.0, remaining].min)
       end
       event = get.call(path)
       identity!(event, request, ticker)

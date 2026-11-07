@@ -3,13 +3,20 @@ module Research
     class Runtime
       attr_reader :run
 
+      def selectors
+        @selectors.deep_dup
+      end
+
       def initialize(user:, query:, request_key:, listing_identity:, fiscal_year:, fiscal_quarter:,
                      evidence_mode: "fixture", query_mode: "current", evidence: nil, model: nil, tools: nil,
-                     policy: nil, cancellation: Cancellation.new, events: nil, publisher: nil, tools_factory: nil)
+                     policy: nil, cancellation: Cancellation.new, events: nil, publisher: nil, tools_factory: nil,
+                     run: nil, lease_token: nil)
         @user, @query, @request_key = user, query, request_key
         @evidence, @model, @tools, @cancellation, @sink, @publisher = evidence, model, tools, cancellation, events, publisher
         @policy = policy || Policy.new(user)
         @tools_factory = tools_factory
+        @provided_run, @lease_token = run, lease_token
+        @limits = run ? Limits.for(run) : Limits::DEFAULT
         @tokenizer = Chunker.new
         @selectors = { "listing_identity" => listing_identity, "fiscal_year" => fiscal_year,
           "fiscal_quarter" => fiscal_quarter, "evidence_mode" => evidence_mode, "query_mode" => query_mode }
@@ -47,7 +54,8 @@ module Research
         if @selectors["evidence_mode"] == "retained" && sources.empty?
           status = @evidence.status == "stale_only" ? "stale_only" : "no_evidence"
           code = status == "stale_only" ? "stale_only" : "no_eligible_evidence"
-          @user.with_lock { @run.update!(state: "no_evidence", error_code: code) }
+          @user.with_lock { @run.update!(state: "no_evidence", error_code: code, finished_at: Time.current,
+            lease_token: nil, lease_until: nil) }
           @events.emit("run.no_evidence", "code" => code)
           return Result.new(run_id: @run.id, status: status, text: nil, sources: [], usage: [])
         end
@@ -58,7 +66,9 @@ module Research
           year: @selectors["fiscal_year"], quarter: @selectors["fiscal_quarter"])
         live = %w[live_mcp mixed fixture].include?(@selectors["evidence_mode"])
         @tools ||= fixture ? FixtureTools.new(registry) :
-          (live ? EquiblesMcp.new(user: @user, registry: registry, before_request: method(:before_protocol!)) : nil)
+          (live ? EquiblesMcp.new(user: @user, registry: registry, before_request: method(:before_protocol!),
+            check: -> { ApplicationRecord.connection_pool.with_connection { check! } },
+            on_headers: ->(status, headers) { ApplicationRecord.connection_pool.with_connection { SourceQuota.observe!(@run, status, headers) } }) : nil)
         @tools = @tools_factory.call(registry, method(:before_protocol!)) if @tools_factory && live
         definitions = live ? @tools.discover! : []
         settings = @policy.check!(@run)
@@ -69,14 +79,14 @@ module Research
         normalizer = ToolEvidence.new(listing: @selectors["listing_identity"], year: @selectors["fiscal_year"],
           quarter: @selectors["fiscal_quarter"], synthetic: fixture, latest_event: latest_event)
         cache = {}
-        history = [{ "role" => "user", "content" => JSON.generate("question" => @query,
+        history = conversation_history + [{ "role" => "user", "content" => JSON.generate("question" => @query,
           "query_mode" => @selectors["query_mode"], "scope" => @selectors, "evidence" => sources) }]
-        4.times do
+        @limits["steps"].times do
           check!
-          raise Research::Error.new("agent_context_budget_exceeded") if @tokenizer.tokens(JSON.generate([history, definitions])) > 9000
+          raise Research::Error.new("agent_context_budget_exceeded") if @tokenizer.tokens(JSON.generate([history, definitions])) > @limits["history_tokens"]
           input_tokens = @tokenizer.tokens(JSON.generate([history, definitions])) + 1000
           used_output = @run.model_attempts.where.not(state: "released").sum("COALESCE(actual_output_tokens, reserved_output_tokens)")
-          attempt = ResearchModelAttempt.reserve!(@run, input_tokens: input_tokens, output_tokens: 4096 - used_output)
+          attempt = ResearchModelAttempt.reserve!(@run, input_tokens: input_tokens, output_tokens: @limits["output_tokens"] - used_output)
           response = model_step(attempt, history, definitions)
           if response.tool_calls.empty?
             raise Research::Error.new("no_evidence_for_dispatch") if sources.empty?
@@ -92,34 +102,40 @@ module Research
               "synthetic" => sources.all? { |source| source["synthetic"] })
             return result
           end
-          raise Research::Error.new("agent_step_limit") if attempt.step == 4
+          raise Research::Error.new("agent_step_limit") if attempt.step == @limits["steps"]
           history.concat(response.output)
           response.tool_calls.each do |call|
             raise Research::Error.new("agent_tool_not_authorized") unless allowed.include?(call.name) && live
             registry.validate!(call.name, call.arguments)
             signature = Digest::SHA256.hexdigest(JSON.generate([call.name, call.arguments.sort.to_h]))
             source = cache[signature]
+            if @run.tool_attempts.exists?(call_id: call.id)
+              raise Research::Error.new("agent_tool_call_id_reused")
+            end
+            receipt = @run.tool_attempts.create!(user: @user, call_id: call.id, name: call.name,
+              arguments_digest: signature, state: source ? "cached" : "dispatched", source_id: source&.fetch("source_id"))
             unless source
               check!
               @user.with_lock do
                 @run.reload
-                raise Research::Error.new("agent_tool_budget_exceeded") if @run.tool_calls >= 6
+                raise Research::Error.new("agent_tool_budget_exceeded") if @run.tool_calls >= @limits["tools"]
                 @run.update!(tool_calls: @run.tool_calls + 1)
               end
               @events.emit("tool.started", "name" => call.name)
-              raw = @tools.call(call.name, call.arguments, forbidden: @forbidden)
+              raw = tool_call(receipt, call)
               check!
               source = normalizer.call(call.name, call.arguments, raw, forbidden: @forbidden)
               settings = @policy.check!(@run)
               source["fresh_until"] = (Time.current + (fixture ? 1.day : settings.fetch("freshness_seconds"))).utc.iso8601(6)
               source["expires_at"] = (fixture ? Time.current + 30.days :
                 [Time.current + settings.fetch("retention_seconds"), Time.iso8601(settings.fetch("expires_at"))].min).utc.iso8601(6)
-              unless @tokenizer.tokens(JSON.generate(source)) <= 6000 && sources.size < 6 &&
-                     @tokenizer.tokens(JSON.generate(sources + [source])) <= 6000 &&
-                     JSON.generate(sources + [source]).bytesize <= 65_536
+              unless @tokenizer.tokens(JSON.generate(source)) <= @limits["context_tokens"] && sources.size < @limits["sources"] &&
+                     @tokenizer.tokens(JSON.generate(sources + [source])) <= @limits["context_tokens"] &&
+                     JSON.generate(sources + [source]).bytesize <= @limits["context_bytes"]
                 raise Research::Error.new("agent_evidence_budget_exceeded")
               end
               cache[signature] = source
+              receipt.update!(state: "settled", source_id: source.fetch("source_id"))
               sources << source
               @observations << source
             end
@@ -149,6 +165,15 @@ module Research
       private
 
       def claim!
+        if @provided_run
+          @run = @provided_run
+          unless @run.user_id == @user.id && @run.request_key == @request_key &&
+                 @run.query_digest == Digest::SHA256.hexdigest(@query) && @run.selectors == @selectors
+            raise Research::Error.new("agent_submission_conflict")
+          end
+          @user.with_lock { Lifecycle.check_lease!(@run, @lease_token) }
+          return
+        end
         ApplicationRecord.transaction do
           @user.lock!
           ApplicationRecord.connection.execute("SELECT pg_advisory_xact_lock(#{ResearchEmbeddingAttempt::GLOBAL_LOCK})")
@@ -167,23 +192,15 @@ module Research
         @cancellation.check! unless cleanup
         @user.with_lock do
           @run.reload
+          Lifecycle.check_lease!(@run, @lease_token) if @run.conversation_id && !cleanup
           raise Research::Error.new("agent_deadline") if !cleanup && @run.deadline_at <= Time.current
           raise Research::Error.new("agent_not_running") unless cleanup || @run.state == "running"
           settings = @policy.check!(@run)
-          fingerprints = { "policy" => Digest::SHA256.hexdigest(JSON.generate(settings.sort.to_h)) }
-          if @run.provider != "fixture"
-            key = ENV["OPENAI_API_KEY"].to_s.strip
-            unless key.present? && key.valid_encoding? && key.length <= 4096 && !key.match?(/\s/)
-              raise Research::Error.new("openai_credentials_required")
-            end
-            fingerprints["openai"] = Digest::SHA256.hexdigest(key)
-            if %w[live_mcp mixed].include?(@selectors["evidence_mode"])
-              unless EquiblesConnection.encryption_configured? && @user.equibles_connection
-                raise Research::Error.new("equibles_credentials_required")
-              end
-              fingerprints["equibles"] = Digest::SHA256.hexdigest(@user.equibles_connection.reload.read_attribute_before_type_cast(:api_key).to_s)
-            end
+          if @run.conversation_id && !cleanup
+            conversation_history
+            SourceQuota.check_capacity!(@run.source_connection, settings: settings, additional: 0) if @run.source_connection
           end
+          fingerprints = Policy.fingerprints(@user, @run, settings)
           if @run.credential_fingerprints.present? && @run.credential_fingerprints != fingerprints
             raise Research::Error.new("agent_credentials_or_policy_changed")
           end
@@ -208,7 +225,7 @@ module Research
           raise Research::Error.new("agent_deadline") if remaining <= 0
           @user.with_lock do
             settings = @policy.check!(@run)
-            SourceQuota.reserve!(@run, allocation: settings.fetch("daily_source_requests"), limit: 16)
+            SourceQuota.reserve!(@run, allocation: settings.fetch("daily_source_requests"), limit: @limits["source_requests"])
           end
         end
         @run.deadline_at - Time.current
@@ -243,6 +260,7 @@ module Research
 
       def model_step(attempt, history, definitions)
         check!
+        conversation_history.each { |message| Agent.safe_text!(message.fetch("content"), forbidden: @forbidden) }
         @model.prepare!
         @events.emit("model.started", "step" => attempt.step)
         @user.with_lock { attempt.update!(state: "dispatched") }
@@ -277,7 +295,7 @@ module Research
           @user.equibles_connection&.lock! if @run.provider != "fixture"
           check!
           @publisher&.call(value)
-          @run.update!(state: "completed")
+          @run.update!(state: "completed", finished_at: Time.current, lease_token: nil, lease_until: nil)
         end
         if @evidence&.status == "ready"
           @evidence.dispatch!(publisher: publisher) { result }
@@ -288,6 +306,16 @@ module Research
 
       def fail!(error)
         return unless @run&.persisted?
+        if @run.conversation_id
+          code = @run.reload.cancel_requested_at ? "agent_cancelled" : error.code
+          if @run.state == "completed"
+            @user.with_lock { @run.update!(error_code: code) }
+          else
+            Lifecycle.terminal!(@run, state: code == "agent_cancelled" ? "cancelled" : "failed", code: code)
+          end
+          Rails.logger.warn("Research agent #{@run.id} rejected code=#{code}")
+          return
+        end
         completed = false
         @user.with_lock do
           @run.reload
@@ -310,6 +338,20 @@ module Research
       rescue Research::Error => error
         Rails.logger.warn("Research agent #{@run&.id} session cleanup rejected code=#{error.code}")
         raise unless original_error
+      end
+
+      def conversation_history
+        return [] unless @run.conversation_id
+        @run.conversation.messages.joins(:run).where.not(run_id: @run.id)
+          .where(state: %w[submitted complete], research_agent_runs: { state: "completed" }).order(:id)
+          .map { |message| { "role" => message.role, "content" => message.readable_content! } }
+      end
+
+      def tool_call(receipt, call)
+        @tools.call(call.name, call.arguments, forbidden: @forbidden)
+      rescue Research::Error => error
+        receipt.update!(state: "uncertain", error_code: error.code)
+        raise
       end
     end
   end

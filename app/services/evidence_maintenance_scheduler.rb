@@ -10,6 +10,7 @@ class EvidenceMaintenanceScheduler
   end
 
   def tick
+    Research::Agent::Lifecycle.recover!
     job = ExpireEquiblesEvidenceJob.perform_later
     raise EnqueueError, "Evidence retention maintenance was not enqueued" unless job && job.successfully_enqueued?
     FileUtils.touch(@heartbeat)

@@ -97,6 +97,25 @@ services:
       retries: 5
     restart: unless-stopped
 
+  research_worker:
+    <<: *app
+    environment:
+      <<: *app-environment
+      WORKER_QUEUE: research
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq_research.yml"]
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bundle", "exec", "ruby", "bin/worker-healthcheck"]
+      interval: 15s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+    restart: unless-stopped
+
   scheduler:
     <<: *app
     command: ["bundle", "exec", "ruby", "bin/maintenance-scheduler"]

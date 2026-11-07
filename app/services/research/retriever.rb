@@ -8,6 +8,24 @@ module Research
 
     attr_reader :request
 
+    def self.restore(request, display_only: false)
+      selectors = request.selectors
+      year = selectors["mode"] == "latest_earnings" ? nil : selectors["fiscal_year"]
+      period = selectors["mode"] == "latest_earnings" ? nil : selectors["fiscal_period"]
+      service = new(user: request.user, space: request.space, query: "Restoring selected evidence",
+        request_key: request.request_key, listing_identity: selectors.fetch("listing_identity"),
+        mode: selectors.fetch("mode"), fiscal_year: year, fiscal_period: period,
+        source_kind: selectors.fetch("source_kind"), as_of: selectors["as_of"],
+        strategy: selectors.fetch("strategy"), limit: selectors.fetch("limit"),
+        context_tokens: selectors.fetch("context_tokens"), recency: selectors.fetch("recency"))
+      service.restore_selection!(request, display_only: display_only)
+    end
+
+    def restore_selection!(request, display_only:)
+      @request, @display_only = request, display_only
+      EvidenceSet.new(self, display_only: display_only)
+    end
+
     def initialize(user:, space:, query:, request_key:, listing_identity:, mode: "current", fiscal_year: nil,
                    fiscal_period: nil, source_kind: "earnings_transcript", as_of: nil, strategy: "keyword",
                    limit: 5, context_tokens: 4000, recency: false,
@@ -112,7 +130,7 @@ module Research
       @owner.with_lock do
         @request.reload
         @space.reload
-        raise Error.new("retrieval_deadline") if @request.deadline_at <= Time.current
+        raise Error.new("retrieval_deadline") if !@display_only && @request.deadline_at <= Time.current
         unless @space.user_id == @owner.id && (@selectors["strategy"] != "hybrid" || @space.state == "active")
           raise Error.new("embedding_space_not_active")
         end

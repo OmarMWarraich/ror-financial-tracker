@@ -9,8 +9,9 @@ class EquiblesClient
   REQUEST_TIMEOUT = 5
   class EvidenceError < StandardError; end
 
-  def initialize(api_key:)
+  def initialize(api_key:, on_headers: nil)
     @api_key = api_key.to_s.strip
+    @on_headers = on_headers
   end
 
   def lookup(ticker_symbol)
@@ -109,6 +110,7 @@ class EquiblesClient
                               max_retries: 0) do |http|
       http.request(request)
     end
+    @on_headers&.call(response.code.to_i, response.each_header.to_h)
     unless response.is_a?(Net::HTTPSuccess)
       @last_status = response.code
       return nil

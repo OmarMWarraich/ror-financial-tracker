@@ -2,10 +2,15 @@ module Research
   class EvidenceSet
     attr_reader :request
 
-    def initialize(retriever)
+    def initialize(retriever, display_only: false)
       @retriever = retriever
       @request = retriever.request
       @selection = @request.selection.deep_dup
+      @display_only = display_only
+    end
+
+    def self.restore!(request, display_only: false)
+      Retriever.restore(request, display_only: display_only)
     end
 
     def status
@@ -35,6 +40,7 @@ module Research
     end
 
     def dispatch!(publisher:, &model_call)
+      raise Error.new("display_evidence_cannot_dispatch") if @display_only
       raise Error.new("database_transaction_open") if ApplicationRecord.connection.transaction_open?
       raise Error.new("invalid_dispatch_callbacks") unless publisher.respond_to?(:call) && model_call
       context = context_json

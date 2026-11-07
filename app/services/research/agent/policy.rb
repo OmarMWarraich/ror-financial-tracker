@@ -1,6 +1,23 @@
 module Research
   module Agent
     class Policy
+      def self.fingerprints(user, run, settings)
+        values = { "policy" => Digest::SHA256.hexdigest(JSON.generate(settings.sort.to_h)) }
+        return values if run.provider == "fixture"
+        key = ENV["OPENAI_API_KEY"].to_s.strip
+        unless key.present? && key.valid_encoding? && key.length <= 4096 && !key.match?(/\s/)
+          raise Research::Error.new("openai_credentials_required")
+        end
+        values["openai"] = Digest::SHA256.hexdigest(key)
+        if %w[live_mcp mixed].include?(run.selectors["evidence_mode"])
+          unless EquiblesConnection.encryption_configured? && user.equibles_connection
+            raise Research::Error.new("equibles_credentials_required")
+          end
+          values["equibles"] = Digest::SHA256.hexdigest(user.equibles_connection.reload.read_attribute_before_type_cast(:api_key).to_s)
+        end
+        values
+      end
+
       def initialize(user, configuration: nil)
         @user = user
         @configuration = configuration

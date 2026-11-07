@@ -1038,6 +1038,80 @@ budgets, durable worker recovery, workflow controls, owner-authenticated
 cross-process chat/reconnect, disposal and live/quality acceptance remain
 M5-M9. No real model/MCP account call or private approval was performed for M4.
 
+### M5 durable research lifecycle
+
+The durable backend wraps M4 without adding a browser chat page. Submit an owned
+original-fixture run with `Research::Agent::Lifecycle.submit!`, supplying the
+same query/request key/listing/fiscal selectors as M4. It returns a queued
+`ResearchAgentRun` with an owned conversation, encrypted user message, immutable
+workflow/prompt/pricing versions and lowering-only `preferences` (string keys).
+Pass the conversation on follow-ups; the scope cannot change, at most four
+submissions are allowed, and preferences cannot raise its original limits.
+Owner-scoped reads use `Lifecycle.messages!(user:, conversation_id:)`.
+
+`ResearchAgentJob` receives only the run ID on the dedicated `research` queue.
+The separate `research_worker` has two threads; the maintenance worker does not
+consume research jobs. PostgreSQL admission still enforces one active run/owner
+and two application-wide, including synchronous M4 runs. Atomic claims establish
+a random 20-second lease, renewed at guarded checkpoints without extending the
+original submission-to-completion deadline. Duplicate deliveries cannot claim a
+running or terminal run. Only pre-claim capacity contention may requeue at
+15-second intervals, at most four total enqueue attempts and never beyond the
+deadline. Provider/model/MCP requests have no automatic charged retry.
+
+Chat has separate retention: original fixtures expire after 24 hours; private
+research requires explicit `chat_retention_seconds` of 1..86400, bounded by
+licensed retention and approval expiry. Financial answers may expire earlier
+with selected live evidence. Bodies are encrypted and filtered from model
+inspection/logs; messages do not duplicate raw tool results. Read guards recheck
+current approval/credentials, selected retained revisions and expiry. A
+display-only evidence restoration never grants another model dispatch or extends
+the original retrieval/run deadline. Completed conversation history is bounded
+by the same model context caps and rechecked across steps.
+
+Queued paid runs reserve their run ceiling against conversation ($0.20),
+owner UTC-day ($0.50) and app UTC-day ($1) spend before queue delivery. Model and
+embedding receipts share these holds, not new allowances. Terminal runs release
+unused capacity while dispatched/uncertain usage remains reserved for explicit
+reconciliation. Pricing is pinned per run; a changed rate card or UTC budget
+window stops execution instead of repricing/replaying accepted work.
+
+MCP/REST/quote quota shares one-way owner-key groups and atomic reservations.
+Queued live runs hold bounded protocol capacity; other REST and quote calls
+cannot consume it. Quote network reads occur outside database locks, then
+recheck credentials/approval before saving. Private live agents additionally
+require reviewed `quota_daily_capacity` (<=30), `external_usage_reserved_requests`
+and `quota_reviewed_until` (future, <=24 hours). Missing/stale/unprepared key
+groups are `source_budget_unknown`, not an assumed unused account.
+`rails research:prepare_quota_keys` computes private one-way groups locally;
+it makes no provider call.
+
+Response observations retain only bounded quota metadata, not arbitrary
+headers/credentials. `x-ratelimit-remaining`/`ratelimit-remaining` constrain
+capacity only with explicitly reviewed
+`quota_header_semantics: utc_daily_requests_remaining`; this does **not** claim
+Equibles currently supplies those headers or that their units are verified.
+Unknown units stop the live agent. Observations never raise an allowance;
+429 blocks the UTC window and numeric Retry-After is diagnostic only. Remote
+usage beyond the reviewed allocation is unobservable: local caps are not
+guaranteed provider billing/account limits.
+
+`Lifecycle.stop!(user:, run_id:)` cancels queued work or records a stop flag
+checked during model streaming, MCP body reads and between steps. Unsafe partial
+financial text is not published: incomplete answers retain metadata/known usage
+or conservative uncertain reservations, not unvalidated text. Accepted work may
+still be billed; cancellation is not a refund.
+
+Expired queues fail explicitly; expired leases become `interrupted`, never an
+automatic whole-run replay. Recovery runs on research-worker startup, before
+claims, and every maintenance scheduler tick (300 seconds); operators can run
+`rails research:recover`. It also nulls expired chat bodies while retaining
+audit/usage rows. This is not physical erasure from backups or provider logs;
+M8 remains necessary. Redis enqueue ambiguity leaves a durable queued record and
+safe request-key lookup, with explicit queue failure rather than a success
+fallback. M0 private permissions/account gates remain default off; M6-M9
+workflow/UI/reconnect/disposal/live and quality acceptance remain separate.
+
 ### Rails-native conversational research assessment
 
 Architectural direction, assessed 2026-11-07; **the M4 backend is implemented

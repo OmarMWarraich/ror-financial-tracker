@@ -5,11 +5,12 @@ require "event_stream_parser"
 module Research
   module Agent
     class EquiblesMcp
-      def initialize(user:, registry:, before_request:, client: nil)
+      def initialize(user:, registry:, before_request:, client: nil, check: nil, on_headers: nil)
         @user, @registry, @before_request = user, registry, before_request
         @client = client
         @injected = !client.nil?
         @cancellation = MCP::Cancellation.new
+        @check, @on_headers = check, on_headers
       end
 
       def discover!
@@ -95,7 +96,7 @@ module Research
           http.options.timeout = 5
           http.options.open_timeout = 5
           http.ssl.verify = true
-          http.adapter McpHttpAdapter, client: @http_client
+          http.adapter McpHttpAdapter, client: @http_client, check: @check, on_headers: @on_headers
         end
         @client = MCP::Client.new(transport: transport, max_pages: 2, input_required_max_rounds: 1)
       rescue ActiveRecord::Encryption::Errors::Decryption, ActiveRecord::Encryption::Errors::Configuration

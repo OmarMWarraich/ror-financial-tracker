@@ -8,6 +8,6 @@ Sidekiq.configure_client do |config|
 end
 
 healthy = Sidekiq::ProcessSet.new.any? do |process|
-  process["hostname"] == Socket.gethostname && process["queues"].include?("maintenance")
+  process["hostname"] == Socket.gethostname && process["queues"].include?(ENV.fetch("WORKER_QUEUE", "maintenance"))
 end
 abort "No current Sidekiq heartbeat for this container" unless healthy
