@@ -1,70 +1,30 @@
 <% content_for :title, "Stocks and earnings | FinanceTracker" %>
 <% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
-<header class="mb-6">
-  <p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Portfolio engineering showcase / Equibles API</p>
-  <h1>Stocks and earnings</h1>
-  <p class="text-muted-foreground">Real provider data, including delayed quotes. Read-only research, not investment advice or a connected holdings account.</p>
-  <%= render_badge "Authenticated local display / USD", variant: :secondary %>
-</header>
-<%= render_card title: "Choose your stocks", subtitle: "One explicit refresh uses at most seven API requests. No automatic polling." do %>
-  <div class="p-6 pt-0">
-    <%= form_with url: refresh_market_dashboard_path, method: :post, data: { turbo: false }, class: "flex flex-wrap items-end gap-3" do |form| %>
-      <div class="flex-1">
-        <%= form.label :tickers, "Up to three US stock symbols", class: "form-label" %>
-        <%= form.text_field :tickers, value: @tickers, maxlength: 80, required: true, class: "form-control", placeholder: "AAPL, MSFT, NVDA" %>
-      </div>
-      <%= render_button "Load real API data", type: :submit %>
+<div data-controller="market-dashboard" data-market-dashboard-url-value="<%= refresh_market_dashboard_path %>" data-market-dashboard-interval-value="900000">
+  <header class="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Equibles / private portfolio showcase</p>
+      <h1>Stocks and earnings</h1>
+      <p class="text-muted-foreground">Ten leading US listings by market capitalization. Share classes are separate listings, not ten distinct companies.</p>
+    </div>
+    <%= form_with url: refresh_market_dashboard_path, method: :post, data: { turbo: false, market_dashboard_target: "form", action: "submit->market-dashboard#start" } do |form| %>
+      <%= form.hidden_field :mode, value: "leaders" %>
+      <%= render_button "Load / refresh top ten", type: :submit %>
     <% end %>
-    <p class="mt-3 mb-0 text-sm text-muted-foreground">Market data stays in this response, not the database or shared watchlist. Reloading a submitted form may prompt another request; use <%= link_to "clear retrieved data", market_dashboard_path %> to return without spending quota.</p>
+  </header>
+  <p role="status" aria-live="polite" data-market-dashboard-target="status" class="mb-4 text-sm text-muted-foreground">Refreshes every15 minutes while visible. Delayed quotes lag the market; refresh cadence does not remove the delay. Local shared-key cap:120 requests per UTC day.</p>
+  <% if @error %><p role="alert" class="alert alert-danger"><%= @error %>. No fictional substitute is displayed.</p><% end %>
+  <div data-market-dashboard-target="board">
+    <% if @dashboard %>
+      <%= render "board", dashboard: @dashboard %>
+    <% else %>
+      <%= render_card title: "Your market overview", subtitle: "A chart-led view of real stocks and reported earnings" do %>
+        <div class="p-6 pt-0">
+          <p>The dashboard loads automatically when this page is visible. Without JavaScript, use the load button. Opening the server page itself makes no provider request.</p>
+          <p class="text-sm text-muted-foreground">No trading, AI calls, stored market corpus or background polling. Historical charts use daily bars, not invented intraday candles.</p>
+        </div>
+      <% end %>
+    <% end %>
   </div>
-<% end %>
-<% if @error %><p role="alert" class="alert alert-danger mt-4">Unable to load market data: <%= @error %>. No fictional substitute is displayed.</p><% end %>
-<% if @dashboard %>
-  <p role="status" class="my-4 text-sm text-muted-foreground">Retrieved <time datetime="<%= @dashboard[:received_at].iso8601 %>"><%= @dashboard[:received_at].iso8601 %></time> / <%= @dashboard[:requests] %> requests. Local shared-key ceiling: 30 requests per UTC day; other clients may consume the provider allowance.</p>
-  <% @dashboard[:errors].each do |error| %><p role="alert" class="alert alert-warning"><%= error %> Missing evidence remains unavailable.</p><% end %>
-  <section class="grid gap-5 md:grid-cols-3" aria-label="Stock quote cards">
-    <% @dashboard[:stocks].each do |stock| %>
-      <%= render_card title: stock[:ticker], subtitle: stock[:name] do %>
-        <div class="p-6 pt-0">
-          <% if stock[:quote] %>
-            <% quote = stock[:quote] %>
-            <p class="text-3xl font-semibold" data-testid="market-price"><%= number_to_currency(quote.fetch("price"), precision: 2) %></p>
-            <%= render_badge quote["delayed"] == true ? "Delayed quote" : "Delay not verified", variant: :secondary %>
-            <p class="mt-3 text-sm">Source: Equibles / consolidated US listing</p>
-            <p class="text-sm">Market time: <%= quote["source_at"] || "Unknown" %></p>
-            <p class="text-sm">Session: <%= quote.dig("session", "sessionDate") || "Unknown" %></p>
-          <% else %><p role="status">Quote unavailable. No screener price or fictional fallback.</p><% end %>
-          <% if stock[:sector].present? %><p class="text-sm text-muted-foreground"><%= stock[:sector] %></p><% end %>
-        </div>
-      <% end %>
-    <% end %>
-  </section>
-  <section class="mt-6" aria-labelledby="earnings-heading">
-    <h2 id="earnings-heading">Reported earnings</h2>
-    <p class="text-sm text-muted-foreground">Latest captured discrete-quarter diluted EPS, not forecasts or earnings-call summaries. SEC XBRL facts use latest restatements; historical values are not point-in-time evidence. Per-share values may be adjusted to today's split basis.</p>
-    <% @dashboard[:stocks].each do |stock| %>
-      <%= render_card title: "#{stock[:ticker]} / diluted earnings per share", class: "mb-4" do %>
-        <div class="p-6 pt-0">
-          <% earnings = stock[:earnings] %>
-          <% if earnings && earnings["points"].any? %>
-            <div class="table-responsive" role="region" aria-label="<%= stock[:ticker] %> earnings table" tabindex="0">
-              <table class="table">
-                <caption><%= earnings["unit"] %>. Dates are date-only filing/reporting dates, not precise publication timestamps.</caption>
-                <thead><tr><th scope="col">Fiscal period</th><th scope="col">Period ending</th><th scope="col">Diluted EPS</th><th scope="col">Filed</th><th scope="col">Split basis</th></tr></thead>
-                <tbody>
-                  <% earnings["points"].each do |point| %>
-                    <tr><td><%= point["fiscalPeriod"].presence || "Unknown" %></td><td><%= point["periodEnd"] %></td><td data-testid="market-eps"><%= number_to_currency(point["value"], precision: 2) %></td><td><%= point["filedDate"] %></td><td><%= point["splitBasis"] || "Not provided" %></td></tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
-          <% else %><p role="status">Reported quarterly EPS unavailable. Missing earnings are not zero.</p><% end %>
-          <% if earnings && earnings["coverage_note"].present? %><p class="text-sm text-muted-foreground"><%= earnings["coverage_note"] %></p><% end %>
-          <p class="text-sm"><%= link_to "Equibles financial fact documentation", "https://equibles.com/docs/api", target: "_blank", rel: "noopener noreferrer" %></p>
-        </div>
-      <% end %>
-    <% end %>
-  </section>
-<% else %>
-  <p class="mt-5" role="status">Choose stocks and load real API data. Opening this page makes no provider request. The public demo dashboard remains fictional.</p>
-<% end %>
+  <p class="mt-4 text-sm text-muted-foreground">Market data lives only in the current no-store page. Rankings and financial metrics have their own dates; a new quote does not make old fundamentals current. Missing data remains unavailable.</p>
+</div>

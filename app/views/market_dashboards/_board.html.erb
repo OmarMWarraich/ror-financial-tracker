@@ -1,0 +1,30 @@
+<div data-market-ranking-date="<%= dashboard[:received_at].utc.to_date.iso8601 %>">
+  <% dashboard[:errors].each do |error| %><p role="alert" class="alert alert-warning"><%= error %></p><% end %>
+  <div class="grid gap-6 lg:grid-cols-3">
+    <section class="min-w-0 lg:col-span-2" aria-label="Selected stock">
+      <div data-market-detail>
+        <%= render "detail", dashboard: dashboard %>
+      </div>
+    </section>
+    <aside class="min-w-0" aria-label="Top ten stock listings">
+      <%= render_card title: "Market leaders", subtitle: "Provider market-cap ranking / retrieved #{dashboard[:received_at].utc.iso8601}" do %>
+        <div class="p-4 pt-0">
+          <% dashboard[:stocks].each_with_index do |stock, index| %>
+            <%= form_with url: refresh_market_dashboard_path, method: :post, data: { turbo: false, action: "submit->market-dashboard#select" }, class: "border-b py-3" do |form| %>
+              <%= form.hidden_field :mode, value: "detail" %>
+              <%= form.hidden_field :tickers, value: stock[:ticker] %>
+              <button type="submit" class="w-full text-left" data-market-listing="<%= stock[:ticker] %>" data-market-name="<%= stock[:name] %>">
+                <span class="flex items-start justify-between gap-3">
+                  <span><span class="text-xs text-muted-foreground"><%= index + 1 %>.</span> <strong><%= stock[:ticker] %></strong><span class="block text-sm"><%= stock[:name] %></span></span>
+                  <span data-market-price="<%= stock[:ticker] %>"><%= stock[:quote] ? number_to_currency(stock[:quote]["price"]) : "Unavailable" %></span>
+                </span>
+                <% if stock[:market_cap] %><span class="text-xs text-muted-foreground">Market cap <%= number_to_human(stock[:market_cap], units: { billion: "B", trillion: "T", million: "M" }, precision: 3) %></span><% end %>
+              </button>
+            <% end %>
+          <% end %>
+          <% if dashboard[:stocks].length < 10 %><p role="status">Only <%= dashboard[:stocks].length %> listings were supplied. No synthetic stocks added.</p><% end %>
+        </div>
+      <% end %>
+    </aside>
+  </div>
+</div>

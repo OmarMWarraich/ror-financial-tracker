@@ -23,10 +23,11 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_equal "equibles-market-dashboard", result["id"]
     assert_equal "implemented", result["status"]
     assert_includes result["summary"], "production remains denied"
-    assert_includes result["summary"], "no polling, OpenAI, trading or screener-price fallback"
-    assert_includes result["summary"], "cap30/key/day"
+    assert_includes result["summary"], "no background polling, OpenAI, trading or screener-price fallback"
+    assert_includes result["summary"], "cap120/key/day"
+    assert_includes result["summary"], "900000ms"
     assert_includes result["summary"], "date-only"
-    assert_includes result["summary"], "exact named billing plan/expiry"
+    assert_match(/exact named billing plan\/expiry/i, result["summary"])
     assert_includes result["sources"], "app/services/market_dashboard.rb"
   end
 

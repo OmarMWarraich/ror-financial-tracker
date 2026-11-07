@@ -13,6 +13,18 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
     @previous_flag.nil? ? ENV.delete("MARKET_DASHBOARD_ENABLED") : ENV["MARKET_DASHBOARD_ENABLED"] = @previous_flag
   end
 
+  test "non-JavaScript selection keeps the top ten view instead of calling it a one-stock ranking" do
+    service = Object.new
+    service.define_singleton_method(:call) do |mode:, selected_ticker:|
+      raise "Wrong selection" unless mode == "leaders" && selected_ticker == "BRAVO"
+      { received_at: Time.current.utc, requests: 4, errors: [], stocks: [], selected: nil }
+    end
+    MarketDashboard.stub(:new, ->(*) { service }) do
+      post refresh_market_dashboard_path, params: { mode: "detail", tickers: "BRAVO" }
+      assert_response :success
+    end
+  end
+
   test "GET is private no-store and never consumes provider requests" do
     Net::HTTP.stub(:start, ->(*) { flunk "GET must not fetch" }) do
       get market_dashboard_path
@@ -59,6 +71,37 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
       assert_includes response.body, "Delayed quote"
       assert_includes response.body, "latest restatements"
       assert_not_includes response.body, "<script>bad()</script>"
+    end
+  end
+
+  test "JSON refresh stays authenticated and returns quotes without a full financial reload" do
+    result = { received_at: Time.current.utc, requests: 1, errors: [], stocks: [], selected: nil }
+    service = Object.new
+    service.define_singleton_method(:call) { |mode:| raise "Wrong mode" unless mode == "quotes"; result }
+    MarketDashboard.stub(:new, ->(*) { service }) do
+      post refresh_market_dashboard_path, params: { mode: "quotes", tickers: "ALPHA" }, as: :json
+      assert_response :success
+      assert_equal 1, response.parsed_body["requests"]
+      assert_nil response.parsed_body["selected"]
+      assert_equal "no-store", response.headers["Cache-Control"]
+    end
+  end
+
+  test "chart renders only actual bounded daily bars with accessible range controls" do
+    stock = { ticker: "ALPHA", name: "Original Alpha", quote: { "price" => "10", "delayed" => true },
+      history: { "points" => [{ "date" => "2026-11-05", "close" => 10, "open" => 9, "high" => 11, "low" => 8 },
+        { "date" => "2026-11-06", "close" => 12, "open" => 11, "high" => 13, "low" => 10 }] } }
+    result = { received_at: Time.current.utc, requests: 4, errors: [], stocks: [stock], selected: stock }
+    service = Object.new
+    service.define_singleton_method(:call) { |mode:| result }
+    MarketDashboard.stub(:new, ->(*) { service }) do
+      post refresh_market_dashboard_path, params: { mode: "leaders" }
+      assert_response :success
+      assert_select 'svg[role="img"]', count: 4
+      assert_select '[data-market-chart="1Y"]:not([hidden])', count: 1
+      assert_select '[data-market-range][aria-pressed="true"]', count: 1
+      assert_includes response.body, "not an intraday chart"
+      assert_includes response.body, "120 requests"
     end
   end
 end

@@ -1,4 +1,18 @@
 module ApplicationHelper
+  def market_chart_points(history, sessions)
+    rows = history.fetch("points").last(sessions)
+    return nil if rows.length < 2
+    values = rows.map { |row| row.fetch("close").to_f }
+    low, high = values.minmax
+    span = high - low
+    path = values.each_with_index.map do |value, index|
+      x = (index * 700.0 / (values.length - 1)).round(2)
+      y = span.zero? ? 100 : (180 - (value - low) / span * 160).round(2)
+      "#{x},#{y}"
+    end.join(" ")
+    { path: path, first: rows.first["date"], last: rows.last["date"], low: low, high: high }
+  end
+
   def current_path?(path)
     "active" if current_page?(path)
   end

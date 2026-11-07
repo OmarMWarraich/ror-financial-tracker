@@ -21,7 +21,7 @@
     <% if MarketDashboard.enabled? %>
       <%= render_card title: "Stocks and earnings", subtitle: "Real Equibles API data / delayed quotes supported" do %>
         <div class="p-6 pt-0">
-          <p>Load up to three US stocks and reported quarterly earnings. Private local display, manual requests and no fictional price fallback.</p>
+          <p>Explore ten leading US stock listings, daily price charts and quarterly earnings. Quotes refresh every15 minutes while visible; no fictional price fallback.</p>
           <%= render_button "Open stocks and earnings", as: :link, href: market_dashboard_path %>
         </div>
       <% end %>

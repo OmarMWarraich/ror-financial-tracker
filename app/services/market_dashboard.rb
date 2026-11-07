@@ -1,26 +1,26 @@
 class MarketDashboard
   DEFAULT_TICKERS = %w[AAPL MSFT NVDA].freeze
-  DAILY_REQUESTS = 30
+  DAILY_REQUESTS = 120
   DEADLINE = 20
 
   def self.enabled?
     %w[development test].include?(Rails.env) && ENV["MARKET_DASHBOARD_ENABLED"] == "1"
   end
 
-  def self.tickers(input)
-    unless input.is_a?(String) && input.bytesize <= 80
+  def self.tickers(input, limit: 3)
+    unless input.is_a?(String) && input.bytesize <= 220
       raise EquiblesClient::EvidenceError, "invalid_instrument"
     end
     values = input.split(",", -1).map { |value| value.strip.upcase.tr(".", "-") }
-    unless values.length.between?(1, 3) && values.uniq == values &&
+    unless values.length.between?(1, limit) && values.uniq == values &&
            values.all? { |value| value.match?(/\A[A-Z][A-Z0-9-]{0,19}\z/) }
       raise EquiblesClient::EvidenceError, "invalid_instrument"
     end
     values
   end
 
-  def initialize(tickers:, api_key: ENV["EQUIBLES_API_KEY"], client_factory: nil)
-    @tickers = self.class.tickers(tickers)
+  def initialize(tickers: DEFAULT_TICKERS.join(","), api_key: ENV["EQUIBLES_API_KEY"], client_factory: nil)
+    @tickers = self.class.tickers(tickers, limit: 10)
     @key = api_key.to_s.strip
     @digest = Digest::SHA256.hexdigest(@key)
     @requests = 0
@@ -30,13 +30,37 @@ class MarketDashboard
     }
   end
 
-  def call
+  def call(mode: "manual", selected_ticker: nil)
+    raise EquiblesClient::EvidenceError, "invalid_dashboard_mode" unless %w[manual leaders quotes detail].include?(mode)
     raise EquiblesClient::EvidenceError, "dashboard_disabled" unless self.class.enabled?
     raise EquiblesClient::EvidenceError, "missing_credentials" if @key.empty? || @key.match?(/\s/)
     raise EquiblesClient::EvidenceError, "invalid_credentials" unless @key.match?(/\Aeq_[^\s]{1,250}\z/)
     raise EquiblesClient::EvidenceError, "database_transaction_open" if ApplicationRecord.connection.transaction_open?
     @deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DEADLINE
     @client = @client_factory.call(@key, -> { reserve! }, ->(status, headers) { observe!(status, headers) })
+    if mode != "manual"
+      profiles = mode == "leaders" ? capture("Market-cap ranking") { @client.top_stocks } : nil
+      symbols = mode == "leaders" ? (profiles || {}).keys : @tickers
+      readings = symbols.empty? ? {} : (capture("Batch quotes") { @client.snapshots(symbols) } || {})
+      stocks = symbols.map do |ticker|
+        reading = readings[ticker]
+        if reading.nil? || reading[:error]
+          @errors << "#{ticker} quote: #{reading&.[](:error)&.humanize || 'Unavailable'}."
+        end
+        { ticker: ticker, name: profiles&.dig(ticker, "name") || ticker,
+          market_cap: profiles&.dig(ticker, "marketCap"), quote: reading&.[](:quote) }
+      end
+      selected = nil
+      if %w[leaders detail].include?(mode) && stocks.any?
+        chosen = selected_ticker ? stocks.find { |stock| stock[:ticker] == selected_ticker } : stocks.first
+        @errors << "Selected listing is no longer among the market leaders." if chosen.nil?
+        if chosen
+          selected = chosen.merge(history: capture("#{chosen[:ticker]} history") { @client.history(chosen[:ticker]) },
+            earnings: capture("#{chosen[:ticker]} earnings") { @client.earnings(chosen[:ticker]) })
+        end
+      end
+      return { stocks: stocks, selected: selected, errors: @errors, requests: @requests, received_at: Time.current.utc }
+    end
     profiles = capture("Company profiles") { @client.profiles(@tickers) } || {}
     stocks = @tickers.map do |ticker|
       quote = capture("#{ticker} quote") { @client.snapshot(ticker) }

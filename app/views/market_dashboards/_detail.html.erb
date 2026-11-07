@@ -1,0 +1,60 @@
+<% stock = dashboard[:selected] || dashboard[:stocks].first %>
+<% if stock %>
+  <div data-market-selected="<%= stock[:ticker] %>">
+    <%= render_card title: stock[:name], subtitle: "#{stock[:ticker]} / US listing / USD" do %>
+      <div class="p-6 pt-0">
+        <p class="text-4xl font-semibold" data-testid="market-price" data-market-price="<%= stock[:ticker] %>"><%= stock[:quote] ? number_to_currency(stock[:quote]["price"]) : "Unavailable" %></p>
+        <p class="text-sm text-muted-foreground" data-market-timing="<%= stock[:ticker] %>"><%= stock[:quote]&.[]("delayed") == true ? "Delayed quote" : "Delay not verified" %> / source <%= stock[:quote]&.[]("source_at") || "Unknown" %></p>
+        <% history = stock[:history] %>
+        <% if history && history["points"].length >= 2 %>
+          <div class="flex flex-wrap gap-2 my-4" role="group" aria-label="Daily history range">
+            <% [["5D", 5], ["1M", 22], ["6M", 132], ["1Y", 300]].each do |label, sessions| %>
+              <button type="button" class="btn btn-sm btn-outline-primary" aria-pressed="<%= label == "1Y" %>" data-market-range="<%= label %>" data-action="market-dashboard#range"><%= label %></button>
+            <% end %>
+          </div>
+          <% [["5D", 5], ["1M", 22], ["6M", 132], ["1Y", 300]].each do |label, sessions| %>
+            <% chart = market_chart_points(history, sessions) %>
+            <% if chart %>
+              <figure data-market-chart="<%= label %>" <%= "hidden" unless label == "1Y" %>>
+                <svg viewBox="0 0 700 210" role="img" aria-label="<%= stock[:ticker] %> daily closing prices from <%= chart[:first] %> to <%= chart[:last] %>" class="w-full text-primary">
+                  <line x1="0" y1="100" x2="700" y2="100" stroke="currentColor" stroke-opacity="0.15"/>
+                  <polygon points="0,210 <%= chart[:path] %> 700,210" fill="currentColor" fill-opacity="0.08"/>
+                  <polyline points="<%= chart[:path] %>" fill="none" stroke="currentColor" stroke-width="2.5" vector-effect="non-scaling-stroke"/>
+                </svg>
+                <figcaption class="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground"><span><%= chart[:first] %> to <%= chart[:last] %> / daily close / USD</span><span>Range <%= number_to_currency(chart[:low]) %> - <%= number_to_currency(chart[:high]) %></span></figcaption>
+              </figure>
+            <% end %>
+          <% end %>
+          <% last = history["points"].last %>
+          <% previous = history["points"][-2]; change = last["close"].to_f - previous["close"].to_f %>
+          <p class="mt-4 text-sm"><strong><%= number_to_currency(change) %> / <%= number_to_percentage(change * 100 / previous["close"].to_f, precision: 2) %></strong> last captured daily-session change (<%= last["date"] %>), not today's intraday change.</p>
+          <dl class="grid grid-cols-2 gap-3 mt-5 text-sm md:grid-cols-4">
+            <% { "Open" => last["open"], "High" => last["high"], "Low" => last["low"], "Close" => last["close"] }.each do |name, value| %>
+              <div><dt class="text-muted-foreground"><%= name %></dt><dd class="font-semibold"><%= number_to_currency(value) %></dd></div>
+            <% end %>
+          </dl>
+          <% if stock[:market_cap] %><p class="mt-3 text-sm">Market cap at ranking: <%= number_to_human(stock[:market_cap], units: { billion: "B", trillion: "T", million: "M" }, precision: 3) %></p><% end %>
+          <p class="text-xs text-muted-foreground mt-3">Last captured daily session: <%= last["date"] %>. Split-adjusted historical bars may be revised; not an intraday chart or point-in-time backtest.</p>
+          <% if history["truncated"] %><p role="status">History is a bounded page; the provider reports additional bars.</p><% end %>
+        <% else %><p role="status" class="my-5">Daily history unavailable or insufficient to draw a chart. No simulated line is shown.</p><% end %>
+      </div>
+    <% end %>
+    <%= render_card title: "Reported earnings", subtitle: "Discrete-quarter diluted EPS / #{stock[:ticker]}", class: "mt-5" do %>
+      <div class="p-6 pt-0">
+        <% earnings = stock[:earnings] %>
+        <% if earnings && earnings["points"].any? %>
+          <div class="table-responsive" role="region" aria-label="Quarterly EPS" tabindex="0">
+            <table class="table"><caption><%= earnings["unit"] %> / latest restatements, not estimates or earnings beats</caption>
+              <thead><tr><th scope="col">Period</th><th scope="col">Ending</th><th scope="col">EPS</th><th scope="col">Filed</th><th scope="col">Split basis</th></tr></thead>
+              <tbody><% earnings["points"].each do |point| %>
+                <tr><td><%= point["fiscalPeriod"] || "Unknown" %></td><td><%= point["periodEnd"] %></td><td data-testid="market-eps"><%= number_to_currency(point["value"]) %></td><td><%= point["filedDate"] %></td><td><%= point["splitBasis"] || "Unknown" %></td></tr>
+              <% end %></tbody>
+            </table>
+          </div>
+          <p class="text-sm text-muted-foreground"><%= earnings["coverage_note"] %></p>
+        <% else %><p role="status">Quarterly earnings unavailable. Missing EPS is not zero.</p><% end %>
+        <p class="text-xs text-muted-foreground">Dates are date-only. Provider: <%= link_to "Equibles", "https://equibles.com/docs/api", target: "_blank", rel: "noopener noreferrer" %>. Not investment advice.</p>
+      </div>
+    <% end %>
+  </div>
+<% else %><p role="alert">No eligible market leaders were supplied. Try a manual refresh after checking provider access.</p><% end %>

@@ -32,7 +32,7 @@ class MarketDashboardTest < ActiveSupport::TestCase
 
   test "invalid inputs disabled feature and missing key never reach the provider" do
     Net::HTTP.stub(:start, ->(*) { flunk "Unexpected request" }) do
-      [nil, "", "AAPL,,NVDA", "AAPL,AAPL", "AAPL,MSFT,NVDA,SPY", "../AAPL"].each do |input|
+      [nil, "", "AAPL,,NVDA", "AAPL,AAPL", Array.new(11) { |i| "STOCK#{i}" }.join(","), "../AAPL"].each do |input|
         assert_raises(EquiblesClient::EvidenceError) { MarketDashboard.new(tickers: input, api_key: @key) }
       end
       assert_equal "missing_credentials", assert_raises(EquiblesClient::EvidenceError) {
@@ -49,19 +49,19 @@ class MarketDashboardTest < ActiveSupport::TestCase
   end
 
   test "quota exhaustion stops before another HTTP exchange and retains consumed reservations" do
-    ResearchSourceUsage.create!(key_digest: @digest, budget_date: Time.current.utc.to_date, requests_used: 29)
+    ResearchSourceUsage.create!(key_digest: @digest, budget_date: Time.current.utc.to_date, requests_used: 119)
     requests = []
     with_provider(requests) do
       result = MarketDashboard.new(tickers: "AAPL,MSFT,NVDA", api_key: @key).call
       assert_equal 1, requests.size
       assert_nil result[:stocks].first[:quote]
       assert result[:errors].any? { |message| message.include?("Local quota") }
-      assert_equal 30, ResearchSourceUsage.where(key_digest: @digest).sum(:requests_used)
+      assert_equal 120, ResearchSourceUsage.where(key_digest: @digest).sum(:requests_used)
     end
   end
 
   test "concurrent refreshes share the same atomic key allowance" do
-    ResearchSourceUsage.create!(key_digest: @digest, budget_date: Time.current.utc.to_date, requests_used: 29)
+    ResearchSourceUsage.create!(key_digest: @digest, budget_date: Time.current.utc.to_date, requests_used: 119)
     requests = []
     with_provider(requests) do
       results = 2.times.map do
@@ -73,7 +73,7 @@ class MarketDashboardTest < ActiveSupport::TestCase
       end.map(&:value)
       assert_equal 1, results.sum { |result| result[:requests] }
       assert_equal 1, requests.length
-      assert_equal 30, ResearchSourceUsage.where(key_digest: @digest).sum(:requests_used)
+      assert_equal 120, ResearchSourceUsage.where(key_digest: @digest).sum(:requests_used)
     end
   end
 
@@ -125,6 +125,65 @@ class MarketDashboardTest < ActiveSupport::TestCase
     end
   end
 
+  test "ranked ten stock view uses four calls and quote refresh uses only one" do
+    requests = []
+    with_provider(requests) do
+      result = MarketDashboard.new(api_key: @key).call(mode: "leaders")
+      assert_equal 10, result[:stocks].size
+      assert_equal 4, result[:requests]
+      assert_empty result[:errors]
+      assert_equal 30, result[:selected][:history]["points"].size
+      assert result[:selected][:earnings]["points"].any?
+      symbols = result[:stocks].map { |stock| stock[:ticker] }.join(",")
+      refresh = MarketDashboard.new(tickers: symbols, api_key: @key).call(mode: "quotes")
+      assert_equal 1, refresh[:requests]
+      assert_equal 10, refresh[:stocks].count { |stock| stock[:quote] }
+      assert_nil refresh[:selected]
+      assert_equal 5, ResearchSourceUsage.where(key_digest: @digest).sum(:requests_used)
+    end
+  end
+
+  test "a bad batch quote cannot become a USD price and does not discard valid peers" do
+    requests = []
+    with_provider(requests, invalid: "quote_currency") do
+      result = MarketDashboard.new(tickers: "ALPHA,BRAVO", api_key: @key).call(mode: "quotes")
+      assert_nil result[:stocks].first[:quote]
+      assert result[:stocks].last[:quote]
+      assert result[:errors].any? { |error| error.include?("Unsupported currency") }
+      assert_equal 1, requests.size
+    end
+  end
+
+  test "rank order duplicate listings future bars and malformed OHLC are explicit failures" do
+    %w[ranking duplicate future_date invalid_bar].each do |invalid|
+      with_provider([], invalid: invalid) do
+        result = MarketDashboard.new(api_key: @key).call(mode: "leaders")
+        assert_not_empty result[:errors], invalid
+        if %w[ranking duplicate].include?(invalid)
+          assert_empty result[:stocks]
+        else
+          assert_nil result[:selected][:history]
+        end
+      end
+    end
+  end
+
+  test "unknown modes never dispatch a provider request" do
+    Net::HTTP.stub(:start, ->(*) { flunk "Unexpected request" }) do
+      assert_raises(EquiblesClient::EvidenceError) { MarketDashboard.new(api_key: @key).call(mode: "trade") }
+    end
+  end
+
+  test "server-side selection preserves the ranked universe without changing companies" do
+    with_provider([]) do
+      result = MarketDashboard.new(api_key: @key).call(mode: "leaders", selected_ticker: "BRAVO")
+      assert_equal 10, result[:stocks].size
+      assert_equal "BRAVO", result[:selected][:ticker]
+      assert_equal "Original fixture BRAVO", result[:selected][:name]
+      assert_equal 4, result[:requests]
+    end
+  end
+
   private
 
   def with_provider(requests, invalid: nil, remaining: nil)
@@ -133,8 +192,24 @@ class MarketDashboardTest < ActiveSupport::TestCase
       requests << request
       ticker = request.uri.path.split("/")[3]
       body = if request.uri.path.end_with?("/screener/stocks")
+        query = URI.decode_www_form(request.uri.query).to_h
+        symbols = query["tickers"]&.split(",") || %w[ALPHA BRAVO CHARLIE DELTA ECHO FOXTROT GOLF HOTEL INDIA JULIET]
+        rows = symbols.each_with_index.map { |symbol, index| { ticker: symbol, name: "Original fixture #{symbol}", sector: "Original sector", market: "US", currency: "USD", marketCap: (10 - index) * 1_000_000_000 } }
+        rows.reverse! if invalid == "ranking"
+        rows.last[:ticker] = rows.first[:ticker] if invalid == "duplicate"
+        { data: rows }
+      elsif request.uri.path.end_with?("/quotes")
         symbols = URI.decode_www_form(request.uri.query).to_h.fetch("tickers").split(",")
-        { data: symbols.map { |symbol| { ticker: symbol, name: "Original fixture #{symbol}", sector: "Original sector" } } }
+        rows = symbols.map { |symbol| { ticker: symbol, currency: "USD", price: 123.45, stale: false, delayed: true,
+          asOf: 15.minutes.ago.utc.iso8601, sessionDate: Date.current.iso8601 } }
+        rows.first[:currency] = "EUR" if invalid == "quote_currency"
+        { data: rows }
+      elsif request.uri.path.end_with?("/prices")
+        rows = 30.times.map { |index| { date: (Time.current.utc.to_date - index - 1).iso8601,
+          open: 100, high: 105, low: 95, close: 100 + index / 10.0, volume: 1000 } }
+        rows.first[:date] = (Date.current + 1).iso8601 if invalid == "future_date"
+        rows.first[:close] = 999 if invalid == "invalid_bar"
+        { ticker: ticker, currency: "USD", data: rows, meta: { hasMore: false } }
       elsif request.uri.path.end_with?("/quote")
         { ticker: ticker, currency: "USD", price: 123.45, stale: false, delayed: true,
           asOf: 15.minutes.ago.utc.iso8601, sessionDate: Date.current.iso8601 }
