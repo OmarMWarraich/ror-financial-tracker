@@ -8,6 +8,7 @@ module Research
     end
 
     def call(uri:, api_key:, timeout:)
+      observed_status = observed_headers = nil
       unless uri.scheme == "https" && uri.host == "api.equibles.com" && uri.port == 443
         raise Error.new("source_endpoint_rejected")
       end
@@ -24,7 +25,8 @@ module Research
         request["Accept"] = "application/json"
         request["Accept-Encoding"] = "identity"
         http.request(request) do |response|
-          observed_status, observed_headers = response.code.to_i, response.each_header.to_h
+          observed_status = response.code.to_i
+          observed_headers = %w[x-ratelimit-remaining ratelimit-remaining retry-after].to_h { |name| [name, response[name]] }.compact
           case response.code.to_i
           when 200
             unless response["content-type"].to_s.match?(/\Aapplication\/json(?:;|\z)/i)

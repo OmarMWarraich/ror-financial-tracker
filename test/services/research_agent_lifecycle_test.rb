@@ -17,6 +17,7 @@ class ResearchAgentLifecycleTest < ActiveSupport::TestCase
         ResearchModelAttempt.where(user: user).delete_all
         ResearchAgentRun.where(user: user).delete_all
         ResearchConversation.where(user: user).delete_all
+        ResearchSourceUsage.where(user: user).delete_all
       end
       user.equibles_connection&.destroy!
       user.destroy!
@@ -237,6 +238,79 @@ class ResearchAgentLifecycleTest < ActiveSupport::TestCase
       submit(listing_identity: "US:ALPHA", evidence_mode: "live_mcp")
     }.code
     assert_empty @user.research_agent_runs
+  end
+
+  test "SQL rejects chat rewriting tool identity changes and same-owner cross-conversation links" do
+    run = submit
+    Agent::Execution.call(run)
+    message = run.messages.find_by!(role: "user")
+    assert_raises(ActiveRecord::StatementInvalid) { message.update_columns(content: "Rewritten original question") }
+    assert_raises(ActiveRecord::StatementInvalid) { ResearchMessage.where(id: message.id).update_all(expires_at: Time.current + 2.days) }
+    receipt = run.tool_attempts.first
+    assert_raises(ActiveRecord::StatementInvalid) { ResearchToolAttempt.where(id: receipt.id).update_all(arguments_digest: "b" * 64) }
+    other = submit
+    assert_raises(ActiveRecord::InvalidForeignKey) {
+      ResearchMessage.insert_all!([{ user_id: @user.id, conversation_id: run.conversation_id, run_id: other.id,
+        role: "assistant", state: "complete", content: "Original mismatched message", expires_at: Time.current + 1.day }])
+    }
+    assert_raises(ActiveRecord::StatementInvalid) { run.update_columns(state: "queued") }
+    assert_equal "completed", run.reload.state
+  end
+
+  test "shared source reservations serialize at exact capacity and credential rotation never erases consumed quota" do
+    second_owner = owner
+    connections = [
+      EquiblesConnection.create!(user: @user, api_key: "original-shared-quota-key", requests_used: 14, quota_date: Time.current.utc.to_date),
+      EquiblesConnection.create!(user: second_owner, api_key: "original-shared-quota-key", requests_used: 15, quota_date: Time.current.utc.to_date)
+    ]
+    requests = connections.map do |connection|
+      connection.user.research_agent_runs.create!(request_key: SecureRandom.uuid, query_digest: "a" * 64, selectors: {},
+        provider: "fixture", model: "original-fixture-v1", prompt_version: Agent::PROMPT_VERSION,
+        state: "queued", deadline_at: Time.current + 90.seconds)
+    end
+    gate = Queue.new
+    workers = requests.map do |request|
+      Thread.new do
+        ApplicationRecord.connection_pool.with_connection do
+          gate.pop
+          begin
+            request.user.with_lock { Research::SourceQuota.reserve!(request, allocation: 30, limit: 16) }
+            "reserved"
+          rescue Research::Error => error
+            error.code
+          end
+        end
+      end
+    end
+    2.times { gate << true }
+    assert_equal ["reserved", "source_request_budget_exceeded"], workers.map(&:value).sort
+    assert_equal 30, Research::SourceQuota.group_used(connections.last.reload)
+    connections.first.reload.update!(api_key: "original-rotated-quota-key")
+    assert_equal 30, Research::SourceQuota.group_used(connections.last.reload)
+    connections.first.destroy!
+    assert_equal 30, Research::SourceQuota.group_used(connections.last.reload)
+  end
+
+  test "quote HTTP holds no database transaction and late old credentials cannot overwrite newer evidence or errors" do
+    settings = { "approval_reference" => "original-offline-quote-approval", "subscription_verified" => true,
+      "paid_quotes" => true, "automated_read" => true, "private_display" => true, "cache_storage" => true,
+      "daily_request_budget" => 30, "retention_seconds" => 3600, "freshness_seconds" => 900 }
+    entitlement = EquiblesEntitlement.new(@user, configuration: { "verified_users" => { @user.id.to_s => settings } })
+    connection = EquiblesConnection.create!(user: @user, api_key: "original-quote-key")
+    [false, true].each do |failure|
+      connection.update!(last_attempt_at: nil)
+      client = Object.new
+      client.define_singleton_method(:snapshot) do |_ticker|
+        raise "HTTP transaction unexpectedly open" if ApplicationRecord.connection.transaction_open?
+        connection.reload.update!(api_key: "original-rotated-quote-#{failure}", last_attempt_at: Time.current + 1.second,
+          snapshot: { "provider" => "original-newer-fixture" }, last_success_at: Time.current, last_error: nil)
+        raise EquiblesClient::EvidenceError, "provider_unavailable" if failure
+        { "provider" => "original-obsolete-fixture" }
+      end
+      assert_not EquiblesEvidenceRefresh.new(connection, entitlement: entitlement, client_factory: ->(*) { client }).call("AAPL")
+      assert_equal "original-newer-fixture", connection.reload.snapshot["provider"]
+      assert_nil connection.last_error
+    end
   end
 
   def owner

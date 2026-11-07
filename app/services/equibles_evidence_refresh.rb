@@ -43,10 +43,9 @@ class EquiblesEvidenceRefresh
     return false unless reservation.is_a?(Hash)
     snapshot = @client_factory.call(reservation.fetch(:key)).snapshot(ticker)
     @connection.with_lock do
+      next reject_obsolete_response unless reservation_current?(reservation)
       @connection.expire_evidence!(@entitlement)
-      unless credential_fingerprint == reservation.fetch(:fingerprint) &&
-             @connection.last_attempt_at == reservation.fetch(:attempted_at) &&
-             @entitlement.approved? && @entitlement.settings == reservation.fetch(:entitlement)
+      unless @entitlement.approved? && @entitlement.settings == reservation.fetch(:entitlement)
         next fail_with("credentials_or_rights_changed")
       end
       snapshot["entitlement"] = @entitlement.metadata
@@ -54,13 +53,26 @@ class EquiblesEvidenceRefresh
       true
     end
   rescue EquiblesClient::EvidenceError => error
-    @connection.with_lock { fail_with(ERRORS.include?(error.message) ? error.message : "provider_unavailable") }
+    @connection.with_lock do
+      next reject_obsolete_response unless reservation_current?(reservation)
+      fail_with(ERRORS.include?(error.message) ? error.message : "provider_unavailable")
+    end
   end
 
   private
 
   def credential_fingerprint
     Digest::SHA256.hexdigest(@connection.read_attribute_before_type_cast(:api_key).to_s)
+  end
+
+  def reservation_current?(reservation)
+    credential_fingerprint == reservation.fetch(:fingerprint) &&
+      @connection.last_attempt_at == reservation.fetch(:attempted_at)
+  end
+
+  def reject_obsolete_response
+    Rails.logger.warn("equibles_evidence refresh_failed user_id=#{@connection.user_id} code=credentials_or_rights_changed")
+    false
   end
 
   def fail_with(code)

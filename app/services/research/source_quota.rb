@@ -28,12 +28,23 @@ module Research
     end
 
     def self.group_used(connection)
-      group = connection.quota_key_digest ? EquiblesConnection.where(quota_key_digest: connection.quota_key_digest) : EquiblesConnection.where(id: connection.id)
-      group.where(quota_date: Time.current.utc.to_date).sum(:requests_used)
+      if connection.quota_key_digest
+        usage = ResearchSourceUsage.where(key_digest: connection.quota_key_digest, budget_date: Time.current.utc.to_date)
+        unrecorded = EquiblesConnection.where(quota_key_digest: connection.quota_key_digest, quota_date: Time.current.utc.to_date).sum do |row|
+          [row.requests_used - usage.where(connection_id: row.id).sum(:requests_used), 0].max
+        end
+        usage.sum(:requests_used) + unrecorded
+      else
+        connection.quota_date == Time.current.utc.to_date ? connection.requests_used : 0
+      end
     end
 
     def self.account_lock!(connection)
-      key = "equibles-quota:#{connection.quota_key_digest || connection.id}"
+      account_key_lock!(connection.quota_key_digest || connection.id)
+    end
+
+    def self.account_key_lock!(identity)
+      key = "equibles-quota:#{identity}"
       ApplicationRecord.connection.execute("SELECT pg_advisory_xact_lock(hashtext(#{ApplicationRecord.connection.quote(key)}))")
     end
 
@@ -49,7 +60,7 @@ module Research
           raise Error.new("source_budget_unknown")
         end
         group = EquiblesConnection.where(quota_key_digest: connection.quota_key_digest)
-        used = group.where(quota_date: Time.current.utc.to_date).sum(:requests_used)
+        used = group_used(connection)
         held = self.held(connection) + additional
         raise Error.new("source_request_budget_exceeded") if used + outside + held > [capacity, settings.fetch("daily_source_requests")].min
         group.each do |row|

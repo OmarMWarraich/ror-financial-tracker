@@ -21,6 +21,7 @@ class ResearchIngestorTest < ActiveSupport::TestCase
         ResearchRevision.where(user: owner).delete_all
         ResearchDocument.where(user: owner).delete_all
         ResearchEmbeddingSpace.where(user: owner).delete_all
+        ResearchSourceUsage.where(user: owner).delete_all
       end
       owner.destroy!
     end
@@ -284,7 +285,7 @@ class ResearchIngestorTest < ActiveSupport::TestCase
 
   def private_setup
     @private_space = create_space(@owner, provider: "openai")
-    @connection = @owner.create_equibles_connection!(api_key: "original-equibles-dummy-key")
+    @connection = @owner.create_equibles_connection!(api_key: "original-equibles-dummy-key-#{@owner.id}")
     @private_request = create_request(provider: "equibles", space: @private_space, listing_identity: "US:TEST", fixture_version: nil)
     @settings = Research::Policy::REQUIRED.index_with { true }.merge("approval_reference" => "original-offline-approval",
       "source_kinds" => ["earnings_transcript"], "listings" => ["US:TEST"], "retention_seconds" => 3600,

@@ -52,7 +52,7 @@ class ProjectKnowledgeTest < Minitest::Test
       assert_includes result["summary"], "zero external calls/spend"
       assert_includes result["summary"], "No-evidence/stale-only retained states avoid inference"
       assert_includes result["summary"], "not full claim entailment/financial correctness"
-      assert_includes result["summary"], "remain M5-M9"
+      assert_includes result["summary"], "remain M6-M9"
       assert_includes result["sources"], "test/services/research_agent_runtime_test.rb"
     end
 
@@ -67,6 +67,8 @@ class ProjectKnowledgeTest < Minitest::Test
       assert_includes result["summary"], "whole paid runs never auto-replay"
       assert_includes result["summary"], "source_budget_unknown"
       assert_includes result["summary"], "does not verify actual provider header"
+      assert_includes result["summary"], "usage survives key rotation"
+      assert_includes result["sources"], "app/models/research_source_usage.rb"
       assert_includes result["sources"], "test/services/research_agent_lifecycle_test.rb"
     end
   end

@@ -9,6 +9,7 @@ class EquiblesConnection < ApplicationRecord
       self.quota_key_digest = api_key.nil? ? nil : Digest::SHA256.hexdigest(api_key.strip)
     end
   end
+  after_save :record_quota_usage
 
   def expire_evidence!(entitlement, now: Time.current)
     retention = [entitlement.settings["retention_seconds"], snapshot.dig("entitlement", "retention_seconds")]
@@ -27,6 +28,22 @@ class EquiblesConnection < ApplicationRecord
   end
 
   private
+
+  def record_quota_usage
+    records = [
+      [quota_key_digest_before_last_save, quota_date_before_last_save, requests_used_before_last_save],
+      [quota_key_digest, quota_date, requests_used]
+    ].filter_map do |digest, date, used|
+      next unless digest && date && used.to_i.positive?
+      { user_id: user_id, connection_id: id, key_digest: digest, budget_date: date, requests_used: used }
+    end
+    records.map { |record| record[:key_digest] }.uniq.sort.each { |key| Research::SourceQuota.account_key_lock!(key) }
+    records.group_by { |record| [record[:key_digest], record[:budget_date]] }.each_value do |versions|
+      record = versions.max_by { |version| version[:requests_used] }
+      ResearchSourceUsage.upsert_all([record], unique_by: "research_source_usage_identity",
+        on_duplicate: Arel.sql("requests_used = GREATEST(research_source_usages.requests_used, EXCLUDED.requests_used)"))
+    end
+  end
 
   def snapshot_approval_expired?(now)
     expiry = snapshot.dig("entitlement", "approval_expires_at")

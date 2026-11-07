@@ -1,4 +1,4 @@
-\restrict bj7YAv1GOF6VFyl4zZZNcllC5DUadEmRsUOZefgPEKtifO4PuE3kFBprDhIXNaL
+\restrict yuxp0lhyKcQbOzZ5hj4uHAY1q7HOP7dz9wIxXucBDbyCre7dZJjbZBPs8deZgpc
 
 -- Dumped from database version 16.15 (Debian 16.15-1.pgdg13+2)
 -- Dumped by pg_dump version 16.15 (Debian 16.15-1.pgdg12+2)
@@ -87,6 +87,25 @@ $$;
 
 
 --
+-- Name: research_message_identity_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.research_message_identity_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF ROW(NEW.user_id, NEW.conversation_id, NEW.run_id, NEW.role, NEW.expires_at)
+    IS DISTINCT FROM ROW(OLD.user_id, OLD.conversation_id, OLD.run_id, OLD.role, OLD.expires_at)
+    OR (ROW(NEW.content, NEW.source_ids, NEW.state)
+      IS DISTINCT FROM ROW(OLD.content, OLD.source_ids, OLD.state)
+      AND NOT (NEW.state = 'redacted' AND NEW.content IS NULL AND NEW.source_ids = '[]'::jsonb))
+  THEN RAISE EXCEPTION 'research message identity is immutable except redaction'; END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: research_retrieval_agent_guard(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -117,6 +136,22 @@ BEGIN
          OLD.distance, OLD.preprocessing_version, OLD.chunker_version) THEN
     RAISE EXCEPTION 'Embedding space identity is immutable; create a new version';
   END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+--
+-- Name: research_tool_identity_guard(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.research_tool_identity_guard() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF ROW(NEW.user_id, NEW.run_id, NEW.call_id, NEW.name, NEW.arguments_digest)
+    IS DISTINCT FROM ROW(OLD.user_id, OLD.run_id, OLD.call_id, OLD.name, OLD.arguments_digest)
+  THEN RAISE EXCEPTION 'research tool receipt identity is immutable'; END IF;
   RETURN NEW;
 END;
 $$;
@@ -814,6 +849,40 @@ ALTER SEQUENCE public.research_revisions_id_seq OWNED BY public.research_revisio
 
 
 --
+-- Name: research_source_usages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_source_usages (
+    id bigint NOT NULL,
+    user_id bigint,
+    connection_id bigint,
+    key_digest character varying NOT NULL,
+    budget_date date NOT NULL,
+    requests_used integer NOT NULL,
+    CONSTRAINT research_source_usage_contract CHECK ((((key_digest)::text ~ '^[0-9a-f]{64}$'::text) AND (requests_used >= 0)))
+);
+
+
+--
+-- Name: research_source_usages_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_source_usages_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_source_usages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_source_usages_id_seq OWNED BY public.research_source_usages.id;
+
+
+--
 -- Name: research_tool_attempts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1231,6 +1300,13 @@ ALTER TABLE ONLY public.research_revisions ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
+-- Name: research_source_usages id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_source_usages ALTER COLUMN id SET DEFAULT nextval('public.research_source_usages_id_seq'::regclass);
+
+
+--
 -- Name: research_tool_attempts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1412,6 +1488,14 @@ ALTER TABLE ONLY public.research_retrievals
 
 ALTER TABLE ONLY public.research_revisions
     ADD CONSTRAINT research_revisions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_source_usages research_source_usages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_source_usages
+    ADD CONSTRAINT research_source_usages_pkey PRIMARY KEY (id);
 
 
 --
@@ -1816,6 +1900,27 @@ CREATE INDEX index_research_revisions_on_user_id_and_known_at ON public.research
 
 
 --
+-- Name: index_research_source_usages_on_connection_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_source_usages_on_connection_id ON public.research_source_usages USING btree (connection_id);
+
+
+--
+-- Name: index_research_source_usages_on_key_digest_and_budget_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_source_usages_on_key_digest_and_budget_date ON public.research_source_usages USING btree (key_digest, budget_date);
+
+
+--
+-- Name: index_research_source_usages_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_source_usages_on_user_id ON public.research_source_usages USING btree (user_id);
+
+
+--
 -- Name: index_research_tool_attempts_on_run_id_and_call_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1977,6 +2082,13 @@ CREATE UNIQUE INDEX research_run_conversation_owner ON public.research_agent_run
 
 
 --
+-- Name: research_source_usage_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX research_source_usage_identity ON public.research_source_usages USING btree (connection_id, key_digest, budget_date);
+
+
+--
 -- Name: research_space_identity; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2012,6 +2124,13 @@ CREATE TRIGGER research_durable_identity BEFORE UPDATE ON public.research_agent_
 
 
 --
+-- Name: research_messages research_message_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER research_message_identity BEFORE UPDATE ON public.research_messages FOR EACH ROW EXECUTE FUNCTION public.research_message_identity_guard();
+
+
+--
 -- Name: research_retrievals research_retrieval_agent_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2023,6 +2142,13 @@ CREATE TRIGGER research_retrieval_agent_immutable BEFORE UPDATE ON public.resear
 --
 
 CREATE TRIGGER research_space_identity_immutable BEFORE UPDATE ON public.research_embedding_spaces FOR EACH ROW EXECUTE FUNCTION public.research_space_preserve_identity();
+
+
+--
+-- Name: research_tool_attempts research_tool_identity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER research_tool_identity BEFORE UPDATE ON public.research_tool_attempts FOR EACH ROW EXECUTE FUNCTION public.research_tool_identity_guard();
 
 
 --
@@ -2112,6 +2238,14 @@ ALTER TABLE ONLY public.research_agent_runs
 
 
 --
+-- Name: research_source_usages fk_rails_4e960a3435; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_source_usages
+    ADD CONSTRAINT fk_rails_4e960a3435 FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: research_ingestions fk_rails_50c0f35169; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2141,6 +2275,14 @@ ALTER TABLE ONLY public.research_documents
 
 ALTER TABLE ONLY public.user_stocks
     ADD CONSTRAINT fk_rails_62699afff5 FOREIGN KEY (stock_id) REFERENCES public.stocks(id);
+
+
+--
+-- Name: research_source_usages fk_rails_63c35b24bd; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_source_usages
+    ADD CONSTRAINT fk_rails_63c35b24bd FOREIGN KEY (connection_id) REFERENCES public.equibles_connections(id) ON DELETE SET NULL;
 
 
 --
@@ -2387,11 +2529,13 @@ ALTER TABLE ONLY public.research_messages
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bj7YAv1GOF6VFyl4zZZNcllC5DUadEmRsUOZefgPEKtifO4PuE3kFBprDhIXNaL
+\unrestrict yuxp0lhyKcQbOzZ5hj4uHAY1q7HOP7dz9wIxXucBDbyCre7dZJjbZBPs8deZgpc
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107120000'),
+('20261107110000'),
 ('20261107100000'),
 ('20261107090100'),
 ('20261107090000'),

@@ -521,9 +521,9 @@ owner/UTC day, $0.05/request, $0.50/owner/day and $1/application/day. Nanodollar
 preserve the selected $0.02/1M-token price. Pending/uncertain dispatches retain
 their reservation; known usage is reconciled even when publication is rejected.
 Unexpected over-reservation usage is recorded and rejected, not hidden.
-Future query embeddings/inference must join this accounting, not receive a second
-independent allowance. This is application accounting, not verified billing,
-taxes, provider account caps or a full M5 agent budget system.
+M3 query embeddings and M4/M5 inference join this accounting, including unused
+durable run holds, rather than receiving an independent allowance. This is
+application accounting, not verified billing, taxes or provider account caps.
 
 Owner/document/request generations fence every phase; permission, credential
 identity, revocation and expiry are rechecked before each external call and
@@ -958,9 +958,9 @@ answers. PostgreSQL ownership and immutable run/credential/association guards
 protect audit identity. Inference and embedding reservations share the existing
 owner/application UTC spend ceilings and global lock; all callers acquire owner
 then global locks consistently. Known usage is reconciled; dispatched/uncertain
-model usage blocks further owner calls pending review. These primitives do not
-yet supply conversations, worker/reconnect control, deletion or production
-acceptance. Live authorization remains default off.
+model usage blocks further owner calls pending review. M5 adds owned conversations
+and durable workers below; browser/reconnect control, physical deletion and live
+production acceptance remain separate. Live authorization remains default off.
 
 Sources: [official OpenAI Ruby SDK](https://github.com/openai/openai-ruby),
 [MCP Ruby transports](https://ruby.sdk.modelcontextprotocol.io/client/transports/),
@@ -1033,10 +1033,10 @@ transactional; caller-supplied adapters are trusted application/test code.
 Private research additionally requires `agent_enabled`, `derived_answers`,
 the pinned `inference_models`, and all existing verified research permissions.
 MCP modes also require `mcp_enabled` and an explicit reviewed `mcp_tools` subset.
-Populated environment keys alone authorize nothing. Conversation/follow-up
-budgets, durable worker recovery, workflow controls, owner-authenticated
-cross-process chat/reconnect, disposal and live/quality acceptance remain
-M5-M9. No real model/MCP account call or private approval was performed for M4.
+Populated environment keys alone authorize nothing. M5 below adds conversation/
+follow-up budgets and durable worker recovery. Workflow controls, owner-
+authenticated cross-process chat/reconnect, disposal and live/quality acceptance
+remain M6-M9. No real model/MCP account call or private approval was performed.
 
 ### M5 durable research lifecycle
 
@@ -1078,8 +1078,13 @@ window stops execution instead of repricing/replaying accepted work.
 
 MCP/REST/quote quota shares one-way owner-key groups and atomic reservations.
 Queued live runs hold bounded protocol capacity; other REST and quote calls
-cannot consume it. Quote network reads occur outside database locks, then
-recheck credentials/approval before saving. Private live agents additionally
+cannot consume it. Monotone per-key UTC-day usage survives credential rotation
+and connection/owner deletion; owner references are nulled, not provider usage.
+Rotation conservatively carries the existing counter onto the new key too until
+UTC reset. Key grouping does not establish which distinct keys share a remote
+billing account. Quote network reads occur outside database locks, then
+recheck credentials/approval before saving; late old responses/errors cannot
+overwrite a newer credential's snapshot. Private live agents additionally
 require reviewed `quota_daily_capacity` (<=30), `external_usage_reserved_requests`
 and `quota_reviewed_until` (future, <=24 hours). Missing/stale/unprepared key
 groups are `source_budget_unknown`, not an assumed unused account.
@@ -1111,6 +1116,13 @@ M8 remains necessary. Redis enqueue ambiguity leaves a durable queued record and
 safe request-key lookup, with explicit queue failure rather than a success
 fallback. M0 private permissions/account gates remain default off; M6-M9
 workflow/UI/reconnect/disposal/live and quality acceptance remain separate.
+
+Local M5 verification: 346 Rails tests/4,007 assertions and 31 knowledge
+tests/406 assertions passed. Development/production builds, eager loading,
+healthy isolated research/maintenance workers, actual queued original-fixture
+completion (encrypted messages/receipts, zero external calls or cost), and full
+schema/data/index/trigger/populated-vector restore passed without replacing
+the original database volume.
 
 ### Rails-native conversational research assessment
 
