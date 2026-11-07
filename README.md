@@ -717,12 +717,13 @@ applicable service agreement must be checked before approved content is sent.
 | Earnings event/brief/transcript read | Published REST/MCP research tools exist; earlier quote probes do not prove earnings access for this account or exact plan identity. Free/Plus first; no automatic Pro upgrade. | Verify account plan, actual endpoint/tool availability and smallest bounded contract probe after review. |
 | Transcript/brief text storage and full-text index | Exact permitted duration, scope and source-specific exceptions are unresolved. | Written terms/support clarification covering this private app, text, indexes, caches and deletion. |
 | Embeddings of source text and queries | Embeddings are derived source artifacts; vector storage and sending text to an embedding service are distinct permissions. Neither is implied by quote-only entitlements. | Approval for derivatives, OpenAI processing, storage/expiry and versioned re-embedding. |
-| Inference egress | Source excerpts, ticker/period and minimized research questions only are proposed; **no real-source egress is approved**. No API keys, passwords, broker credentials, account IDs, holdings, trade history or unrelated user records in prompts/traces. | Source processing permission plus owner-approved OpenAI account, spend, retention/region and request settings. Synthetic paid tests also need explicit account/spend authorization. |
+| Inference egress | Source excerpts, ticker/period and minimized research questions only are proposed; **real-source egress remains disabled pending recorded permission scope**. No API keys, passwords, broker credentials, account IDs, holdings, trade history or unrelated user records in prompts/traces. | Source processing permission plus owner-approved OpenAI account, spend, retention/region and request settings. Synthetic paid tests also need explicit account/spend authorization. |
 | Derived answers/private display | Public terms describe supported AI clients but do not settle this app's exact Free/Plus derived-output retention/use case. Attribute Equibles beside citations; no promised returns. | Clarify private-owner use versus showing data/answers to reviewers or other users; record dataset exceptions and retention. |
 | Public/multi-user redistribution | Section 6's general active-Pro distribution grant is not a Free/Plus grant and excludes quotes, daily prices, options and FINRA datasets. It does not permit downstream bulk/API feeds. | Dataset-specific permission or applicable written agreement; otherwise keep this surface off. |
 | Backups, logs and revocation | No agreed real-source backup window or restore erasure procedure; local deletion cannot remove provider logs/backups. | Approved deadlines for raw text, vectors, derived answers/caches/logs/backups and post-restore deletion replay; M8 verification. |
 
-Support clarification to obtain (not sent): for a single-owner educational
+Approval details still to record (no support request sent by this app):
+for a single-owner educational
 Free/Plus Rails app, may event metadata, transcripts and approved briefs be
 retrieved via MCP/REST, cached and full-text indexed; embedded by OpenAI and
 stored in PostgreSQL; sent as bounded excerpts to OpenAI under the documented
@@ -732,10 +733,20 @@ dataset exceptions and whether private reviewer access changes the license.
 If Free/Plus cannot cover a particular action, request its exact restriction
 and available alternative, rather than assuming a wholesale plan upgrade.
 
+Permission update received 2026-11-07: the user reports that Equibles permission
+has been granted. This records the user's confirmation, not independent review
+of a provider approval. The approved actions, applicable plan/datasets, retention
+and backup conditions, approval reference and actual approval date have not been
+provided. The matrix above identifies those unrecorded details; it does not
+assert that Equibles denied permission or that every action was approved.
+
 M0-01/04/05/06 are specified. **M0-02 remains partial** (selection/public facts
-complete, account controls and approved egress unverified); **M0-03 is blocked**
-on source-use clarification. No permission request was sent, no paid inference
-or embedding call was made, and existing entitlements remain default-disabled.
+complete, account controls and approved egress unverified); **M0-03 is partial**
+(permission reported, exact scope and conditions still to record). No paid
+inference or embedding call was made, and existing entitlements remain
+default-disabled. This report alone does not authorize public redistribution,
+set retention periods, enable model egress or establish OpenAI account/spend
+approval. Offline original-fixture work can continue.
 
 Sources: [inference model](https://developers.openai.com/api/docs/models/gpt-5.4-mini),
 [deprecated alternative](https://developers.openai.com/api/docs/models/gpt-5-mini),

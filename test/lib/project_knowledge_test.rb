@@ -34,14 +34,16 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "README.md#m0-research-pilot-specification"
   end
 
-  def test_m0_model_choices_do_not_resolve_egress_or_source_rights
+  def test_m0_permission_report_does_not_invent_scope_or_enable_egress
     ["M0-02", "M0-03"].each do |query|
       result = @knowledge.search(query).first
       assert_equal "m0-model-permission-readiness", result["id"]
       assert_equal "user_decision", result["status"]
       assert_includes result["summary"], "M0-02 remains partial"
-      assert_includes result["summary"], "M0-03 is blocked"
-      assert_includes result["summary"], "no real-source egress approved"
+      assert_includes result["summary"], "M0-03 is partial"
+      assert_includes result["summary"], "user-reported Equibles permission granted"
+      assert_includes result["summary"], "approval reference are unrecorded"
+      assert_includes result["summary"], "real-source egress remains disabled"
       assert_includes result["summary"], "default abuse logs up to 30 days"
       assert_includes result["summary"], "1536 dimensions/cosine"
       assert_includes result["sources"], "https://equibles.com/legal/terms"
