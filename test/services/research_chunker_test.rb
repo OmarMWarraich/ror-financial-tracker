@@ -42,6 +42,9 @@ class ResearchChunkerTest < ActiveSupport::TestCase
     correction = Research::Chunker.normalize(parts, metadata: { "corrections" => [{ "note" => "Original correction" }] })
     assert_equal first[:content], correction[:content]
     assert_not_equal first[:source_revision], correction[:source_revision]
+    reordered = Research::Chunker.normalize(parts, metadata: { "nested" => { "b" => 2, "a" => 1 } })
+    ordered = Research::Chunker.normalize(parts, metadata: { "nested" => { "a" => 1, "b" => 2 } })
+    assert_equal ordered[:source_revision], reordered[:source_revision]
   end
 
   test "empty malformed oversized and credential-bearing content is rejected" do
@@ -56,6 +59,9 @@ class ResearchChunkerTest < ActiveSupport::TestCase
     assert_equal "credential_content_rejected", error.code
     assert_raises(Research::Error) { Research::Chunker.normalize([nil], metadata: {}) }
     assert_raises(Research::Error) { Research::Chunker.normalize([], metadata: {}) }
+    assert_raises(Research::Error) {
+      Research::Chunker.normalize([{ "text" => '{"account_key":"original-secret"}' }], metadata: {})
+    }
   end
 
   test "the embedding token allowance includes overlap and rejects overlong sources" do

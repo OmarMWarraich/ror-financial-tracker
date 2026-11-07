@@ -12,6 +12,9 @@ class ResearchEmbeddingAttempt < ApplicationRecord
     transaction do
       connection.execute("SELECT pg_advisory_xact_lock(#{GLOBAL_LOCK})")
       ingestion.user.lock!
+      if where(user_id: ingestion.user_id, batch_key: batch_key, state: %w[dispatched uncertain]).exists?
+        raise Research::Error.new("uncertain_usage_requires_review")
+      end
       today = Time.current.utc.to_date
       live = where(budget_date: today).where.not(state: "released")
       owner = live.where(user_id: ingestion.user_id)

@@ -82,6 +82,18 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "bin/research-vector-benchmark"
   end
 
+  def test_m2_implementation_distinguishes_offline_ingestion_from_live_permissions_and_rag
+    result = @knowledge.search("M2-06").first
+    assert_equal "research-ingestion", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "approved_owners defaults empty"
+    assert_includes result["summary"], "No live provider or paid embedding request was executed"
+    assert_includes result["summary"], "dispatched/uncertain batches remain blocked across request keys until review"
+    assert_includes result["summary"], "incomplete/failed indexing cannot fall back to old text as current"
+    assert_includes result["summary"], "pending M3"
+    assert_includes result["sources"], "test/services/research_ingestor_test.rb"
+  end
+
   def test_retrieves_native_agent_direction_without_claiming_implemented_chat
     result = @knowledge.search("conversational agent").first
     assert_equal "rails-native-research-agent", result["id"]

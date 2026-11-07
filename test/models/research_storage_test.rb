@@ -47,6 +47,19 @@ class ResearchStorageTest < ActiveSupport::TestCase
     assert_equal @other.id, other_space.nearest(vector(0), at: @now).first.user_id
   end
 
+  test "current revision and ingestion receipts cannot cross owners in SQL" do
+    other_document = document(@other)
+    other_revision = revision(other_document)
+    assert_database_rejects { @document.update_columns(current_revision_id: other_revision.id) }
+    request = ResearchIngestion.create!(user: @owner, space: @space, request_key: "original-storage-receipt",
+      provider: "synthetic", source_kind: "earnings_transcript", listing_identity: "SYNTH:ALPHA",
+      fiscal_year: 2026, fiscal_quarter: 3, fixture_version: "v1")
+    assert_database_rejects { ResearchIngestion.where(id: request.id).update_all(user_id: @other.id) }
+    attempt = ResearchEmbeddingAttempt.create!(user: @owner, ingestion: request, batch_key: "original",
+      generation: 0, budget_date: @now.utc.to_date, reserved_tokens: 10, reserved_cost_nanos: 0)
+    assert_database_rejects { ResearchEmbeddingAttempt.where(id: attempt.id).update_all(user_id: @other.id) }
+  end
+
   test "hashes and citation positions are checked in models and SQL" do
     assert_equal Digest::SHA256.hexdigest(@revision.content), @revision.checksum
     assert_equal Digest::SHA256.hexdigest(@passage.content), @passage.checksum

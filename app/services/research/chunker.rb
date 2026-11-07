@@ -5,7 +5,7 @@ module Research
     PREPROCESSING = "utf8-nfc-lines-v1"
     VERSION = "cl100k-speaker-800-overlap50-v1"
     MAX_BYTES = 262_144
-    SECRET = /(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bBearer\s+[A-Za-z0-9._-]{12,}|\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,}|\b(?:api[_ -]?key|password|access[_ -]?token)\s*[:=]\s*\S+)/i
+    SECRET = /(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bBearer\s+[A-Za-z0-9._-]{12,}|\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,}|\b(?:api[_ -]?key|account[_ -]?key|password|access[_ -]?token)["']?\s*[:=]\s*\S+)/i
 
     def self.normalize(parts, metadata:, forbidden: [])
       unless parts.is_a?(Array) && parts.size.between?(1, 100) && metadata.is_a?(Hash)
@@ -40,11 +40,20 @@ module Research
       end
       data = metadata.merge("segments" => segments, "preprocessing_version" => PREPROCESSING)
       # Receipt time is deliberately excluded: unchanged source content is the same revision on refetch.
-      key = Digest::SHA256.hexdigest(JSON.generate([content, data]))
+      key = Digest::SHA256.hexdigest(JSON.generate(canonical([content, data])))
       { content: content, source_metadata: data, source_revision: key }
     rescue KeyError, JSON::GeneratorError
       raise Error.new("invalid_source_content")
     end
+
+    def self.canonical(value)
+      case value
+      when Hash then value.sort_by { |key, _| key.to_s }.to_h.transform_values { |item| canonical(item) }
+      when Array then value.map { |item| canonical(item) }
+      else value
+      end
+    end
+    private_class_method :canonical
 
     def initialize
       @encoding = Tiktoken.get_encoding("cl100k_base")

@@ -439,6 +439,144 @@ passed. The rebuilt web/worker/scheduler are healthy and sign-in remains availab
 M2 ingestion and later RAG/agent/disposal work are not included. No live provider
 or paid inference/embedding request was made.
 
+#### M2 permission-aware ingestion and embedding
+
+M2 is a Rails/Active Job backend, not a new chat UI or model-agent runtime.
+[Research::Ingestor](app/services/research/ingestor.rb) enqueues only an ingestion
+ID and exposes `pending/fetching/chunking/embedding/ready/failed` progress and
+allowlisted error codes. Owner-scoped request keys reject changed selectors;
+duplicate jobs skip completed work. `request.resume!` explicitly resumes failed
+or expired-lease work, preserving fetched revisions, chunks, settled vectors and
+quota usage. It refuses uncertain/dispatched embedding attempts pending operator
+reconciliation; never assume a timeout was free or resend it automatically.
+Uncertain batches also block a different request key for the same space/passages.
+
+The initial source allowlist is deliberately small:
+
+- Original `SYNTH:ALPHA`, FY2026/Q3, versions `v1/v2`, transcript/brief fixtures.
+  These are fictional/public demonstrations. Their deterministic SHA-256 vectors
+  test indexing/ownership only; they are **not semantic embeddings or real research**.
+- Owner-private Equibles exact-period speaker transcripts and earnings briefs.
+  Filings, arbitrary URLs/uploads, chats, account data and unreviewed datasets are
+  rejected. There is no silent fallback from a missing transcript to a brief.
+
+[config/research_ingestion.yml](config/research_ingestion.yml) defaults to empty
+`approved_owners`; quote permissions and a populated key do not approve research.
+An authorized operator must record each owner's non-secret approval reference,
+exact `listings`/`source_kinds`, current offset-bearing `expires_at`,
+`retention_seconds` (1..2,592,000), `freshness_seconds` (1..86,400 and no longer
+than retention), and `daily_source_requests` (1..30). Every flag in
+[Research::Policy::REQUIRED](app/services/research/policy.rb) must be explicitly
+true: verified subscription, automated reads, text/vector storage, private
+display, OpenAI processing/account access, OpenAI retention and backup retention.
+`historical_storage` is opt-in, not implied. Never insert credentials into this
+file. Current reported permission still lacks the M0 scope/reference/retention
+details; **no real-source ingestion or paid request was enabled or executed**.
+Production disposal/backup controls remain an M8 operational gate, not something
+these approval flags implement.
+
+The source adapter reads only fixed HTTPS Equibles endpoints using the owner's
+encrypted `EquiblesConnection` key, not a global `.env` fallback. It validates
+exact ticker/fiscal period/event ID, tombstones, available materials and page
+consistency. `hasTranscript` controls access, not the nullable document ID;
+partial/presentation-only/filed-summary records are rejected. At most two pages
+of 50 turns are fetched; longer or inconsistent calls fail explicitly rather
+than being presented as complete. Briefs use exact period filters and reject
+retired/renamed listing notices. `US:TICKER` means US presentation identity, not
+a verified issuer CIK/MIC; MIC-prefixed requests require exact returned identity.
+API citation URLs may require provider authentication.
+
+Each source request reserves the existing owner connection's UTC quota before
+dispatch, sharing accounting with quote refreshes. The configured allowance
+counts local quote/research usage conservatively, not external MCP/dashboard
+clients on the same provider key. A request has at most three source calls total,
+including failed/resumed attempts. Requests have no automatic retry/redirect,
+a five-second total timeout and 256-KiB response cap; normalized content/provenance
+also has a 256-KiB input cap. Busy connection locks fail without quota consumption.
+
+Normalization preserves UTF-8/NFC text, speaker/role/unknown attribution,
+turn/section/audio references, fiscal context, corrections and source dates.
+Brief comparison objects remain literal provider JSON sections, not invented
+prose. Citation lines/characters refer to the normalized representation; provider
+turn indexes are retained separately. Canonical provenance and content determine
+the revision fingerprint; refetch receipt time cannot extend old retention.
+Empty/malformed/control-bearing content, known secrets and recognizable
+credential fields are rejected before storage/egress. `cl100k_base` counts tokens
+locally, including literal special-token strings; passages are at most 800 tokens,
+with at most 50 overlap within the same speaker/section and valid character bounds.
+
+The official OpenAI SDK posts only to `/v1/embeddings`, batches at most four
+passages, disables retries/logging/raw-body retention and uses a five-second
+timeout plus a 1-MiB streamed response cap. It supplies an explicit HTTP
+idempotency header; **local receipts/fences**, not an assumed provider deduplication
+guarantee, prevent replay. Count/index/model/usage and finite, nonzero, float32-safe
+1,536-dimensional vectors are checked before transactional persistence. The
+embedding space uses `text-embedding-3-small` as both model and declared version;
+this is not a separately verified internal weights snapshot. There is no model
+fallback, hosted file/vector store, inference or `store` option on this API.
+
+Embedding attempts reserve tokens and costs before dispatch: 20,000 tokens per
+owner/UTC day, $0.05/request, $0.50/owner/day and $1/application/day. Nanodollars
+preserve the selected $0.02/1M-token price. Pending/uncertain dispatches retain
+their reservation; known usage is reconciled even when publication is rejected.
+Unexpected over-reservation usage is recorded and rejected, not hidden.
+Future query embeddings/inference must join this accounting, not receive a second
+independent allowance. This is application accounting, not verified billing,
+taxes, provider account caps or a full M5 agent budget system.
+
+Owner/document/request generations fence every phase; permission, credential
+identity, revocation and expiry are rechecked before each external call and
+publication. No database transaction/owner lock spans a provider/model call.
+New accepted corrections immediately supersede the old current revision, so
+failed indexing cannot silently serve stale text as current. Only complete
+vectors publish `ready`. Historical text/vectors are retained only when permitted;
+otherwise old revisions are physically removed. Deleted/expired/revoked or
+previously deleted revision fingerprints are not automatically recreated.
+
+Equibles schemas do not supply publication/known-available instants for these
+sources: they stay null. Placeholder call dates are not confirmed event times.
+Consequently the existing strict storage query excludes those sources until M3
+defines a labelled current-research policy; M2 readiness is not point-in-time RAG,
+latest-event resolution, hybrid retrieval or answer-quality acceptance.
+
+An original offline worker exercise can be enqueued from a trusted Rails console:
+
+```ruby
+owner = User.find(owner_id)
+space = owner.research_embedding_spaces.find_or_create_by!(
+  provider: "synthetic", model: "fixture-1536", model_version: "sha256-v1",
+  preprocessing_version: Research::Chunker::PREPROCESSING,
+  chunker_version: Research::Chunker::VERSION
+)
+request = Research::Ingestor.enqueue!(
+  user: owner, space: space, request_key: "original-alpha-2026-q3",
+  provider: "synthetic", source_kind: "earnings_transcript",
+  listing_identity: "SYNTH:ALPHA", fiscal_year: 2026, fiscal_quarter: 3,
+  fixture_version: "v1"
+)
+# After the worker completes:
+request.reload
+raise "Index not ready: #{request.error_code || request.state}" unless request.state == "ready"
+space.activate! if space.reload.state == "building"
+```
+
+Real embeddings additionally require a server-managed `OPENAI_API_KEY`; Compose
+accepts it optionally from the ignored `.env.docker` without auto-copying `.env`.
+Do not configure it or authorize private material merely to run these fixtures.
+Offline tests exercise the real SDK with original fake HTTP replies, source
+pagination/limits, exact token thresholds, resume/dedup, quota/spend contention,
+corrections, revocation/deletion/expiry during calls and SQL ownership constraints.
+
+Local M2 validation, 2026-11-07: **269 tests / 3,352 assertions** passed with
+two workers; production image/assets and running-image eager loading passed.
+Isolated restore verified every public table/index, original ledger triggers
+and populated 1,536-dimensional vectors. The actual Sidekiq worker persisted an
+original fixture, two vectors and valid exact retrieval with zero external
+calls/spend; its temporary owner/corpus/receipts were then removed. The stricter
+benchmark returned exact recall@5 1.00/p95 1.731 ms with no persistent ANN index.
+Web/worker/scheduler and sign-in are healthy. This verifies local implementation,
+not live provider acceptance or complete RAG/agent behavior.
+
 ## Local Setup (Without Containers)
 
 Run the following commands from the repository root.

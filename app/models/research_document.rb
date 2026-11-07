@@ -16,11 +16,14 @@ class ResearchDocument < ApplicationRecord
 
   scope :retained_at, ->(time) { where(revoked_at: nil).where("research_documents.rights_expires_at > ?", time) }
 
-  def purge_superseded!
+  def purge_superseded!(keep_revision: nil)
     user.with_lock do
       reload
-      raise Research::Error.new("no_current_revision") unless current_revision_id
-      old = revisions.where.not(id: current_revision_id)
+      keep = keep_revision || current_revision
+      unless keep && keep.document_id == id && keep.user_id == user_id
+        raise Research::Error.new("no_valid_retained_revision")
+      end
+      old = revisions.where.not(id: keep.id)
       passages = ResearchPassage.where(revision_id: old.select(:id))
       ResearchEmbedding.where(passage_id: passages.select(:id)).delete_all
       passages.delete_all
