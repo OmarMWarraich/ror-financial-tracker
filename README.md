@@ -378,6 +378,72 @@ none is implied by these private-display configuration flags.
 
 Official reference: [REST API](https://equibles.com/docs/api), [authentication](https://equibles.com/docs/authentication), [paid quotes](https://equibles.com/docs/api/endpoints/prices), [company screener](https://equibles.com/docs/api/endpoints/capital), and [errors and limits](https://equibles.com/docs/api/errors).
 
+#### C01-C03 verification review (2026-11-07)
+
+An explicitly authorized, read-only exercise used eight HTTPS requests, with
+bounded timeouts, no retries, no redirects and no writes to the provider.
+The key stayed in the ignored local environment file and was sent only in the
+authorization header. No raw quotes, prices, corporate-action amounts, credentials,
+account identifiers or account-specific quota counters were saved in this report
+or the shared knowledge store. This exercise did not install a global key in
+the application or approve an owner in the entitlement configuration.
+
+**C01: paid quote capabilities verified; billing-plan identity still pending.**
+Single-stock AAPL, exact class-share BRK-B and ETF SPY quote requests all
+returned HTTP 200 with matching identities and USD currency. Observed quote
+fields were `ticker`, `currency`, `price`, nullable `bidPrice`/`askPrice`, `asOf`,
+`sessionDate`, `expectedSessionDate`, `stale`, `ageSeconds` and `delayed`.
+The samples were marked delayed and carried source/session timestamps; they
+are not real-time evidence. A successful paid endpoint and quota headers
+establish capabilities, not the exact billing-plan name or its expiry.
+The reviewed public OpenAPI exposes no account/subscription inspection route;
+confirm the named subscription and renewal/expiry privately in the owner's
+billing dashboard or with provider support.
+
+**C02: documented contracts and bounded account coverage samples verified.**
+
+| Surface | Verified result / boundary |
+| --- | --- |
+| Daily prices | AAPL bars from November 2021 returned HTTP 200 with `date`, OHLC, `adjustedClose` and `volume`, plus pagination metadata. |
+| Weekly/monthly | Both intervals returned HTTP 200, adding `periodStart` and `partial`. A bounded monthly query returned 61 observations from 2021-11-30 through 2026-11-06 with `hasMore: false`. This verifies that sample window, not maximum provider history or coverage of every instrument. |
+| Dividends | AAPL returned HTTP 200 with `exDate`, `amountPerShare`, `currency`, `recordDate` and `paymentDate`. These are stored declared distributions, not guaranteed completeness. |
+| Splits | AAPL returned HTTP 200 with `effectiveDate`, `numerator`, `denominator` and `priceHistoryAdjusted`. Check adjustment confirmation before combining series across a split. |
+| Adjustments | Official documentation says OHLCV is split-adjusted, not dividend-adjusted; `adjustedClose` also reflects reconciled cash dividends but is not certified as a total-return series. These historical values are not automatically point-in-time backtest inputs. |
+| Limits | Published Free/Plus/Pro allowances are 100/10,000/100,000 requests per UTC day, shared by REST and MCP. Counted responses expose `X-RateLimit-Limit`, `-Remaining` and `-Reset`. Accepted 400/403/404 responses also count; 5xx failures return their allowance. Daily-price pagination allows at most 500 rows; batch quotes at most 25 symbols. |
+| Timing/session | Published US Plus quotes are 15-minute-delayed SIP; Pro is real-time SIP. `asOf` is source time, not receipt time; session dates and `stale` remain separate. Daily-bar dates do not establish intraday execution times or a complete exchange calendar. |
+| Streaming | The reviewed price documentation describes snapshots, not historical intraday candles. No streaming/WebSocket route is published in the reviewed REST OpenAPI. Do not invent a streaming integration or interpret this as proof that no separately contracted service exists. |
+| Coverage | Official docs include additional `MIC:TICKER` listings and listing currencies. Only the USD US-listing samples above were exercised; the current adapter intentionally still rejects other currencies and MIC-qualified symbols. |
+
+Sources: [price contracts](https://equibles.com/docs/api/endpoints/prices),
+[coverage](https://equibles.com/docs/data),
+[OpenAPI](https://api.equibles.com/openapi/v1.json),
+[plans](https://equibles.com/docs/rate-limits),
+[pricing](https://equibles.com/pricing) and
+[error/counting rules](https://equibles.com/docs/api/errors).
+
+**C03: terms reviewed; required account-specific permissions remain blocked.**
+The current [terms, sections 5-6](https://equibles.com/legal/terms) grant active
+Pro subscriptions conditional end-user distribution of eligible data with
+visible Equibles attribution, but expressly exclude live/intraday quotes,
+historical daily prices, options data and FINRA data from that general grant.
+Those restricted datasets need prior written consent or an Enterprise agreement
+for redistribution or presentation to end users. Even the general Pro grant
+does not permit a downstream API, feed, database or bulk dataset service.
+API access, a plan label, or the successful probes above do not establish these
+permissions.
+
+Before enabling retained private evidence, obtain provider confirmation covering
+the exact subscription, datasets, personal automated/non-display reads, private
+application display, caching and backup retention/deletion periods. Separately
+ask about backtesting, derived analytics, third-party AI inference versus model
+training, public screenshots/recordings, native/mobile delivery, hosted end-user
+display, downstream API access and redistribution; record exclusions and any
+attribution/expiry conditions. Use [provider support](https://equibles.com/tickets)
+or [support@equibles.com](mailto:support@equibles.com), without including the API
+key. No ticket was submitted and no missing permission was assumed.
+Until that evidence and the actual owner are established, the empty approval
+configuration and all history/AI/distribution/trading gates remain unchanged.
+
 ### Prepare the Database and Start Rails
 
 ```sh

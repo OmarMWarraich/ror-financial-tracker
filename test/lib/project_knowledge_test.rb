@@ -24,6 +24,26 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_equal "open_question", result["status"]
   end
 
+  def test_retrieves_equibles_contract_review_without_claiming_complete_account_verification
+    %w[C01 C02].each do |query|
+      result = @knowledge.search(query).first
+      assert_equal "equibles-price-contract-review", result["id"]
+      assert_equal "verified_fact", result["status"]
+      assert_includes result["summary"], "C01 remains partial"
+      assert_includes result["summary"], "C02 contract/sample verification is complete"
+      assert_includes result["sources"], "https://api.equibles.com/openapi/v1.json"
+    end
+  end
+
+  def test_retrieves_equibles_rights_without_treating_api_access_as_permission
+    result = @knowledge.search("C03").first
+    assert_equal "equibles-restricted-data-rights", result["id"]
+    assert_includes result["summary"], "explicitly exclude"
+    assert_includes result["summary"], "C03 remains blocked"
+    assert_includes result["summary"], "Owner approvals remain empty"
+    assert_includes result["sources"], "https://equibles.com/legal/terms"
+  end
+
   def test_retrieves_current_user_decisions
     result = @knowledge.search("Kraken connection modes").first
     assert_equal "kraken-connection-modes", result["id"]
