@@ -327,7 +327,7 @@ class ResearchRetrieverTest < ActiveSupport::TestCase
       retrieve(space: private_space, listing_identity: "US:TEST")
     }.code
     settings = Research::Policy::REQUIRED.index_with { true }.merge("approval_reference" => "original-offline-approval",
-      "source_kinds" => ["earnings_transcript"], "listings" => ["US:TEST"], "retention_seconds" => 3600,
+      "source_kinds" => ["earnings_transcript"], "listings" => ["US:TEST"], "retention_seconds" => 3600, "backup_retention_seconds" => 3600,
       "freshness_seconds" => 600, "daily_source_requests" => 3, "expires_at" => (@now + 1.day).iso8601)
     factory = ->(owner) { Research::Policy.new(owner, configuration: { approved_owners: { owner.id.to_s => settings } }) }
     result = retrieve(space: private_space, listing_identity: "US:TEST", policy_factory: factory)
@@ -355,7 +355,7 @@ class ResearchRetrieverTest < ActiveSupport::TestCase
              approval: "original-offline-approval", known: nil, received: @now - 5.minutes,
              event_id: "00000000-0000-0000-0000-000000000003")
     settings = Research::Policy::REQUIRED.index_with { true }.merge("approval_reference" => "original-offline-approval",
-      "source_kinds" => ["earnings_transcript"], "listings" => ["US:TEST"], "retention_seconds" => 3600,
+      "source_kinds" => ["earnings_transcript"], "listings" => ["US:TEST"], "retention_seconds" => 3600, "backup_retention_seconds" => 3600,
       "freshness_seconds" => 600, "daily_source_requests" => 3, "expires_at" => (@now + 1.day).iso8601)
     factory = ->(owner) { Research::Policy.new(owner, configuration: { approved_owners: { owner.id.to_s => settings } }) }
     latest = Object.new

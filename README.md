@@ -1124,6 +1124,61 @@ completion (encrypted messages/receipts, zero external calls or cost), and full
 schema/data/index/trigger/populated-vector restore passed without replacing
 the original database volume.
 
+### M8 expiry, dependency invalidation and restore quarantine
+
+Research maintenance is separate from quote-snapshot approval. Every 300 seconds
+the scheduler enqueues an argument-free `ResearchDisposalJob` on maintenance;
+failed enqueue cannot refresh its heartbeat. `bundle exec rails research:dispose`
+runs the same idempotent sweep. Database owner locks fence ingestion, retrieval
+and publication; no network work is performed under disposal locks.
+
+Read-time owner/permission/revision/expiry guards remain authoritative before
+cleanup. Source-derived **questions and answers** recheck the owned retrieval
+dependency, including legacy metadata without passage IDs; untracked local
+sources fail closed. Retrieval selections and bounded canonical source IDs
+link sources to derived messages. Deletion clears selections, redacts both
+halves of affected runs, cancels active work, deletes embeddings before passages
+and revisions, and clears restrictive current-revision references. Document
+tombstones/generations and retained ingestion fingerprints fence late jobs and
+re-fetch of deleted material. Existing superseded-purge paths use this same
+dependency-aware deletion. Permitted historical versions and stale-but-useful
+filings are not deleted merely for age/relevance.
+
+Connection removal purges private corpus/chat bodies but not independent
+fixtures. Explicit owner deletion is available through `research:purge_owner`
+with `RESEARCH_OWNER_ID` and `CONFIRM_PURGE_RESEARCH=YES`. Tombstones/audit
+receipts remain; this is not complete account/ledger erasure. Undispatched
+reservations release; accepted unknown usage remains uncertain, never refunded.
+Malformed policy/infrastructure uncertainty raises rather than silently
+destroying corpus. Sweeps log counts and maximum *known* deadline-to-cleanup
+lag; withdrawals without a recorded deadline are counted as unknown. The
+300-second interval plus queue delay is not a verified maximum cleanup SLA.
+
+Before restoring a database, isolate it and set `RESEARCH_RESTORE_PENDING=1`
+on **all** web/worker/scheduler processes. Application pages return 503,
+Cable rejects access and research dispatch is denied. Run
+`bundle exec rails research:restore_review`: copied active runs/ingestions/query
+work are interrupted without replay; disallowed corpus and copied chat bodies
+are purged while permitted historical corpus can remain. The gate stays on.
+Review backup rights, restored quota/billing uncertainty and purge output before
+restarting with `0`; do not reuse saved jobs as authorization to pay again.
+Malformed gate values fail closed. Process liveness is not restore clearance.
+
+Pure original-fixture backups have the M0 ceiling of seven days. Private research
+additionally requires explicit `backup_retention_seconds` (1..604800, no longer
+than source retention), `backup_controls_verified=true` and existing backup
+rights approval in the separate research policy. These are operator attestations,
+not automatic proof of encrypted snapshots, offsite retention or provider erasure.
+The local rehearsal's protected full-database dumps contain application data:
+they are **not** classified as pure-fixture backups, encrypted/PITR/offsite backup
+acceptance or automatic disposal. Their retention remains an operator-review
+gate; do not delete unrelated backup files based on research-only approval.
+Logical deletion and removal from SQL/vector/full-text search are verified
+locally. Vacuum/storage reclamation, WAL/snapshot erasure and external-provider
+deletion are different and remain unverified. Accepted external data cannot be
+recalled; no zero-data-retention claim or remote deletion implementation follows.
+Paid/private use remains disabled.
+
 ### M7 grounded earnings workflow
 
 New fixture chats select the operator-owned `latest_earnings_v1` workflow,

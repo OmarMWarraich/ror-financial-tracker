@@ -1,7 +1,7 @@
 module Research
   class Policy
     REQUIRED = %w[subscription_verified automated_read text_storage embedding_storage private_display
-                  openai_processing openai_retention_approved backup_retention_approved openai_account_verified].freeze
+                  openai_processing openai_retention_approved backup_retention_approved backup_controls_verified openai_account_verified].freeze
     attr_reader :settings
 
     def initialize(user, configuration: nil)
@@ -12,6 +12,13 @@ module Research
     end
 
     def check!(request)
+      RestoreGate.check!
+      check_permissions!(request)
+      check_space!(request)
+      self
+    end
+
+    def check_permissions!(request)
       if request.provider == "synthetic"
         unless request.listing_identity == "SYNTH:ALPHA" && request.fiscal_year == 2026 &&
                request.fiscal_quarter == 3 && %w[v1 v2].include?(request.fixture_version)
@@ -25,16 +32,23 @@ module Research
                valid_limit?("retention_seconds", 1..2_592_000) &&
                valid_limit?("freshness_seconds", 1..86_400) &&
                valid_limit?("daily_source_requests", 1..30) &&
+               self.class.backup_controls?(settings) &&
                settings["freshness_seconds"] <= settings["retention_seconds"] && expiry > Time.current
           raise Error.new("research_permission_required")
         end
       end
-      check_space!(request)
       self
     end
 
     def reference(request)
       request.provider == "synthetic" ? "original-public-fixture-v1" : settings.fetch("approval_reference")
+    end
+
+    def self.backup_controls?(settings)
+      seconds = settings["backup_retention_seconds"]
+      seconds.is_a?(Integer) && seconds.between?(1, 604_800) &&
+        settings["retention_seconds"].is_a?(Integer) && seconds <= settings["retention_seconds"] &&
+        settings["backup_controls_verified"] == true
     end
 
     def deadline(request)

@@ -13,8 +13,13 @@ class ResearchMessage < ApplicationRecord
   def readable_content!
     raise Research::Error.new("chat_retention_expired") if expires_at <= Time.current || state == "redacted"
     Research::Agent::Lifecycle.authorize_read!(self)
-    if role == "assistant" && source_ids.any? && run.retrievals.any?
-      Research::EvidenceSet.restore!(run.retrievals.first, display_only: true).recheck!
+    if run.retrievals.empty? && run.messages.where(role: "assistant").any? { |message|
+        message.sources.any? { |source| source["document_id"] || source["revision_id"] || source["passage_id"] }
+      }
+      raise Research::Error.new("evidence_dependency_missing")
+    end
+    run.retrievals.each do |retrieval|
+      Research::EvidenceSet.restore!(retrieval, display_only: true).recheck! if retrieval.selection.present?
     end
     content
   end

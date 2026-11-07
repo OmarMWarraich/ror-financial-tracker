@@ -152,6 +152,18 @@ class ResearchChatTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "restore quarantine denies all application pages without exposing saved state" do
+    previous = ENV["RESEARCH_RESTORE_PENDING"]
+    ENV["RESEARCH_RESTORE_PENDING"] = "1"
+    get new_user_session_path
+    assert_response :service_unavailable
+    assert_equal "no-store", response.headers["Cache-Control"]
+    get research_chats_path
+    assert_response :service_unavailable
+  ensure
+    previous ? ENV["RESEARCH_RESTORE_PENDING"] = previous : ENV.delete("RESEARCH_RESTORE_PENDING")
+  end
+
   test "stream batches invalidate only canonical state and outage cannot corrupt completed publication" do
     run = submit(@user)
     updates = Research::Chat::Updates.new(run)

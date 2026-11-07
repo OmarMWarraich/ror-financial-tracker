@@ -24,12 +24,14 @@ module Research
       end
 
       def check!(run)
+        RestoreGate.check!
         return {} if run.provider == "fixture" && run.selectors["listing_identity"] == "SYNTH:ALPHA" &&
           run.selectors["fiscal_year"] == 2026 && run.selectors["fiscal_quarter"] == 3
         settings = Research::Policy.new(@user, configuration: @configuration).settings
         expiry = settings["expires_at"]
         unless settings["agent_enabled"] == true && settings["derived_answers"] == true &&
                Research::Policy::REQUIRED.all? { |key| settings[key] == true } &&
+               Research::Policy.backup_controls?(settings) &&
                settings["inference_models"].is_a?(Array) && settings["inference_models"].include?(MODEL) &&
                settings["approval_reference"].is_a?(String) && settings["approval_reference"].present? &&
                settings["listings"].is_a?(Array) && settings["listings"].include?(run.selectors["listing_identity"]) &&

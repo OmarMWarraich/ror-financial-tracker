@@ -288,7 +288,7 @@ class ResearchIngestorTest < ActiveSupport::TestCase
     @connection = @owner.create_equibles_connection!(api_key: "original-equibles-dummy-key-#{@owner.id}")
     @private_request = create_request(provider: "equibles", space: @private_space, listing_identity: "US:TEST", fixture_version: nil)
     @settings = Research::Policy::REQUIRED.index_with { true }.merge("approval_reference" => "original-offline-approval",
-      "source_kinds" => ["earnings_transcript"], "listings" => ["US:TEST"], "retention_seconds" => 3600,
+      "source_kinds" => ["earnings_transcript"], "listings" => ["US:TEST"], "retention_seconds" => 3600, "backup_retention_seconds" => 3600,
       "freshness_seconds" => 600, "daily_source_requests" => 3, "expires_at" => (Time.current + 1.day).iso8601)
   end
 

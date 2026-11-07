@@ -10,6 +10,7 @@ class EquiblesConnection < ApplicationRecord
     end
   end
   after_save :record_quota_usage
+  after_destroy_commit { Research::Disposal.purge_owner!(user, private_only: true) }
 
   def expire_evidence!(entitlement, now: Time.current)
     retention = [entitlement.settings["retention_seconds"], snapshot.dig("entitlement", "retention_seconds")]

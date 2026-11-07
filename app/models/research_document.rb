@@ -23,11 +23,7 @@ class ResearchDocument < ApplicationRecord
       unless keep && keep.document_id == id && keep.user_id == user_id
         raise Research::Error.new("no_valid_retained_revision")
       end
-      old = revisions.where.not(id: keep.id)
-      passages = ResearchPassage.where(revision_id: old.select(:id))
-      ResearchEmbedding.where(passage_id: passages.select(:id)).delete_all
-      passages.delete_all
-      old.delete_all
+      Research::Disposal.purge_document!(self, revision_ids: revisions.where.not(id: keep.id).pluck(:id), revoke: false)
     end
   end
 end

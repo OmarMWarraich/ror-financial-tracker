@@ -3,7 +3,7 @@ module ApplicationCable
     identified_by :current_user, :current_chat_session_id
 
     def connect
-      reject_unauthorized_connection unless Research::Chat.enabled?
+      reject_unauthorized_connection unless Research::Chat.enabled? && !Research::RestoreGate.pending?
       self.current_user = env["warden"]&.user(:user)
       reject_unauthorized_connection unless current_user
       token = request.session[:research_chat_token]
@@ -13,7 +13,8 @@ module ApplicationCable
     end
 
     def chat_access?
-      Research::Chat.enabled? && current_user.research_chat_sessions.find_by(id: current_chat_session_id)&.valid_access?
+      Research::Chat.enabled? && !Research::RestoreGate.pending? &&
+        current_user.research_chat_sessions.find_by(id: current_chat_session_id)&.valid_access?
     end
   end
 end

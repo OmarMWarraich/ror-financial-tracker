@@ -12,7 +12,7 @@ class ResearchPolicyTest < ActiveSupport::TestCase
       fiscal_quarter: 3, request_key: "original-policy-test")
     @settings = Research::Policy::REQUIRED.index_with { true }.merge(
       "approval_reference" => "original-test-only-approval", "source_kinds" => ["earnings_transcript"],
-      "listings" => ["US:MSFT"], "retention_seconds" => 3600, "freshness_seconds" => 600,
+      "listings" => ["US:MSFT"], "retention_seconds" => 3600, "backup_retention_seconds" => 3600, "freshness_seconds" => 600,
       "daily_source_requests" => 3, "expires_at" => (Time.current + 1.day).iso8601
     )
   end
@@ -33,7 +33,9 @@ class ResearchPolicyTest < ActiveSupport::TestCase
     end
     [{ "listings" => ["US:OTHER"] }, { "source_kinds" => ["filing"] }, { "retention_seconds" => 0 },
      { "expires_at" => Time.current.iso8601 }, { "expires_at" => "unknown" },
-     { "daily_source_requests" => 31 }, { "freshness_seconds" => 3601 }].each do |changes|
+     { "daily_source_requests" => 31 }, { "freshness_seconds" => 3601 },
+     { "backup_retention_seconds" => nil }, { "backup_retention_seconds" => 0 },
+     { "backup_retention_seconds" => 3601 }, { "backup_retention_seconds" => 604_801 }].each do |changes|
       assert_raises(Research::Error) { policy(@settings.merge(changes)).check!(@request) }
     end
     assert_not policy.history?(@request)

@@ -138,8 +138,8 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_equal "rails-native-research-agent", result["id"]
     assert_equal "user_decision", result["status"]
     assert_includes result["summary"], "do not enable paid/provider/private access"
-    assert_includes result["summary"], "M4 locally implements"
-    assert_includes result["summary"], "AG-UI is optional"
+    assert_includes result["summary"], "M4 installs pinned"
+    assert_includes result["summary"], "internal events are not AG-UI compliance"
     assert_includes result["summary"], "shared Redis"
     assert_includes result["summary"], "Native M6-06 is partial"
     assert_includes result["sources"], "config/cable.yml"
@@ -160,6 +160,23 @@ class ProjectKnowledgeTest < Minitest::Test
       assert_includes result["summary"], "Android lacks Java/SDK"
       assert_includes result["sources"], "app/channels/research_chat_channel.rb"
     end
+  end
+
+  def test_m7_workflow_record_distinguishes_quotation_support_from_financial_truth
+    result = @knowledge.search("earnings-quotes-v1").find { |record| record["id"] == "research-grounded-workflow" }
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "not independent real-world truth"
+    assert_includes result["summary"], "Invalid output fails before publication"
+    assert_includes result["sources"], "test/services/research_earnings_workflow_test.rb"
+  end
+
+  def test_m8_disposal_record_keeps_backup_provider_and_billing_uncertainty_explicit
+    result = @knowledge.search("RESEARCH_RESTORE_PENDING").first
+    assert_equal "research-disposal", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "Accepted unknown usage stays uncertain"
+    assert_includes result["summary"], "physical vacuum/WAL/snapshot/provider erasure remains unverified"
+    assert_includes result["sources"], "test/services/research_disposal_test.rb"
   end
 
   def test_m3_retrieval_keeps_unknown_history_default_keyword_and_dispatch_gates_explicit
