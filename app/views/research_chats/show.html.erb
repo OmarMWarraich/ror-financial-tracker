@@ -1,0 +1,20 @@
+<% content_for :title, "Research conversation | FinanceTracker" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<h1>Alpha research conversation</h1>
+<p class="badge bg-warning text-dark">Original fixtures only / zero external inference / not investment advice</p>
+<p><%= link_to "All research conversations", research_chats_path %> ·
+  <%= link_to "Reload saved state", research_chat_path(@conversation), data: { turbo: false } %></p>
+<section data-controller="research-chat"
+  data-research-chat-conversation-value="<%= @conversation.id %>"
+  data-research-chat-snapshot-value="<%= snapshot_research_chat_path(@conversation) %>"
+  data-action="turbo:before-cache@document->research-chat#beforeCache pagehide@window->research-chat#pause pageshow@window->research-chat#resume visibilitychange@document->research-chat#visibility">
+  <p data-research-chat-target="status" role="status" aria-live="polite">Connecting to saved research state.</p>
+  <%= render "state" %>
+</section>
+<section class="card mt-4" aria-labelledby="follow-up-heading">
+  <div class="card-body">
+    <h2 id="follow-up-heading" class="h5">Follow-up</h2>
+    <p>Submitting is explicit. Reconnects and reloads never create another run. Stop requests are not refunds.</p>
+    <%= render "composer", conversation: @conversation %>
+  </div>
+</section>

@@ -44,7 +44,7 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "test/services/research_agent_adapters_test.rb"
   end
 
-  def test_m4_native_loop_is_implemented_without_claiming_browser_or_live_acceptance
+  def test_m4_native_loop_keeps_native_and_live_acceptance_separate
     %w[M4 M4-05 M4-06 M4-07].each do |query|
       result = @knowledge.search(query).first
       assert_equal "research-native-agent-loop", result["id"], query
@@ -52,7 +52,7 @@ class ProjectKnowledgeTest < Minitest::Test
       assert_includes result["summary"], "zero external calls/spend"
       assert_includes result["summary"], "No-evidence/stale-only retained states avoid inference"
       assert_includes result["summary"], "not full claim entailment/financial correctness"
-      assert_includes result["summary"], "remain M6-M9"
+      assert_includes result["summary"], "Native M6-06 and M7-M9"
       assert_includes result["sources"], "test/services/research_agent_runtime_test.rb"
     end
 
@@ -133,15 +133,33 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "test/services/research_ingestor_test.rb"
   end
 
-  def test_retrieves_native_agent_direction_without_claiming_implemented_chat
+  def test_retrieves_agent_direction_with_fixture_chat_and_native_gates
     result = @knowledge.search("conversational agent").first
     assert_equal "rails-native-research-agent", result["id"]
     assert_equal "user_decision", result["status"]
-    assert_includes result["summary"], "not enabled paid/provider access or implemented browser chat"
+    assert_includes result["summary"], "do not enable paid/provider/private access"
     assert_includes result["summary"], "M4 locally implements"
     assert_includes result["summary"], "AG-UI is optional"
-    assert_includes result["summary"], "cross-process worker broadcasts"
+    assert_includes result["summary"], "shared Redis"
+    assert_includes result["summary"], "Native M6-06 is partial"
     assert_includes result["sources"], "config/cable.yml"
+  end
+
+  def test_m6_chat_knowledge_distinguishes_verified_web_from_native_and_paid_gates
+    %w[M6 M6-02 M6-03 M6-05 M6-06].each do |query|
+      result = @knowledge.search(query).first
+      assert_equal "research-authenticated-chat", result["id"], query
+      assert_equal "implemented", result["status"]
+      assert_includes result["summary"], "M6-06 explicitly partial"
+      assert_includes result["summary"], "default0 including Compose"
+      assert_includes result["summary"], "zero external requests/cost"
+      assert_includes result["summary"], "Warden Rails session"
+      assert_includes result["summary"], "blocks late snapshots"
+      assert_includes result["summary"], "Snapshot polling cannot renew expired leases"
+      assert_includes result["summary"], "Redis disconnect outage cannot prevent ordinary logout"
+      assert_includes result["summary"], "Android lacks Java/SDK"
+      assert_includes result["sources"], "app/channels/research_chat_channel.rb"
+    end
   end
 
   def test_m3_retrieval_keeps_unknown_history_default_keyword_and_dispatch_gates_explicit

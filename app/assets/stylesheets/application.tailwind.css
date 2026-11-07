@@ -1,6 +1,7 @@
 @import "shadcn.css";
 @import "shadcn.css";
 @import "ui.css";
+@import "research_chat.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

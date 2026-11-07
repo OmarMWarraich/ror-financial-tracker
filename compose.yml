@@ -18,6 +18,7 @@ x-app: &app
     SKIP_DB_PREPARE: "1"
     LOCAL_COMPOSE_HTTP: "1"
     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    RESEARCH_CHAT_ENABLED: ${RESEARCH_CHAT_ENABLED:-0}
   tmpfs:
     - /rails/tmp:uid=1000,gid=1000,mode=1770
   stop_grace_period: 40s

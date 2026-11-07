@@ -1,0 +1,72 @@
+<%= turbo_frame_tag "research-chat-state", data: { research_chat_target: "frame",
+  action: "turbo:frame-load->research-chat#loaded turbo:frame-missing->research-chat#missing turbo:fetch-request-error->research-chat#failed" } do %>
+  <div role="log" aria-label="Saved research messages" aria-live="off">
+    <% @messages.each do |item| %>
+      <% message = item.fetch(:record) %>
+      <article class="card mb-3 research-message" data-message-id="<%= message.id %>">
+        <div class="card-body">
+          <h2 class="h6"><%= message.role == "user" ? "Your question" : "Research answer" %> · <%= message.state %></h2>
+          <% if item[:error] %>
+            <p role="alert">Message unavailable: <%= item[:error] %>. No expired or now-disallowed text is displayed.</p>
+          <% elsif item[:text].present? %>
+            <% if message.role == "assistant" %><div class="research-answer"><%= research_markdown(item[:text]) %></div>
+            <% else %><p class="research-question"><%= item[:text] %></p><% end %>
+          <% else %>
+            <p>Incomplete answer. Unvalidated partial financial text is not published.</p>
+          <% end %>
+          <% if item.fetch(:sources).any? %>
+            <details>
+              <summary>Sources and temporal uncertainty</summary>
+              <ul>
+                <% item.fetch(:sources).each do |source| %>
+                  <li>
+                    <code><%= source["source_id"] %></code> · <%= source["origin"] %>
+                    · <%= source["listing_identity"] %> · <%= source["fiscal_year"] %> <%= source["fiscal_period"] || "Q#{source['fiscal_quarter']}" %>
+                    <% if (url = research_citation_url(source["citation_url"])) %>
+                      <%= link_to "View approved source", url, target: "_blank", rel: "noopener noreferrer", data: { turbo: false } %>
+                    <% else %><span>Fixture or unsupported citation link is not navigable.</span><% end %>
+                    <pre class="research-source-dates"><%= JSON.pretty_generate(source.slice("event_at", "published_at", "known_at", "fresh_until", "expires_at", "dates", "uncertainty")) %></pre>
+                    <p>Missing publication or knowability timestamps are unknown, not inferred from receipt.</p>
+                  </li>
+                <% end %>
+              </ul>
+            </details>
+          <% end %>
+        </div>
+      </article>
+    <% end %>
+  </div>
+  <section aria-labelledby="research-run-heading">
+    <h2 id="research-run-heading" class="h5">Run status and usage</h2>
+    <% @runs.each do |run| %>
+      <article class="card mb-2" data-run-id="<%= run.id %>" data-run-state="<%= run.state %>">
+        <div class="card-body">
+          <p><strong>Run <%= run.id %>: <%= run.state %></strong><%= " / #{run.error_code}" if run.error_code %>
+            <%= " / stop requested" if run.cancel_requested_at %></p>
+          <p><%= run.provider %> · <%= run.model %> · <%= run.workflow_version %> /
+            <%= run.prompt_version %> ·
+            <%= ((run.finished_at || Time.current) - run.created_at).round(1) %> seconds</p>
+          <p>Model steps: <%= run.model_attempts.size %> /
+            input tokens: <%= run.model_attempts.sum { |attempt| attempt.actual_input_tokens || 0 } %> /
+            output tokens: <%= run.model_attempts.sum { |attempt| attempt.actual_output_tokens || 0 } %> /
+            tools: <%= run.tool_calls %> / source exchanges: <%= run.source_requests %>.
+            Recorded cost: <%= number_to_currency(run.model_attempts.sum { |attempt| attempt.actual_cost_nanos || 0 } / 1_000_000_000.0, precision: 6) %>.
+            Unknown usage stays reserved, not assumed zero.</p>
+          <p>Outstanding token reservations:
+            <%= run.model_attempts.select { |attempt| %w[reserved dispatched uncertain].include?(attempt.state) }.sum(&:reserved_input_tokens) %> input /
+            <%= run.model_attempts.select { |attempt| %w[reserved dispatched uncertain].include?(attempt.state) }.sum(&:reserved_output_tokens) %> output.
+            Run ceiling: <%= number_to_currency(run.limits.fetch("run_cost_nanos") / 1_000_000_000.0) %>;
+            queued run hold: <%= number_to_currency(run.reserved_cost_nanos / 1_000_000_000.0) %>.
+            Price card: <%= run.pricing["version"] %>.</p>
+          <p>Submitted <time datetime="<%= run.created_at.utc.iso8601 %>"><%= run.created_at.utc.iso8601 %></time>
+            <% if run.finished_at %> / finished <time datetime="<%= run.finished_at.utc.iso8601 %>"><%= run.finished_at.utc.iso8601 %></time><% end %></p>
+          <% run.tool_attempts.each do |attempt| %><p><%= attempt.name %>: <%= attempt.state %><%= " / #{attempt.error_code}" if attempt.error_code %></p><% end %>
+          <% if %w[queued running].include?(run.state) %>
+            <%= button_to "Stop run #{run.id}", stop_research_chat_path(@conversation), params: { run_id: run.id },
+              class: "btn btn-outline-danger", form: { data: { turbo: false } } %>
+          <% end %>
+        </div>
+      </article>
+    <% end %>
+  </section>
+<% end %>

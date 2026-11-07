@@ -185,7 +185,7 @@ module Research
           end
         end
         ResearchMessage.where("expires_at <= ?", Time.current).where.not(state: "redacted")
-          .update_all(content: nil, source_ids: [], state: "redacted")
+          .update_all(content: nil, source_ids: [], sources: [], state: "redacted")
       end
     end
   end

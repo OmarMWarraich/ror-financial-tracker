@@ -15,6 +15,8 @@ gem "openai", "0.120.0"
 gem "mcp", "1.9.0"
 gem "faraday", "2.15.1"
 gem "event_stream_parser", "1.0.0"
+gem "redis", "~> 5.4"
+gem "kramdown", "~> 2.5"
 gem "tiktoken_ruby", "0.0.17"
 # The official SDK uses RFC2396_PARSER, absent from Ruby 3.3.0's URI 0.13.0.
 gem "uri", "0.13.3"

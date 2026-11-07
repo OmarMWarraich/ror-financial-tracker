@@ -1,5 +1,24 @@
 # Disposable-Rails cookie lifecycle attempt
 
+## M6 chat attempt, 2026-11-07: partial, not accepted
+
+Two new bounded XCUITest attempts used an isolated iPhone 17 Pro / iOS 26.5
+simulator, an original-fixture-only account, and a loopback proxy forwarding to
+the existing Rails server. Both builds succeeded; both selected chat tests
+failed (exit 65) waiting for the Research chat navigation link after sign-in.
+The second attempt confirmed password entry did not modify the email field, but
+this does not establish authenticated session continuity. Neither reached chat
+submission, keyboard/chat acceptance, background/resume, network recovery or
+logout assertions. No paid/provider request occurred.
+
+The failed experimental method was removed rather than adding an unconditional
+failure or presenting an opt-in skip as acceptance. The existing anonymous smoke
+test is unchanged. The proxy was stopped and only the new simulator was shut
+down/deleted. Disposable accounts are removed after web acceptance. Android
+also remains blocked by missing Java/SDK tooling; no licenses were accepted or
+SDK/emulator downloads performed. M6-06 stays open. Browser acceptance and the
+20 bundled route cases are separate evidence, not device acceptance.
+
 ## Result, 2026-11-05: failed, not skipped
 
 This final, bounded attempt used the parent's `http://localhost:3101` server and its isolated `financial_tracker_showcase_smoke` database, not the normal Rails database or an existing account.

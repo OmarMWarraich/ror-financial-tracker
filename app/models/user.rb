@@ -1,4 +1,5 @@
 class User < ApplicationRecord
+  has_many :research_chat_sessions, dependent: :delete_all
   has_one :sandbox_account, dependent: :restrict_with_error
   has_many :research_documents, dependent: :restrict_with_error
   has_many :research_embedding_spaces, dependent: :restrict_with_error

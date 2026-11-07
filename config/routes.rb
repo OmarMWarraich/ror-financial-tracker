@@ -25,7 +25,13 @@ Rails.application.routes.draw do
     post :refresh
   end
   resources :user_stocks, only: [:create, :destroy]
-  devise_for :users, controllers: { registrations: "users/registrations" }
+  resources :research_chats, only: %i[index create show] do
+    member do
+      get :snapshot
+      post :stop
+    end
+  end
+  devise_for :users, controllers: { registrations: "users/registrations", sessions: "users/sessions" }
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
   get 'my_portfolio', to: 'users#my_portfolio'
   get 'search_stock', to: 'stocks#search'

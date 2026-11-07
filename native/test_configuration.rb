@@ -20,7 +20,7 @@ configs.each do |platform, path|
     end
   end
 
-  ["/", "/sandbox_accounts", "/sandbox_accounts/1", "/research_demo", "/research_demo/1"].each do |path|
+  ["/", "/sandbox_accounts", "/sandbox_accounts/1", "/research_demo", "/research_demo/1", "/research_chats", "/research_chats/1"].each do |path|
     properties = properties_for.call(path)
     assert(properties["context"] == "default", "#{platform}: #{path} context")
     assert(properties["presentation"] == "default", "#{platform}: #{path} presentation")
@@ -39,4 +39,4 @@ configs.each do |platform, path|
   end
 end
 
-puts "Bundled iOS/Android path configuration: 16 route cases passed"
+puts "Bundled iOS/Android path configuration: 20 route cases passed"

@@ -1,4 +1,4 @@
-\restrict yuxp0lhyKcQbOzZ5hj4uHAY1q7HOP7dz9wIxXucBDbyCre7dZJjbZBPs8deZgpc
+\restrict pqc48pIn3ecDo5Q4lkDaoSqUaaxaqFcuJkDVEQIfDXyt36LyOlLggVP8KV9DD8B
 
 -- Dumped from database version 16.15 (Debian 16.15-1.pgdg13+2)
 -- Dumped by pg_dump version 16.15 (Debian 16.15-1.pgdg12+2)
@@ -96,9 +96,9 @@ CREATE FUNCTION public.research_message_identity_guard() RETURNS trigger
 BEGIN
   IF ROW(NEW.user_id, NEW.conversation_id, NEW.run_id, NEW.role, NEW.expires_at)
     IS DISTINCT FROM ROW(OLD.user_id, OLD.conversation_id, OLD.run_id, OLD.role, OLD.expires_at)
-    OR (ROW(NEW.content, NEW.source_ids, NEW.state)
-      IS DISTINCT FROM ROW(OLD.content, OLD.source_ids, OLD.state)
-      AND NOT (NEW.state = 'redacted' AND NEW.content IS NULL AND NEW.source_ids = '[]'::jsonb))
+    OR (ROW(NEW.content, NEW.source_ids, NEW.sources, NEW.state)
+      IS DISTINCT FROM ROW(OLD.content, OLD.source_ids, OLD.sources, OLD.state)
+      AND NOT (NEW.state = 'redacted' AND NEW.content IS NULL AND NEW.source_ids = '[]'::jsonb AND NEW.sources = '[]'::jsonb))
   THEN RAISE EXCEPTION 'research message identity is immutable except redaction'; END IF;
   RETURN NEW;
 END;
@@ -372,6 +372,41 @@ ALTER SEQUENCE public.research_agent_runs_id_seq OWNED BY public.research_agent_
 
 
 --
+-- Name: research_chat_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_chat_sessions (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    token_digest character varying NOT NULL,
+    authentication_digest character varying NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    revoked_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: research_chat_sessions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_chat_sessions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_chat_sessions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_chat_sessions_id_seq OWNED BY public.research_chat_sessions.id;
+
+
+--
 -- Name: research_conversations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -639,7 +674,9 @@ CREATE TABLE public.research_messages (
     expires_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT research_message_contract CHECK ((((role)::text = ANY ((ARRAY['user'::character varying, 'assistant'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['submitted'::character varying, 'complete'::character varying, 'incomplete'::character varying, 'redacted'::character varying])::text[])) AND (jsonb_typeof(source_ids) = 'array'::text)))
+    sources jsonb DEFAULT '[]'::jsonb NOT NULL,
+    CONSTRAINT research_message_contract CHECK ((((role)::text = ANY ((ARRAY['user'::character varying, 'assistant'::character varying])::text[])) AND ((state)::text = ANY ((ARRAY['submitted'::character varying, 'complete'::character varying, 'incomplete'::character varying, 'redacted'::character varying])::text[])) AND (jsonb_typeof(source_ids) = 'array'::text))),
+    CONSTRAINT research_message_sources_contract CHECK (((jsonb_typeof(sources) = 'array'::text) AND (jsonb_array_length(sources) <= 6)))
 );
 
 
@@ -1223,6 +1260,13 @@ ALTER TABLE ONLY public.research_agent_runs ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
+-- Name: research_chat_sessions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_chat_sessions ALTER COLUMN id SET DEFAULT nextval('public.research_chat_sessions_id_seq'::regclass);
+
+
+--
 -- Name: research_conversations id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1400,6 +1444,14 @@ ALTER TABLE ONLY public.friendships
 
 ALTER TABLE ONLY public.research_agent_runs
     ADD CONSTRAINT research_agent_runs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_chat_sessions research_chat_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_chat_sessions
+    ADD CONSTRAINT research_chat_sessions_pkey PRIMARY KEY (id);
 
 
 --
@@ -1645,6 +1697,20 @@ CREATE INDEX index_research_agent_runs_on_user_id ON public.research_agent_runs 
 --
 
 CREATE UNIQUE INDEX index_research_agent_runs_on_user_id_and_request_key ON public.research_agent_runs USING btree (user_id, request_key);
+
+
+--
+-- Name: index_research_chat_sessions_on_token_digest; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_chat_sessions_on_token_digest ON public.research_chat_sessions USING btree (token_digest);
+
+
+--
+-- Name: index_research_chat_sessions_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_chat_sessions_on_user_id ON public.research_chat_sessions USING btree (user_id);
 
 
 --
@@ -2510,6 +2576,14 @@ ALTER TABLE ONLY public.research_tool_attempts
 
 
 --
+-- Name: research_chat_sessions fk_rails_f365a6e53f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_chat_sessions
+    ADD CONSTRAINT fk_rails_f365a6e53f FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: research_retrievals fk_rails_f6c6afe8e4; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2529,11 +2603,12 @@ ALTER TABLE ONLY public.research_messages
 -- PostgreSQL database dump complete
 --
 
-\unrestrict yuxp0lhyKcQbOzZ5hj4uHAY1q7HOP7dz9wIxXucBDbyCre7dZJjbZBPs8deZgpc
+\unrestrict pqc48pIn3ecDo5Q4lkDaoSqUaaxaqFcuJkDVEQIfDXyt36LyOlLggVP8KV9DD8B
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107130000'),
 ('20261107120000'),
 ('20261107110000'),
 ('20261107100000'),

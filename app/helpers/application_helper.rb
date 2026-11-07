@@ -15,6 +15,7 @@ module ApplicationHelper
       "welcome" => "Overview",
       "portfolio_demos" => "Portfolio analytics",
       "research_demos" => "Research policy lab",
+      "research_chats" => "Research chat",
       "broker_connections" => "Private connections",
       "equibles_evidence" => "Private Equibles evidence",
       "deposit_information" => "Deposit information gates",

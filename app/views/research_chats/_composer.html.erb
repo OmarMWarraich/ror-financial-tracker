@@ -1,0 +1,11 @@
+<%= form_with url: research_chats_path, scope: :research_chat, data: { turbo: false }, class: "research-composer" do |form| %>
+  <%= form.hidden_field :request_key, value: SecureRandom.uuid %>
+  <%= form.hidden_field :conversation_id, value: conversation&.id %>
+  <%= form.label :question, "Research question", class: "form-label" %>
+  <%= form.text_area :question, required: true, maxlength: 2000, rows: 3,
+    class: "form-control mb-2", aria: { describedby: "research-question-help" },
+    placeholder: "Summarize original fictional Alpha earnings." %>
+  <p id="research-question-help" class="text-muted">Original SYNTH:ALPHA / 2026 Q3. At most four turns, 90 seconds/run,
+    four model steps, six tools and 4,096 output tokens. Preferences cannot raise operator limits.</p>
+  <%= render_button "Send research question", type: :submit %>
+<% end %>

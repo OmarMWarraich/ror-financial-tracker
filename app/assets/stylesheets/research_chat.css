@@ -1,0 +1,5 @@
+.research-message, .research-answer, .research-source-dates { overflow-wrap: anywhere; }
+.research-question, .research-source-dates { white-space: pre-wrap; }
+.research-source-dates { font-size: 0.8rem; }
+.research-answer pre { white-space: pre-wrap; }
+.research-composer textarea { min-height: 7rem; }

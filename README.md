@@ -1124,10 +1124,69 @@ completion (encrypted messages/receipts, zero external calls or cost), and full
 schema/data/index/trigger/populated-vector restore passed without replacing
 the original database volume.
 
+### M6 authenticated research chat
+
+Set the operator flag `RESEARCH_CHAT_ENABLED=1` to expose `/research_chats`;
+it defaults to `0`, including Compose. This first UI is explicitly **original
+fixture research only**: `SYNTH:ALPHA`, FY2026/Q3, zero external requests/cost.
+It does not enable private evidence, OpenAI inference or live MCP access, and
+never substitutes fixtures for a failed live request. Existing ERB/shadcn/Tailwind,
+Turbo and Stimulus are retained; no React or dashboard rewrite.
+
+Ordinary authenticated forms submit and stop runs without JavaScript. Owner
+request keys deduplicate submissions; reloads, snapshots and reconnects are
+read-only. Canonical encrypted messages, guarded source metadata and run/usage
+receipts are independent of delivery. The page shows saved answers, tool
+progress, UTC timing, uncertainty, token/cost reservations and explicit
+partial/error states. The complete answer remains withheld until M4's
+whole-output checks pass; this is not unvalidated token-by-token financial text.
+
+Cable independently authenticates Warden's Rails session plus a server-side
+chat lease. The random token stays in the encrypted Rails session, never HTML,
+JavaScript or subscription URLs; only its SHA-256 digest is stored. The lease
+expires after 30 minutes, is bound to the password digest, and is revoked and
+remotely disconnected on logout. Owner subscription checks and five-second
+access rechecks reject expired/cross-owner access. Snapshot polling cannot renew
+an expired lease. An authenticated page visit or explicit submission may issue
+a fresh chat lease; this is not global Devise idle timeout.
+Same-origin WebSocket protection remains enabled.
+
+Development/production Cable use pinned Redis with separate environment
+prefixes. Web and the dedicated research worker share Compose's Redis URL.
+Worker refresh invalidations are batched (0.3 seconds; terminal events immediate)
+and contain no question/answer/evidence text. Redis remote-disconnect failure
+cannot prevent ordinary logout: the persisted lease is revoked first, and
+periodic access checks still close it. The client debounces authorized
+Turbo snapshots and polls every five seconds for missed events. Disconnection
+clears displayed messages; denied access stops polling and prevents a late
+snapshot from restoring protected text. Redis delivery failure is logged;
+canonical publication survives. Page responses are `no-store` and opt out of
+Turbo caching. The composer stays outside refreshed state, and reconnect never
+submits its draft.
+
+Final Markdown uses pinned Kramdown plus an attribute-free Rails HTML allowlist.
+Model-authored links/images/scripts are not navigable; source links permit only
+exact HTTPS `equibles.com`, port 443, without credentials/query/fragment.
+Questions and partial/error text are escaped. Semantic labels/live regions,
+keyboard controls and existing themes are retained; no chat motion is required.
+
+**M6-01 through M6-05 are locally verified; M6-06 is partial.** Browser fixture
+completion crossed the real Redis/web/research-worker boundary. Reload/offline
+recovery preserved two saved messages and one run without resubmitting a draft.
+Ownership, session/logout/expiry, no-JavaScript forms, redaction and rendering
+have automated tests. Native route coverage is now 20 cases; URL policy has four
+Swift tests. Two isolated iOS signed-in chat attempts stopped at the
+research-navigation selector, not a passing chat/session test. Android still
+lacks Java/SDK tooling. Native keyboard, chat navigation, background/resume,
+disconnect/reconnect and logout acceptance remain open; sharing a WebView
+proves neither device acceptance nor a Swift/Kotlin-native chatbot. See
+[native smoke evidence](native/smoke/disposable-rails.md).
+
 ### Rails-native conversational research assessment
 
 Architectural direction, assessed 2026-11-07; **the M4 backend is implemented
-locally, not the complete conversational UI/workflow**. Keep the
+locally; M5 adds durable state and M6 adds a fixture-only chat UI, not the complete
+live research workflow**. Keep the
 existing ERB/Turbo/Stimulus and shadcn/Tailwind surfaces. Build a small,
 application-owned research orchestrator rather than a general-purpose agent
 framework. Borrow CopilotKit's separation of UI, runtime and agent, not its code
@@ -1158,21 +1217,15 @@ tested. Do not implement MCP framing or model HTTP streaming from scratch.
 
 #### Existing foundation and concrete gaps
 
-- Devise authenticates ordinary controller requests. New conversation, message,
-  run, usage and evidence records must be owner-scoped; no such chat records or
-  routes exist today.
-- Active Job already uses Sidekiq; Redis and workers exist. Research needs its
-  own bounded queue/concurrency allocation so long model calls do not starve
-  evidence maintenance. Jobs carry IDs, not credentials or raw transcripts.
-- Action Cable's connection class is currently empty. Development uses `async`,
-  which cannot deliver worker broadcasts across processes. Add verified
-  Rails-session authentication and owner-authorized subscriptions; configure and
-  test a shared adapter/dependency compatible with the locked Rails version.
-  Controller authentication does not automatically protect WebSocket channels.
-- Use Turbo updates for batched text/progress and Stimulus for stop, scrolling
-  and reconnect UX. Persist canonical message/run state and reload it on
-  reconnect; broadcasts alone are not durable delivery. Escape partial text;
-  sanitize any final Markdown rendering, and validate source links.
+- Devise authenticates ordinary controller requests; M5 owner-scopes durable
+  conversations/messages/runs/usage, and M6 independently authenticates Cable.
+- Sidekiq research concurrency is isolated from maintenance. Jobs carry IDs,
+  not credentials or raw transcripts.
+- Cable now uses authenticated owner subscriptions and shared Redis in
+  development/production. Controller authentication alone is insufficient.
+- M6 reloads guarded canonical state on batched invalidations and polling;
+  broadcasts alone are not durable delivery. Final Markdown and source links
+  have separate restrictive policies.
 - Existing encrypted owner credentials, explicit entitlement checks and bounded
   Equibles requests are useful patterns. The current snapshot is one USD quote,
   not a research corpus. Research retention, transcripts and model egress need

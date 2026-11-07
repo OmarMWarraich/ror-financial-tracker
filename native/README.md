@@ -25,6 +25,10 @@ Rules cascade in order. The bundled configurations use:
 - `settings.schema_version = 1` as application metadata; the framework does not itself enforce this field as a schema validator.
 - Default `context: "default"`, `presentation: "default"`, `pull_to_refresh_enabled: false`.
 - `/sandbox_accounts` and `/research_demo`, including child paths, as ordinary same-origin web screens in native navigation.
+- Feature-gated `/research_chats`, including owned conversation paths, uses the
+  same default web navigation; the bundled route runner now verifies 20 cases.
+  M6 browser chat works with original fixtures, but signed-in native chat
+  acceptance remains open; see [bounded attempt evidence](smoke/disposable-rails.md).
 - `/users/sign_in`, `/users/sign_up`, `/users/password/new` as modal context.
 - Android default `uri: "hotwire://fragment/web"`; **Android modal auth rules must override this with `uri: "hotwire://fragment/web/modal/sheet"`**, the official built-in bottom-sheet destination. Merely changing `context` does not select the bottom-sheet fragment.
 

@@ -1,0 +1,23 @@
+<% content_for :title, "Research chat | FinanceTracker" %>
+<% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
+<h1>Research chat</h1>
+<p class="badge bg-warning text-dark">Original Alpha fixtures only / no external inference or live research</p>
+<p>This page exercises the native Rails agent and dedicated worker, not financial advice or model quality.
+  Questions are encrypted and expire after 24 hours. No private evidence or provider account is enabled.</p>
+<section class="card mb-4">
+  <div class="card-body">
+    <h2 class="h5">Start a conversation</h2>
+    <%= render "composer", conversation: nil %>
+  </div>
+</section>
+<section aria-labelledby="saved-conversations">
+  <h2 id="saved-conversations" class="h5">Saved conversations</h2>
+  <% if @conversations.empty? %><p>No conversations yet.</p><% end %>
+  <ul>
+    <% @conversations.each do |conversation| %>
+      <% next unless conversation.scope["evidence_mode"] == "fixture" %>
+      <li><%= link_to "Alpha research #{conversation.id}", research_chat_path(conversation) %>
+        <time datetime="<%= conversation.created_at.utc.iso8601 %>"><%= conversation.created_at.utc.iso8601 %></time></li>
+    <% end %>
+  </ul>
+</section>

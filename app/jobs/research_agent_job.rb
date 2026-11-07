@@ -8,7 +8,8 @@ class ResearchAgentJob
       Rails.logger.warn("Research run #{run_id} rejected code=request_missing")
       return
     end
-    Research::Agent::Execution.call(run)
+    updates = Research::Chat::Updates.new(run)
+    Research::Agent::Execution.call(run, events: updates.method(:call))
   rescue Research::Error => error
     Rails.logger.warn("Research run #{run_id} rejected code=#{error.code}")
     if error.code == "agent_concurrency_limit" && run.reload.state == "queued"
@@ -18,5 +19,7 @@ class ResearchAgentJob
         Research::Agent::Lifecycle.terminal!(run, state: "failed", code: queue_error.code)
       end
     end
+  ensure
+    updates&.refresh!
   end
 end
