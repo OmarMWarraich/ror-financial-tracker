@@ -60,14 +60,14 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "bin/pgvector-rehearsal"
   end
 
-  def test_vector_storage_is_implemented_without_claiming_rag_or_provider_access
+  def test_vector_storage_is_implemented_without_claiming_inference_or_provider_access
     result = @knowledge.search("ResearchEmbeddingSpace").first
     assert_equal "research-vector-storage", result["id"]
     assert_equal "implemented", result["status"]
-    assert_includes result["summary"], "Composite foreign keys enforce owner/checksum/chunker/preprocessing consistency"
-    assert_includes result["summary"], "historical cutoffs cannot revive expired material"
-    assert_includes result["summary"], "No research controller, real-source egress or RAG/chat runtime is enabled"
-    assert_includes result["summary"], "New revisions default pending"
+    assert_includes result["summary"], "Composite owner/checksum/chunker/preprocessing/current-revision foreign keys"
+    assert_includes result["summary"], "current rights/revocation/retention"
+    assert_includes result["summary"], "No permission grant, research controller, live egress or inference/chat runtime"
+    assert_includes result["summary"], "New revisions are not implicitly indexed"
     assert_includes result["sources"], "db/migrate/20261107070000_add_research_ingestion.rb"
     assert_includes result["sources"], "test/models/research_storage_test.rb"
   end
@@ -90,7 +90,7 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["summary"], "No live provider or paid embedding request was executed"
     assert_includes result["summary"], "dispatched/uncertain batches remain blocked across request keys until review"
     assert_includes result["summary"], "incomplete/failed indexing cannot fall back to old text as current"
-    assert_includes result["summary"], "pending M3"
+    assert_includes result["summary"], "M3 labels current uncertainty and denies unproved as-of history"
     assert_includes result["sources"], "test/services/research_ingestor_test.rb"
   end
 
@@ -102,6 +102,17 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["summary"], "AG-UI is optional"
     assert_includes result["summary"], "cross-process worker broadcasts"
     assert_includes result["sources"], "config/cable.yml"
+  end
+
+  def test_m3_retrieval_keeps_unknown_history_default_keyword_and_dispatch_gates_explicit
+    result = @knowledge.search("M3-09").first
+    assert_equal "research-temporal-retrieval", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "Keyword English generated tsvector/GIN/websearch/ts_rank_cd is the default"
+    assert_includes result["summary"], "Unknown or tied restatement timelines conservatively block"
+    assert_includes result["summary"], "transmitted data cannot be recalled"
+    assert_includes result["summary"], "No live/paid requests"
+    assert_includes result["sources"], "test/services/research_retriever_test.rb"
   end
 
   def test_retrieves_equibles_contract_review_without_claiming_complete_account_verification

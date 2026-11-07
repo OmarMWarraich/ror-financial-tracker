@@ -580,17 +580,107 @@ not live provider acceptance or complete RAG/agent behavior.
 
 #### M3 temporal and hybrid retrieval
 
-M3's local storage/provenance slice adds timestamp basis/confidence and original
-offsets or raw date-only/placeholder values without inventing historical
-availability. Legacy provenance remains explicitly unverified. Source verification
-is separate from first receipt: a successful unchanged-source refetch can refresh
-the relevance recheck deadline without renewing knowability or deletion.
-Generated PostgreSQL English full-text storage and owner-scoped query usage
-receipts coexist with the existing relational/vector tables. A completed current
-corpus can activate with unknown publication history; the M1 strict nearest
-primitive still excludes it. Hybrid/current/as-of retrieval, latest-event
-selection and guarded model-context dispatch are validated in the next slice.
-No live permissions or model inference/chat is enabled by this schema.
+`Research::Retriever` implements Rails-owned retrieval/context preparation, not
+a chatbot or inference/agent runtime. It uses the same owner-scoped M2 corpus,
+permissions and budget ledger; private access still defaults off.
+
+- **Time/provenance:** eight UTC clocks distinguish event, publication,
+  knowability, first receipt, last source verification, indexing, relevance
+  recheck and deletion. Original offsets and raw date-only/placeholder values
+  survive; missing instants stay null. Immutable timestamp basis/confidence and
+  ingested UTC proof prevent a changed timestamp from proving historical access.
+  Legacy rows are not backfilled with invented provenance.
+- **Reverification, not renewal:** a successful unchanged-source fetch updates
+  verification/freshness only, never first receipt, knowability or deletion.
+  Replaying an already-ready ingestion performs no fetch and cannot refresh it.
+- **Modes:** `current` accepts labelled unknown publication/knowability, not
+  future-dated evidence. `as_of` requires historical permission and a confirmed,
+  revision-specific known-time proof at/before the explicit offset-bearing
+  cutoff. It selects the then-known version even if downloaded/indexed later.
+  Unknown or tied restatement histories conservatively block the document;
+  failed/newer versions cannot cause an older revision to masquerade as valid.
+- **Relevance vs retention:** current earnings need a fresh source recheck;
+  latest earnings need freshly resolved authoritative metadata (at most 15
+  minutes, capped by owner policy). Filings are not aged out solely by event
+  age. Quote rules use observation age (120 seconds), and company-fact rules
+  have no blanket age cutoff; these two rules do not add ingestion connectors
+  or expand the currently allowed corpus. Hard rights/revocation/retention
+  always apply, including shortened current policy limits. Stale text remains
+  distinct from text that must be deleted; physical disposal/backups remain M8.
+- **Database eligibility first:** owner, active/versioned hybrid space, exact
+  provider/listing/presentation-instrument, fiscal period, source kind,
+  approval reference, current rights, lifecycle and temporal mode are filtered
+  before ranking. M1 `nearest` stays a strict storage primitive, not this
+  application query interface. Complete indexing can activate a space even
+  when publication history is unknown.
+- **Keyword baseline and optional hybrid:** generated English `tsvector`/GIN,
+  `websearch_to_tsquery` and `ts_rank_cd` supply keyword ranking. Explicit
+  `strategy: "hybrid"` adds exact cosine candidates with distance <=0.5
+  (similarity >=0.5), fused with reciprocal ranks `1/(60 + rank)` per channel.
+  Each channel is capped at 100 candidates; equal checksums are deduplicated.
+  Optional recency breaks fused-score ties using known dates, not receipt.
+  Materialized eligible rows/distances prevent a future ANN index from
+  truncating this exact baseline. Queries have a five-second SQL timeout,
+  restored transaction-local settings, and deterministic ID tie breaks.
+  **Keyword is the default:** M0's required hybrid quality gain is not proven
+  by fixture tests or ANN timings; adoption/evaluation remains M9.
+- **Latest earnings:** resolve the fixed REST investor-event listing first,
+  including uncaptured/tombstoned events, then verify the exact event/period.
+  A bounded 50-event window, future events, ordering/count/identity failures,
+  placeholders, unknown dates or missing material produce explicit absence or
+  errors. Select only a matching latest-event brief, otherwise its complete
+  exact-period transcript. Never use an older brief or derive "latest" from
+  the ingested corpus. At most two metadata requests share the existing owner
+  quote-account quota; no app-wide provider-key quota guarantee is implied.
+- **Bounds/accounting:** queries <=500 cl100k tokens, <=2,000 characters and
+  <=4,096 bytes; context <=6 passages, <=6,000 actual serialized JSON tokens
+  (default 4,000), <=64 KiB, request deadline 90 seconds. Context includes IDs,
+  citation spans/URLs, dates, fiscal period and uncertainty. `no_evidence` and
+  `stale_only` never synthesize a replacement source. Query embeddings use the
+  official bounded SDK and the same daily/global/owner M2 reservations, with
+  cross-request uncertainty blocking and known usage reconciliation.
+  Durable requests retain digests/selectors/IDs, not raw questions or query
+  vectors. Idempotent completed requests recheck the original selection;
+  changed/expired evidence requires a new request, not an implicit paid retry.
+- **Dispatch/publication:** `EvidenceSet#dispatch!` rechecks live permissions,
+  source credentials, selected fingerprints/current revision, expiry and space
+  just before yielding model context outside database transactions. It locks
+  selected passage/revision/document rows and rechecks before invoking the
+  local transactional publisher. Revoked/expired/changed evidence prevents
+  publication; already-transmitted data cannot be recalled. The model block
+  and local-only publisher are integration contracts for M4-M7, not an
+  implemented inference adapter, conversation store or streaming UI.
+
+Example with an already ingested, owned original-fixture space:
+
+```ruby
+result = Research::Retriever.new(
+  user: current_user, space: space, request_key: SecureRandom.uuid,
+  query: "How did revenue change?", listing_identity: "SYNTH:ALPHA",
+  mode: "latest_earnings" # Keyword baseline; add strategy: "hybrid" explicitly to evaluate it.
+).call
+
+if result.status == "ready"
+  context = result.context_json # Revalidates; no provider call.
+else
+  [result.status, result.reason] # Explicit no-evidence/stale-only outcome.
+end
+```
+
+For exact questions pass `fiscal_year: 2026, fiscal_period: "Q3"`. Historical
+questions additionally use `mode: "as_of", as_of: "2026-11-01T00:00:00Z"`.
+Synthetic vectors are demonstrative hashes, not semantic financial research.
+No real provider/paid request, permission enablement or M0/M9 end-to-end
+quality/budget/latency acceptance follows from this implementation.
+
+Local validation (2026-11-07): **301 tests / 3,547 assertions**, plus knowledge
+**28 / 266**, passed. Production image/assets, running-image eager loading,
+healthy web/worker/scheduler/sign-in and a real Sidekiq v1/v2 original-fixture
+latest/as-of/hybrid-receipt/guarded-publication smoke passed. The fixture made
+zero external calls/spend and was removed completely. Pre/post-schema isolated
+restore preserved public rows/indexes/ledger triggers and populated vectors
+without changing the source PostgreSQL volume. Adversarial tests and EXPLAIN
+show the exact eligible baseline is not truncated by the trial HNSW index.
 
 ## Local Setup (Without Containers)
 
