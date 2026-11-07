@@ -76,6 +76,8 @@ module Research
       { "source_id" => document.source_id, "document_id" => document.id, "revision_id" => revision.id,
         "source_revision" => revision.source_revision, "passage_id" => passage.id, "checksum" => passage.checksum,
         "provider" => document.provider, "source_kind" => document.source_kind,
+        "provider_event_id" => revision.source_metadata["provider_event_id"],
+        "coverage" => revision.source_metadata["coverage"],
         "instrument_identity" => document.instrument_identity, "listing_identity" => document.listing_identity,
         "fiscal_year" => document.fiscal_year, "fiscal_period" => document.fiscal_period,
         "citation_url" => document.citation_url, "content" => passage.content,

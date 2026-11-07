@@ -55,7 +55,9 @@ module Research
           run = user.research_agent_runs.create!(conversation: conversation, request_key: request_key,
             query_digest: Digest::SHA256.hexdigest(query), selectors: selectors, limits: limits, pricing: Limits.pricing,
             credential_fingerprints: fingerprints,
-            provider: provider, model: draft.model, prompt_version: PROMPT_VERSION, workflow_version: WORKFLOW,
+            provider: provider, model: draft.model,
+            prompt_version: selectors["workflow"] ? EarningsWorkflow::PROMPT_VERSION : PROMPT_VERSION,
+            workflow_version: selectors["workflow"] || WORKFLOW,
             state: "queued", budget_date: Time.current.utc.to_date, reserved_cost_nanos: hold,
             source_connection: source, reserved_source_requests: source ? limits["source_requests"] : 0,
             deadline_at: [Time.current + limits["seconds"], conversation.expires_at, evidence&.request&.deadline_at].compact.min)

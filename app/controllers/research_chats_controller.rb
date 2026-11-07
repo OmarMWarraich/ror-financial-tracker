@@ -17,10 +17,20 @@ class ResearchChatsController < ApplicationController
   end
 
   def create
-    input = params.require(:research_chat).permit(:question, :request_key, :conversation_id)
+    input = params.require(:research_chat).permit(:question, :request_key, :conversation_id, :workflow,
+      preferences: %i[output_tokens tools seconds])
     conversation = current_user.research_conversations.find(input[:conversation_id]) if input[:conversation_id].present?
+    workflow = conversation ? conversation.scope["workflow"] : (input[:workflow].presence || Research::Agent::EarningsWorkflow::ID)
+    if conversation && input[:workflow].present? && input[:workflow] != workflow
+      raise Research::Error.new("workflow_not_approved")
+    end
+    preferences = (input[:preferences] || {}).to_h.reject { |_, value| value.blank? }.transform_values do |value|
+      raise Research::Error.new("invalid_agent_limits") unless value.is_a?(String) && value.match?(/\A[0-9]{1,5}\z/)
+      value.to_i
+    end
     run = Research::Agent::Lifecycle.submit!(user: current_user, query: input[:question],
       request_key: input[:request_key], conversation: conversation,
+      preferences: preferences, workflow: workflow, query_mode: workflow ? "latest_earnings" : "current",
       listing_identity: "SYNTH:ALPHA", fiscal_year: 2026, fiscal_quarter: 3, evidence_mode: "fixture")
     redirect_to research_chat_path(run.conversation), status: :see_other
   rescue Research::Error => error

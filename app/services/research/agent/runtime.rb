@@ -10,7 +10,7 @@ module Research
       def initialize(user:, query:, request_key:, listing_identity:, fiscal_year:, fiscal_quarter:,
                      evidence_mode: "fixture", query_mode: "current", evidence: nil, model: nil, tools: nil,
                      policy: nil, cancellation: Cancellation.new, events: nil, publisher: nil, tools_factory: nil,
-                     run: nil, lease_token: nil)
+                     run: nil, lease_token: nil, workflow: nil)
         @user, @query, @request_key = user, query, request_key
         @evidence, @model, @tools, @cancellation, @sink, @publisher = evidence, model, tools, cancellation, events, publisher
         @policy = policy || Policy.new(user)
@@ -26,6 +26,10 @@ module Research
           @forbidden << user.equibles_connection.api_key.to_s.strip
         end
         Agent.safe_text!(query, forbidden: @forbidden, bytes: 4096)
+        if workflow
+          EarningsWorkflow.validate!(workflow, query: query, scope: @selectors)
+          @selectors["workflow"] = workflow
+        end
         unless query.present? && query.length <= 2000 && @tokenizer.tokens(query) <= 500 &&
                request_key.is_a?(String) && request_key.present? && request_key.length <= 128 &&
                %w[fixture retained live_mcp mixed].include?(evidence_mode) && %w[current latest_earnings as_of].include?(query_mode) &&
@@ -34,7 +38,8 @@ module Research
                fiscal_quarter.is_a?(Integer) && fiscal_quarter.between?(1, 4) &&
                (evidence_mode != "fixture" || [listing_identity, fiscal_year, fiscal_quarter] == ["SYNTH:ALPHA", 2026, 3]) &&
                (query_mode != "as_of" || evidence_mode == "retained") &&
-               (query_mode != "latest_earnings" || evidence) &&
+               (query_mode != "latest_earnings" || evidence || (workflow && evidence_mode == "fixture")) &&
+               (!workflow || query_mode == "latest_earnings") &&
                (evidence.nil? || (evidence.is_a?(EvidenceSet) && evidence.request.user_id == user.id)) &&
                (!%w[retained mixed].include?(evidence_mode) || evidence)
           raise Research::Error.new("invalid_agent_parameters")
@@ -81,6 +86,7 @@ module Research
         cache = {}
         history = conversation_history + [{ "role" => "user", "content" => JSON.generate("question" => @query,
           "query_mode" => @selectors["query_mode"], "scope" => @selectors, "evidence" => sources) }]
+        history.unshift({ "role" => "developer", "content" => EarningsWorkflow::PROMPT }) if @selectors["workflow"]
         @limits["steps"].times do
           check!
           raise Research::Error.new("agent_context_budget_exceeded") if @tokenizer.tokens(JSON.generate([history, definitions])) > @limits["history_tokens"]
@@ -91,14 +97,18 @@ module Research
           if response.tool_calls.empty?
             raise Research::Error.new("no_evidence_for_dispatch") if sources.empty?
             Agent.safe_text!(response.text, forbidden: @forbidden)
-            raise Research::Error.new("agent_answer_missing_citation") unless sources.any? { |source| response.text.include?(source.fetch("source_id")) }
+            if !@selectors["workflow"] && sources.none? { |source| response.text.include?(source.fetch("source_id")) }
+              raise Research::Error.new("agent_answer_missing_citation")
+            end
+            answer = @selectors["workflow"] ? EarningsWorkflow.answer(response.text, sources: sources, scope: @selectors,
+              event: latest_event) : { text: response.text, status: "completed" }
             close_tools!
-            result = Result.new(run_id: @run.id, status: "completed", text: response.text, sources: sources,
+            result = Result.new(run_id: @run.id, status: answer.fetch(:status), text: answer.fetch(:text), sources: sources,
               usage: @run.model_attempts.order(:step).map { |row| { "input_tokens" => row.actual_input_tokens, "output_tokens" => row.actual_output_tokens } })
             publish!(result)
-            deltas = response.deltas.present? && response.deltas.join == response.text ? response.deltas : [response.text]
+            deltas = !@selectors["workflow"] && response.deltas.present? && response.deltas.join == response.text ? response.deltas : [result.text]
             deltas.each { |text| @events.emit("text.delta", "text" => text, "validated" => true) }
-            @events.emit("run.completed", "origins" => sources.map { |source| source["origin"] || source["provider"] }.uniq,
+            @events.emit(result.status == "completed" ? "run.completed" : "run.no_evidence", "origins" => sources.map { |source| source["origin"] || source["provider"] }.uniq,
               "synthetic" => sources.all? { |source| source["synthetic"] })
             return result
           end
@@ -184,7 +194,9 @@ module Research
           @run = ResearchAgentRun.create!(user: @user, request_key: @request_key, query_digest: Digest::SHA256.hexdigest(@query),
             selectors: @selectors, provider: @selectors["evidence_mode"] == "fixture" ? "fixture" : "openai",
             model: @selectors["evidence_mode"] == "fixture" ? "original-fixture-v1" : MODEL,
-            prompt_version: PROMPT_VERSION, deadline_at: [Time.current + 90.seconds, @evidence&.request&.deadline_at].compact.min)
+            prompt_version: @selectors["workflow"] ? EarningsWorkflow::PROMPT_VERSION : PROMPT_VERSION,
+            workflow_version: @selectors["workflow"] || Lifecycle::WORKFLOW,
+            deadline_at: [Time.current + 90.seconds, @evidence&.request&.deadline_at].compact.min)
         end
       end
 
@@ -252,6 +264,7 @@ module Research
 
       def latest_event
         return unless @selectors["query_mode"] == "latest_earnings"
+        return EarningsWorkflow.fixture_event if @selectors["workflow"] && @selectors["evidence_mode"] == "fixture"
         @evidence.check_request!
         event = @evidence.request.latest_event
         raise Research::Error.new("latest_event_unavailable") unless event.present? && event["reason"].nil? && event["event_at"]
@@ -295,7 +308,9 @@ module Research
           @user.equibles_connection&.lock! if @run.provider != "fixture"
           check!
           @publisher&.call(value)
-          @run.update!(state: "completed", finished_at: Time.current, lease_token: nil, lease_until: nil)
+          @run.update!(state: value.status == "completed" ? "completed" : "no_evidence",
+            error_code: value.status == "completed" ? nil : "workflow_abstained",
+            finished_at: Time.current, lease_token: nil, lease_until: nil)
         end
         if @evidence&.status == "ready"
           @evidence.dispatch!(publisher: publisher) { result }

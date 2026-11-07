@@ -42,6 +42,7 @@ class ResearchRetrieverTest < ActiveSupport::TestCase
     assert_equal "Q3", data["sources"].first["fiscal_period"]
     assert_equal 8, data["sources"].first["dates"].size
     assert_equal "original_fixture", data["sources"].first["dates"]["known_at"]["basis"]
+    assert_equal @part.revision.source_metadata["provider_event_id"], data["sources"].first["provider_event_id"]
     assert data["sources"].first["synthetic"]
     assert_equal 1, @embedder.calls
     assert_not @embedder.transaction_open

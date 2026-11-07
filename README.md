@@ -1124,6 +1124,33 @@ completion (encrypted messages/receipts, zero external calls or cost), and full
 schema/data/index/trigger/populated-vector restore passed without replacing
 the original database volume.
 
+### M7 grounded earnings workflow
+
+New fixture chats select the operator-owned `latest_earnings_v1` workflow,
+with immutable `research-tools-v1/earnings-quotes-v1` prompt provenance.
+Existing backend/legacy conversations retain their workflow. The native Rails
+composer exposes approved workflow selection and lowering-only output/tool/time
+caps; followups cannot raise the conversation ceiling or silently switch an
+explicit listing/fiscal period.
+
+The workflow resolves the exact authoritative latest event before selecting
+its transcript/brief evidence. Each turn retrieves and rechecks evidence anew.
+Output is deliberately **extractive**, not unverified financial paraphrasing:
+strict JSON selects bounded verbatim quotations from supplied source IDs for
+summary/results/outlook/risks. Event, listing and period must match. Transcript
+forecast excerpts require a management label and cannot be labelled reported
+results; briefs are provider interpretation, not independently verified facts.
+Selection is labelled model synthesis; quotation support does not prove
+real-world truth or general semantic correctness. Unknown publication history,
+partial coverage and absent guidance/risks remain explicit.
+
+Conflicts or insufficient material require empty-claim abstention, saved as
+incomplete/no-evidence rather than a financial answer. Malformed/unsupported
+claims fail explicitly before text publication while retaining settled known
+usage. Source text and tools cannot change operator prompts, permissions or
+limits. Native chat acceptance and separately authorized live-model quality
+evaluation remain open; paid/private inference is still disabled.
+
 ### M6 authenticated research chat
 
 Set the operator flag `RESEARCH_CHAT_ENABLED=1` to expose `/research_chats`;

@@ -10,11 +10,13 @@ module Research
           **run.selectors.except("as_of").symbolize_keys, evidence: evidence, model: model, tools_factory: tools_factory,
           run: run, lease_token: token, events: events, publisher: ->(result) {
             dates = result.sources.flat_map { |source| [source["fresh_until"], source["expires_at"]].compact }.map { |value| Time.iso8601(value) }
-            run.messages.create!(user: run.user, conversation: run.conversation, role: "assistant", state: "complete",
+            run.messages.create!(user: run.user, conversation: run.conversation, role: "assistant",
+              state: result.status == "completed" ? "complete" : "incomplete",
               content: result.text, source_ids: result.sources.map { |source| source.fetch("source_id") },
               sources: result.sources.map { |source| source.slice("source_id", "origin", "synthetic", "citation_url",
                 "listing_identity", "fiscal_year", "fiscal_quarter", "fiscal_period", "event_at", "published_at", "known_at",
-                "fresh_until", "expires_at", "dates", "uncertainty") },
+                "fresh_until", "expires_at", "dates", "uncertainty", "document_id", "revision_id", "passage_id",
+                "checksum", "source_revision", "source_kind", "tool", "coverage", "provider_event_id", "event_date", "source_timezone") },
               expires_at: [run.conversation.expires_at, *dates].min)
           }).call
         if result.text.nil?

@@ -1,11 +1,27 @@
 <%= form_with url: research_chats_path, scope: :research_chat, data: { turbo: false }, class: "research-composer" do |form| %>
   <%= form.hidden_field :request_key, value: SecureRandom.uuid %>
   <%= form.hidden_field :conversation_id, value: conversation&.id %>
+  <% if conversation %>
+    <%= form.hidden_field :workflow, value: conversation.scope["workflow"] %>
+    <p>Workflow: <%= conversation.scope["workflow"] || "research-agent-v1 (legacy)" %>. Company and period stay fixed.</p>
+  <% else %>
+    <%= form.label :workflow, "Approved workflow", class: "form-label" %>
+    <%= form.select :workflow, [["Latest earnings / grounded excerpts", Research::Agent::EarningsWorkflow::ID]], {}, class: "form-control mb-2" %>
+  <% end %>
   <%= form.label :question, "Research question", class: "form-label" %>
   <%= form.text_area :question, required: true, maxlength: 2000, rows: 3,
     class: "form-control mb-2", aria: { describedby: "research-question-help" },
     placeholder: "Summarize original fictional Alpha earnings." %>
   <p id="research-question-help" class="text-muted">Original SYNTH:ALPHA / 2026 Q3. At most four turns, 90 seconds/run,
     four model steps, six tools and 4,096 output tokens. Preferences cannot raise operator limits.</p>
+  <% limits = conversation&.limits || Research::Agent::Limits::DEFAULT %>
+  <details>
+    <summary>Lower run limits</summary>
+    <% { "output_tokens" => "Output token limit", "tools" => "Tool call limit", "seconds" => "Time limit (seconds)" }.each do |key, label| %>
+      <label for="research-limit-<%= key %>"><%= label %></label>
+      <input type="number" id="research-limit-<%= key %>" name="research_chat[preferences][<%= key %>]"
+        min="1" max="<%= limits.fetch(key) %>" value="<%= limits.fetch(key) %>" class="form-control mb-2">
+    <% end %>
+  </details>
   <%= render_button "Send research question", type: :submit %>
 <% end %>

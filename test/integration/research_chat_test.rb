@@ -133,6 +133,25 @@ class ResearchChatTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_user_session_path
   end
 
+  test "workflow and lowered limits are server controlled and cannot be raised in followups" do
+    sign_in @user
+    input = { question: "Original Alpha question.", request_key: SecureRandom.uuid, workflow: "latest_earnings_v1",
+      preferences: { output_tokens: "1500", tools: "3", seconds: "60" } }
+    ResearchAgentJob.stub(:perform_async, ->(*) { "original-offline-job" }) do
+      post research_chats_path, params: { research_chat: input }
+      run = @user.research_agent_runs.first
+      assert_equal "latest_earnings_v1", run.workflow_version
+      assert_equal [1500, 3, 60], run.limits.values_at("output_tokens", "tools", "seconds")
+      Research::Agent::Execution.call(run)
+      [["arbitrary-user-prompt", "1200"], ["latest_earnings_v1", "4096"]].each do |workflow, output|
+        post research_chats_path, params: { research_chat: input.merge(request_key: SecureRandom.uuid,
+          conversation_id: run.conversation_id, workflow: workflow, preferences: { output_tokens: output }) }
+        assert_response :see_other
+        assert_equal 1, @user.research_agent_runs.count
+      end
+    end
+  end
+
   test "stream batches invalidate only canonical state and outage cannot corrupt completed publication" do
     run = submit(@user)
     updates = Research::Chat::Updates.new(run)
