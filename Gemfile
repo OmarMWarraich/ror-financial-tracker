@@ -10,6 +10,7 @@ gem "sprockets-rails"
 
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.1"
+gem "neighbor", "0.6.0"
 gem "sidekiq", "~> 8.0"
 # connection_pool 3 uses forwarding syntax unsupported by Ruby 3.3.0.
 gem "connection_pool", "~> 2.5"

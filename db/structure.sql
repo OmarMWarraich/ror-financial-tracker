@@ -1,4 +1,4 @@
-\restrict Btr6rwYoTS9ksLNzwfGkacpJVomDQnmRkMjwpVlmbiAtLTIe8YJTyNnOz1O9ozt
+\restrict EVlcvxhwo2GpxyPmV5Wo2VLERSVey4wcnGlrXuJVGB17RUCp9IYAVilGIJP4qmv
 
 -- Dumped from database version 16.15 (Debian 16.15-1.pgdg13+2)
 -- Dumped by pg_dump version 16.15 (Debian 16.15-1.pgdg12+2)
@@ -13,6 +13,40 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: vector; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION vector; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION vector IS 'vector data type and ivfflat and hnsw access methods';
+
+
+--
+-- Name: research_space_preserve_identity(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.research_space_preserve_identity() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  IF ROW(NEW.user_id, NEW.provider, NEW.model, NEW.model_version, NEW.dimensions,
+         NEW.distance, NEW.preprocessing_version, NEW.chunker_version)
+     IS DISTINCT FROM
+     ROW(OLD.user_id, OLD.provider, OLD.model, OLD.model_version, OLD.dimensions,
+         OLD.distance, OLD.preprocessing_version, OLD.chunker_version) THEN
+    RAISE EXCEPTION 'Embedding space identity is immutable; create a new version';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
 
 --
 -- Name: sandbox_reject_mutation(); Type: FUNCTION; Schema: public; Owner: -
@@ -165,6 +199,215 @@ CREATE SEQUENCE public.friendships_id_seq
 --
 
 ALTER SEQUENCE public.friendships_id_seq OWNED BY public.friendships.id;
+
+
+--
+-- Name: research_documents; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_documents (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    provider character varying NOT NULL,
+    source_kind character varying NOT NULL,
+    source_id character varying NOT NULL,
+    instrument_identity character varying NOT NULL,
+    listing_identity character varying NOT NULL,
+    fiscal_year integer NOT NULL,
+    fiscal_period character varying NOT NULL,
+    citation_url character varying NOT NULL,
+    entitlement_reference character varying NOT NULL,
+    rights_expires_at timestamp(6) without time zone NOT NULL,
+    revoked_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT research_document_identity CHECK ((((provider)::text <> ''::text) AND ((source_id)::text <> ''::text) AND ((instrument_identity)::text <> ''::text) AND ((listing_identity)::text <> ''::text) AND ((entitlement_reference)::text <> ''::text) AND ((citation_url)::text ~ '^https://[^[:space:]]+$'::text) AND (fiscal_year > 0) AND ((fiscal_period)::text = ANY ((ARRAY['Q1'::character varying, 'Q2'::character varying, 'Q3'::character varying, 'Q4'::character varying, 'FY'::character varying])::text[])) AND ((source_kind)::text = ANY ((ARRAY['earnings_brief'::character varying, 'earnings_transcript'::character varying, 'filing'::character varying])::text[]))))
+);
+
+
+--
+-- Name: research_documents_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_documents_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_documents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_documents_id_seq OWNED BY public.research_documents.id;
+
+
+--
+-- Name: research_embedding_spaces; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_embedding_spaces (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    provider character varying NOT NULL,
+    model character varying NOT NULL,
+    model_version character varying NOT NULL,
+    dimensions integer DEFAULT 1536 NOT NULL,
+    distance character varying DEFAULT 'cosine'::character varying NOT NULL,
+    preprocessing_version character varying NOT NULL,
+    chunker_version character varying NOT NULL,
+    state character varying DEFAULT 'building'::character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT research_space_contract CHECK ((((provider)::text <> ''::text) AND ((model)::text <> ''::text) AND ((model_version)::text <> ''::text) AND ((preprocessing_version)::text <> ''::text) AND ((chunker_version)::text <> ''::text) AND (dimensions = 1536) AND ((distance)::text = 'cosine'::text) AND ((state)::text = ANY ((ARRAY['building'::character varying, 'active'::character varying, 'retired'::character varying])::text[]))))
+);
+
+
+--
+-- Name: research_embedding_spaces_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_embedding_spaces_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_embedding_spaces_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_embedding_spaces_id_seq OWNED BY public.research_embedding_spaces.id;
+
+
+--
+-- Name: research_embeddings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_embeddings (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    passage_id bigint NOT NULL,
+    space_id bigint NOT NULL,
+    preprocessing_version character varying NOT NULL,
+    chunker_version character varying NOT NULL,
+    input_checksum character varying NOT NULL,
+    embedding public.vector(1536) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT research_embedding_nonzero CHECK ((public.vector_norm(embedding) > (0)::double precision))
+);
+
+
+--
+-- Name: research_embeddings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_embeddings_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_embeddings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_embeddings_id_seq OWNED BY public.research_embeddings.id;
+
+
+--
+-- Name: research_passages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_passages (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    revision_id bigint NOT NULL,
+    preprocessing_version character varying NOT NULL,
+    chunker_version character varying NOT NULL,
+    "position" integer NOT NULL,
+    start_char integer NOT NULL,
+    end_char integer NOT NULL,
+    start_line integer,
+    end_line integer,
+    speaker character varying,
+    token_count integer NOT NULL,
+    content text NOT NULL,
+    checksum character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT research_passage_content_and_position CHECK ((((preprocessing_version)::text <> ''::text) AND ((chunker_version)::text <> ''::text) AND ("position" >= 0) AND (start_char >= 0) AND (end_char > start_char) AND ((end_char - start_char) = char_length(content)) AND (token_count > 0) AND (token_count <= 800) AND ((checksum)::text = encode(sha256(convert_to(content, 'UTF8'::name)), 'hex'::text)) AND (((start_line IS NULL) AND (end_line IS NULL)) OR ((start_line IS NOT NULL) AND (end_line IS NOT NULL) AND (start_line > 0) AND (end_line >= start_line)))))
+);
+
+
+--
+-- Name: research_passages_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_passages_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_passages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_passages_id_seq OWNED BY public.research_passages.id;
+
+
+--
+-- Name: research_revisions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.research_revisions (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    document_id bigint NOT NULL,
+    source_revision character varying NOT NULL,
+    content text NOT NULL,
+    checksum character varying NOT NULL,
+    event_at timestamp(6) without time zone,
+    published_at timestamp(6) without time zone,
+    known_at timestamp(6) without time zone,
+    received_at timestamp(6) without time zone NOT NULL,
+    indexed_at timestamp(6) without time zone,
+    fresh_until timestamp(6) without time zone,
+    expires_at timestamp(6) without time zone NOT NULL,
+    revoked_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT research_revision_content_and_lifetime CHECK ((((source_revision)::text <> ''::text) AND (content <> ''::text) AND ((checksum)::text = encode(sha256(convert_to(content, 'UTF8'::name)), 'hex'::text)) AND (expires_at > received_at) AND ((fresh_until IS NULL) OR (fresh_until <= expires_at))))
+);
+
+
+--
+-- Name: research_revisions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.research_revisions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: research_revisions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.research_revisions_id_seq OWNED BY public.research_revisions.id;
 
 
 --
@@ -462,6 +705,41 @@ ALTER TABLE ONLY public.friendships ALTER COLUMN id SET DEFAULT nextval('public.
 
 
 --
+-- Name: research_documents id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_documents ALTER COLUMN id SET DEFAULT nextval('public.research_documents_id_seq'::regclass);
+
+
+--
+-- Name: research_embedding_spaces id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_embedding_spaces ALTER COLUMN id SET DEFAULT nextval('public.research_embedding_spaces_id_seq'::regclass);
+
+
+--
+-- Name: research_embeddings id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_embeddings ALTER COLUMN id SET DEFAULT nextval('public.research_embeddings_id_seq'::regclass);
+
+
+--
+-- Name: research_passages id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_passages ALTER COLUMN id SET DEFAULT nextval('public.research_passages_id_seq'::regclass);
+
+
+--
+-- Name: research_revisions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_revisions ALTER COLUMN id SET DEFAULT nextval('public.research_revisions_id_seq'::regclass);
+
+
+--
 -- Name: sandbox_accounts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -540,6 +818,46 @@ ALTER TABLE ONLY public.equibles_connections
 
 ALTER TABLE ONLY public.friendships
     ADD CONSTRAINT friendships_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_documents research_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_documents
+    ADD CONSTRAINT research_documents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_embedding_spaces research_embedding_spaces_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_embedding_spaces
+    ADD CONSTRAINT research_embedding_spaces_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_embeddings research_embeddings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_embeddings
+    ADD CONSTRAINT research_embeddings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_passages research_passages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_passages
+    ADD CONSTRAINT research_passages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: research_revisions research_revisions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_revisions
+    ADD CONSTRAINT research_revisions_pkey PRIMARY KEY (id);
 
 
 --
@@ -642,6 +960,111 @@ CREATE INDEX index_friendships_on_user_id ON public.friendships USING btree (use
 
 
 --
+-- Name: index_research_documents_on_id_and_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_documents_on_id_and_user_id ON public.research_documents USING btree (id, user_id);
+
+
+--
+-- Name: index_research_documents_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_documents_on_user_id ON public.research_documents USING btree (user_id);
+
+
+--
+-- Name: index_research_embedding_spaces_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_embedding_spaces_on_user_id ON public.research_embedding_spaces USING btree (user_id);
+
+
+--
+-- Name: index_research_embeddings_on_passage_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_embeddings_on_passage_id ON public.research_embeddings USING btree (passage_id);
+
+
+--
+-- Name: index_research_embeddings_on_space_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_embeddings_on_space_id ON public.research_embeddings USING btree (space_id);
+
+
+--
+-- Name: index_research_embeddings_on_space_id_and_passage_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_embeddings_on_space_id_and_passage_id ON public.research_embeddings USING btree (space_id, passage_id);
+
+
+--
+-- Name: index_research_embeddings_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_embeddings_on_user_id ON public.research_embeddings USING btree (user_id);
+
+
+--
+-- Name: index_research_passages_on_revision_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_passages_on_revision_id ON public.research_passages USING btree (revision_id);
+
+
+--
+-- Name: index_research_passages_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_passages_on_user_id ON public.research_passages USING btree (user_id);
+
+
+--
+-- Name: index_research_revisions_on_document_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_revisions_on_document_id ON public.research_revisions USING btree (document_id);
+
+
+--
+-- Name: index_research_revisions_on_document_id_and_source_revision; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_revisions_on_document_id_and_source_revision ON public.research_revisions USING btree (document_id, source_revision);
+
+
+--
+-- Name: index_research_revisions_on_expires_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_revisions_on_expires_at ON public.research_revisions USING btree (expires_at);
+
+
+--
+-- Name: index_research_revisions_on_id_and_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_research_revisions_on_id_and_user_id ON public.research_revisions USING btree (id, user_id);
+
+
+--
+-- Name: index_research_revisions_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_revisions_on_user_id ON public.research_revisions USING btree (user_id);
+
+
+--
+-- Name: index_research_revisions_on_user_id_and_known_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_research_revisions_on_user_id_and_known_at ON public.research_revisions USING btree (user_id, known_at);
+
+
+--
 -- Name: index_sandbox_accounts_on_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -719,10 +1142,66 @@ CREATE UNIQUE INDEX index_users_on_reset_password_token ON public.users USING bt
 
 
 --
+-- Name: one_active_research_space; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX one_active_research_space ON public.research_embedding_spaces USING btree (user_id) WHERE ((state)::text = 'active'::text);
+
+
+--
 -- Name: one_active_sandbox_mandate; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX one_active_sandbox_mandate ON public.sandbox_mandates USING btree (sandbox_account_id) WHERE ((state)::text = 'active'::text);
+
+
+--
+-- Name: research_document_period; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX research_document_period ON public.research_documents USING btree (user_id, listing_identity, fiscal_year, fiscal_period);
+
+
+--
+-- Name: research_document_source; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX research_document_source ON public.research_documents USING btree (user_id, provider, source_kind, source_id);
+
+
+--
+-- Name: research_passage_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX research_passage_identity ON public.research_passages USING btree (id, user_id, checksum, preprocessing_version, chunker_version);
+
+
+--
+-- Name: research_passage_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX research_passage_position ON public.research_passages USING btree (revision_id, preprocessing_version, chunker_version, "position");
+
+
+--
+-- Name: research_space_identity; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX research_space_identity ON public.research_embedding_spaces USING btree (id, user_id, preprocessing_version, chunker_version);
+
+
+--
+-- Name: research_space_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX research_space_version ON public.research_embedding_spaces USING btree (user_id, provider, model, model_version, preprocessing_version, chunker_version);
+
+
+--
+-- Name: research_embedding_spaces research_space_identity_immutable; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER research_space_identity_immutable BEFORE UPDATE ON public.research_embedding_spaces FOR EACH ROW EXECUTE FUNCTION public.research_space_preserve_identity();
 
 
 --
@@ -737,6 +1216,22 @@ CREATE TRIGGER sandbox_events_immutable BEFORE DELETE OR UPDATE ON public.sandbo
 --
 
 CREATE TRIGGER sandbox_orders_immutable BEFORE DELETE OR UPDATE ON public.sandbox_orders FOR EACH ROW EXECUTE FUNCTION public.sandbox_reject_mutation();
+
+
+--
+-- Name: research_revisions fk_rails_064a67cdb3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_revisions
+    ADD CONSTRAINT fk_rails_064a67cdb3 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: research_embeddings fk_rails_09a47e97e3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_embeddings
+    ADD CONSTRAINT fk_rails_09a47e97e3 FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
@@ -764,11 +1259,27 @@ ALTER TABLE ONLY public.equibles_connections
 
 
 --
+-- Name: research_documents fk_rails_5b18552685; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_documents
+    ADD CONSTRAINT fk_rails_5b18552685 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: user_stocks fk_rails_62699afff5; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.user_stocks
     ADD CONSTRAINT fk_rails_62699afff5 FOREIGN KEY (stock_id) REFERENCES public.stocks(id);
+
+
+--
+-- Name: research_embedding_spaces fk_rails_6fd2668bca; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_embedding_spaces
+    ADD CONSTRAINT fk_rails_6fd2668bca FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
@@ -785,6 +1296,22 @@ ALTER TABLE ONLY public.sandbox_orders
 
 ALTER TABLE ONLY public.sandbox_accounts
     ADD CONSTRAINT fk_rails_986e222674 FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: research_passages fk_rails_a0d59c922d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_passages
+    ADD CONSTRAINT fk_rails_a0d59c922d FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: research_embeddings fk_rails_a7f4fe293b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_embeddings
+    ADD CONSTRAINT fk_rails_a7f4fe293b FOREIGN KEY (space_id, user_id, preprocessing_version, chunker_version) REFERENCES public.research_embedding_spaces(id, user_id, preprocessing_version, chunker_version);
 
 
 --
@@ -820,11 +1347,35 @@ ALTER TABLE ONLY public.broker_connections
 
 
 --
+-- Name: research_embeddings fk_rails_cc23758a1c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_embeddings
+    ADD CONSTRAINT fk_rails_cc23758a1c FOREIGN KEY (passage_id, user_id, input_checksum, preprocessing_version, chunker_version) REFERENCES public.research_passages(id, user_id, checksum, preprocessing_version, chunker_version);
+
+
+--
+-- Name: research_passages fk_rails_d1d9e2d012; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_passages
+    ADD CONSTRAINT fk_rails_d1d9e2d012 FOREIGN KEY (revision_id, user_id) REFERENCES public.research_revisions(id, user_id);
+
+
+--
 -- Name: friendships fk_rails_d78dc9c7fd; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.friendships
     ADD CONSTRAINT fk_rails_d78dc9c7fd FOREIGN KEY (friend_id) REFERENCES public.users(id);
+
+
+--
+-- Name: research_revisions fk_rails_db04897481; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.research_revisions
+    ADD CONSTRAINT fk_rails_db04897481 FOREIGN KEY (document_id, user_id) REFERENCES public.research_documents(id, user_id);
 
 
 --
@@ -839,11 +1390,12 @@ ALTER TABLE ONLY public.friendships
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Btr6rwYoTS9ksLNzwfGkacpJVomDQnmRkMjwpVlmbiAtLTIe8YJTyNnOz1O9ozt
+\unrestrict EVlcvxhwo2GpxyPmV5Wo2VLERSVey4wcnGlrXuJVGB17RUCp9IYAVilGIJP4qmv
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261107060000'),
 ('20261105050000'),
 ('20261105043000'),
 ('20261105042000'),

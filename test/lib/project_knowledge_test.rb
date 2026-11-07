@@ -60,6 +60,16 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_includes result["sources"], "bin/pgvector-rehearsal"
   end
 
+  def test_vector_storage_is_implemented_without_claiming_rag_or_provider_access
+    result = @knowledge.search("ResearchEmbeddingSpace").first
+    assert_equal "research-vector-storage", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "Composite foreign keys enforce owner/checksum/chunker/preprocessing consistency"
+    assert_includes result["summary"], "historical cutoffs cannot revive expired material"
+    assert_includes result["summary"], "No ingestion jobs, controller, external model/provider call or RAG/chat runtime is enabled"
+    assert_includes result["sources"], "test/models/research_storage_test.rb"
+  end
+
   def test_retrieves_native_agent_direction_without_claiming_implemented_chat
     result = @knowledge.search("conversational agent").first
     assert_equal "rails-native-research-agent", result["id"]

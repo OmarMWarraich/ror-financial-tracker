@@ -110,7 +110,35 @@ begin
     ROLLBACK;
   SQL
   raise "Vector/relational join failed" unless result.lines.map(&:strip).include?("nearest")
+  query(name, "rehearsal", <<~SQL)
+    CREATE SCHEMA vector_rehearsal;
+    CREATE TABLE vector_rehearsal.records (id integer PRIMARY KEY, label text NOT NULL);
+    CREATE TABLE vector_rehearsal.embeddings (
+      record_id integer REFERENCES vector_rehearsal.records(id), embedding vector(1536) NOT NULL
+    );
+    INSERT INTO vector_rehearsal.records VALUES (1, 'synthetic-roundtrip');
+    INSERT INTO vector_rehearsal.embeddings
+      VALUES (1, array_prepend(1::real, array_fill(0::real, ARRAY[1535]))::vector);
+  SQL
+  roundtrip_backup = File.join(backup_directory, "vector-roundtrip.dump")
+  File.open(roundtrip_backup, File::WRONLY | File::CREAT | File::EXCL, 0o600) do |file|
+    run!("docker", "exec", name, "pg_dump", "-U", "rails", "-d", "rehearsal",
+         "--format=custom", "--no-owner", out: file)
+  end
+  query(name, "rehearsal", "CREATE DATABASE vector_roundtrip TEMPLATE template0")
+  File.open(roundtrip_backup, "rb") do |file|
+    run!("docker", "exec", "-i", name, "pg_restore", "-U", "rails", "-d", "vector_roundtrip",
+         "--no-owner", "--exit-on-error", in: file)
+  end
+  raise "Populated vector roundtrip changed public data" unless before == fingerprint(name, "vector_roundtrip")
+  roundtrip = query(name, "vector_roundtrip", <<~SQL)
+    SELECT label FROM vector_rehearsal.records JOIN vector_rehearsal.embeddings ON record_id = id
+      WHERE vector_dims(embedding) = 1536
+        AND embedding <=> array_prepend(1::real, array_fill(0::real, ARRAY[1535]))::vector = 0;
+  SQL
+  raise "Populated 1536-dimensional vector restore failed" unless roundtrip == "synthetic-roundtrip"
   puts "Restore, complete row fingerprints, indexes, ledger triggers, SQL rollback and pgvector 0.8.1 verified."
+  puts "Populated 1536-dimensional vectors survived a second dump/restore alongside the original public tables."
   puts "The source database and its volume were not modified."
 ensure
   run!("docker", "rm", "--force", name, out: File::NULL) if created

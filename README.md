@@ -288,6 +288,9 @@ docker compose --env-file .env.docker build postgres
 ruby bin/pgvector-rehearsal
 # Only after the rehearsal passes:
 docker compose --env-file .env.docker up -d --no-deps --wait postgres
+docker compose --env-file .env.docker build web
+docker compose --env-file .env.docker run --rm --no-deps prepare
+docker compose --env-file .env.docker up -d --wait web worker scheduler
 ```
 
 [bin/pgvector-rehearsal](bin/pgvector-rehearsal) backs up the running development
@@ -295,7 +298,9 @@ database, restores into a uniquely named, network-isolated temporary container
 using memory-backed scratch storage, and checks every public table's row count
 and content fingerprint, indexes and non-internal triggers. It also checks
 pgvector's exact cosine join, ordinary SQL rollback and the ledger trigger's
-actual rejection behavior. It never writes to the source database. Concurrent
+actual rejection behavior. A second private dump/restore proves populated
+1,536-dimensional vectors survive alongside the original public tables.
+It never writes to the source database. Concurrent
 source changes cause explicit failure; rerun during a quiet window. The helper
 container is removed on success/failure, but the backup is intentionally kept.
 
@@ -327,6 +332,58 @@ the existing database/roles. Extension installation/creation privileges are
 environment-specific; local Compose's `rails` role is a superuser, which is not
 a production least-privilege recommendation. Production availability, privileges,
 backup/restore and target-platform compatibility remain deployment gates.
+
+#### Research storage and exact vector queries
+
+The existing relational database now also contains:
+
+| Model/table | Stored identity and lifecycle |
+| --- | --- |
+| `ResearchDocument` / `research_documents` | Owner, provider/source kind/stable source ID, issuer/instrument and exact listing identity, fiscal year/period, citation URL, entitlement reference, rights deadline and revocation. |
+| `ResearchRevision` / `research_revisions` | Source revision ID, immutable content/checksum, event/publication/known-available/received/indexed times, freshness deadline, retention expiry and revocation. Unknown source availability remains null, not invented from receipt time. |
+| `ResearchPassage` / `research_passages` | Revision/owner, preprocessing and chunker versions, passage position, character/line spans, speaker, token count and immutable text/checksum. |
+| `ResearchEmbeddingSpace` / `research_embedding_spaces` | Owner, provider/model/model version, 1,536 dimensions, cosine metric, preprocessing/chunker versions and building/active/retired state. |
+| `ResearchEmbedding` / `research_embeddings` | Owner, passage, space, input checksum, matching preprocessing/chunker versions and `vector(1536)`. |
+
+Neighbor **0.6.0** supports the locked Ruby 3.3/Rails 7.1 stack; newer 1.x requires
+Rails/Active Record 7.2 or newer and is intentionally not selected.
+The [migration](db/migrate/20261107060000_create_research_storage.rb) enables and
+verifies pgvector 0.8.1 per database. It does not replace existing tables.
+The canonical SQL schema retains both original ledger triggers and the new
+embedding-space identity trigger; do not convert it to Ruby schema format.
+
+Composite foreign keys enforce ownership all the way from document to vector,
+and bind each embedding to its passage checksum and space's chunking versions.
+PostgreSQL also verifies SHA-256 text checksums, passage bounds/line ranges,
+token bounds, nonzero vectors and a single active space per owner. The database
+vector type enforces 1,536 finite float32 values; other dimensions require an
+explicit schema/index review. pgvector 0.8.1's `vector` HNSW/IVFFlat indexes allow
+up to 2,000 dimensions, so 1,536 fits without half-precision conversion.
+
+Create a new building space for any model/version/preprocessing/chunker change.
+The unique `(space_id, passage_id)` key supports resuming missing work without
+duplicate embeddings. `activate!` refuses empty/incomplete eligible coverage,
+retires the previous active space and activates its replacement transactionally,
+without deleting old rows. Space identity is immutable in both Rails and SQL.
+Ordinary ORM research writes, cutover and vector reads share the owner row lock;
+future bulk ingestion/disposal writers must take that same lock. Do not hold it
+across network/model calls. Actual resumable ingestion jobs remain M2 work.
+
+`space.nearest(query_vector, limit: 5)` is an exact-cosine storage primitive,
+not the complete M3 retrieval policy or an authorization API. It validates inputs,
+uses only that owner's active space, and excludes revoked, currently expired or
+unknown/future-available evidence. Historical availability cannot bypass current
+retention/rights expiry. It does not select the latest event/revision, implement
+full-text/hybrid ranking or authorize a provider request. Those remain separate
+M2/M3/workflow gates; no research controller, paid call or real-source ingestion
+was enabled by M1. Metadata references do not themselves establish permission.
+User deletion is restricted while research documents/spaces remain; reviewed
+M8 disposal must handle text, vectors, derived material and backups explicitly.
+
+Validated locally: SQL migration, Rails vector round-trip/distance order,
+cross-owner/checksum/version constraints even with model validations bypassed,
+invalid vectors, retention/availability boundaries, deliberate version cutover,
+normal relational transactions/rollback and surviving ledger triggers.
 
 ## Local Setup (Without Containers)
 
@@ -732,7 +789,7 @@ Selected design candidates, verified against public documentation on 2026-11-07:
 | Purpose | Selection and documented limits | Published standard USD price |
 | --- | --- | --- |
 | Inference | OpenAI Responses API, pinned `gpt-5.4-mini-2026-03-17`; 400,000 context window, 272,000 maximum input, 128,000 maximum output. Supports streaming, function calls and structured outputs. Start with low reasoning; the much smaller application ceilings above prevail. | Per 1M tokens: $0.75 input, $0.075 cached input, $4.50 output; regional processing adds 10% and is not included in this pilot estimate. |
-| Embeddings | OpenAI `/v1/embeddings`, `text-embedding-3-small`; 1,536 dimensions, documented 8,192-token maximum input. Select default 1,536 dimensions and cosine distance in pgvector, pending M1 compatibility/restore tests. | $0.02 per 1M input tokens; no inference output charge for embeddings. |
+| Embeddings | OpenAI `/v1/embeddings`, `text-embedding-3-small`; 1,536 dimensions, documented 8,192-token maximum input. Default 1,536 dimensions and cosine distance validated locally in M1; target deployments must recheck compatibility/restore. | $0.02 per 1M input tokens; no inference output charge for embeddings. |
 
 Use one inference provider first, with no silent model/provider failover.
 GPT-5-mini was considered but its current model page marks it deprecated; it is
