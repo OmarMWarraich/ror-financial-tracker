@@ -188,13 +188,13 @@ See [Gemfile](Gemfile) and [Gemfile.lock](Gemfile.lock) for dependencies.
 ## Local Docker Compose (Recommended)
 
 [compose.yml](compose.yml) runs Rails, Sidekiq, PostgreSQL 16.15 and Redis 7.4.12.
-PostgreSQL and Redis images are digest-pinned; the application keeps Ruby 3.3.0
+The PostgreSQL base and Redis image are digest-pinned; the application keeps Ruby 3.3.0
 and Rails 7.1.3.4. Docker Desktop with Compose v2 or newer is required.
 
 ```sh
 ruby bin/compose-env
 docker compose --env-file .env.docker config --quiet
-docker compose --env-file .env.docker build web
+docker compose --env-file .env.docker build postgres web
 docker compose --env-file .env.docker up -d --wait web worker scheduler
 ```
 
@@ -270,13 +270,71 @@ eager loading, and the final production image build. Public image pulls required
 a session-only credential-free Docker configuration because the local credential
 helper stalled; existing Docker settings were not changed.
 
+### PostgreSQL vector foundation
+
+The database image builds pgvector **0.8.1** from a SHA-256-checked release archive
+on the **same PostgreSQL 16.15 base digest** in [Dockerfile.postgres](Dockerfile.postgres).
+Only the extension library and SQL/control files enter the final image.
+Portable compilation disables architecture-specific optimization flags.
+This does not initialize a new cluster, change database users/passwords or move
+data: the existing `postgres_data` volume and `/var/lib/postgresql/data` stay put.
+Installing the image makes `vector` available; it does not itself enable the
+extension in any database. Database migrations must enable it separately.
+
+Before upgrading an existing local installation:
+
+```sh
+docker compose --env-file .env.docker build postgres
+ruby bin/pgvector-rehearsal
+# Only after the rehearsal passes:
+docker compose --env-file .env.docker up -d --no-deps --wait postgres
+```
+
+[bin/pgvector-rehearsal](bin/pgvector-rehearsal) backs up the running development
+database, restores into a uniquely named, network-isolated temporary container
+using memory-backed scratch storage, and checks every public table's row count
+and content fingerprint, indexes and non-internal triggers. It also checks
+pgvector's exact cosine join, ordinary SQL rollback and the ledger trigger's
+actual rejection behavior. It never writes to the source database. Concurrent
+source changes cause explicit failure; rerun during a quiet window. The helper
+container is removed on success/failure, but the backup is intentionally kept.
+
+Backups are mode 0600 under ignored `storage/backups/`; their parent is mode
+0700 and the build context excludes them. They contain private application data:
+do not commit, publish or attach them. Securely retain the original `.env.docker`
+and encryption secrets separately; the database dump alone is not a full disaster
+recovery backup of roles, secrets, Redis, uploads or an entire PostgreSQL cluster.
+This local small-database rehearsal is not a production backup schedule,
+encrypted offsite storage, point-in-time recovery or a measured restore SLA.
+
+Verified 2026-11-07: the existing development database restored successfully before
+the image change; PostgreSQL 16.15, the original named volume and the cluster's
+system identifier survived recreation. The existing app health endpoint passed.
+The installed extension files report version 0.8.1.
+
+Rollback is conservative: stop new research writes and roll back application
+code first, retaining the pgvector-capable database image, extension, research
+tables and vectors. Do **not** disable/drop `vector`, cascade-drop its dependent
+objects, reset the volume, or return an extension-using cluster to a base image
+without its library. If an engine/image change must be reversed, test a restore
+into a separate compatible image/volume before switching connections; retain the
+original volume and backup. A return to a pre-vector backup is explicitly a
+data-loss recovery decision for all writes since that backup, not routine rollback.
+
+For host/managed PostgreSQL, install the same extension version through the
+provider or PostgreSQL administrator, verify it in an isolated restore and keep
+the existing database/roles. Extension installation/creation privileges are
+environment-specific; local Compose's `rails` role is a superuser, which is not
+a production least-privilege recommendation. Production availability, privileges,
+backup/restore and target-platform compatibility remain deployment gates.
+
 ## Local Setup (Without Containers)
 
 Run the following commands from the repository root.
 
 ### Prerequisites
 
-Install Ruby 3.3.0, a running PostgreSQL server, a JavaScript runtime such as Node.js for ExecJS/asset compilation, and native build tools for gems such as `pg` and `sassc`. PostgreSQL development headers and `pg_config` must be available when compiling `pg`.
+Install Ruby 3.3.0, PostgreSQL 16 with pgvector 0.8.1 available, a JavaScript runtime such as Node.js for ExecJS/asset compilation, and native build tools for gems such as `pg` and `sassc`. PostgreSQL development headers and `pg_config` must be available when compiling `pg`.
 Schema persistence uses SQL to retain append-only sandbox triggers; use PostgreSQL
 client tools compatible with your server. Containers install verified PostgreSQL
 16 client packages from the official signed PGDG repository. The canonical

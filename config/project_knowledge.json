@@ -1,5 +1,14 @@
 [
   {
+    "id": "postgres-vector-foundation",
+    "title": "Pinned pgvector image and isolated development restore rehearsal",
+    "aliases": ["M1", "M1-01", "M1-02", "M1-03", "pgvector restore", "vector database image", "database rollback"],
+    "summary": "M1 database packaging/rehearsal is implemented locally: Dockerfile.postgres compiles checksum-pinned pgvector 0.8.1 with portable OPTFLAGS on the unchanged digest-pinned PostgreSQL 16.15 base and copies only extension artifacts into the final image. Compose keeps the existing postgres_data volume/path and credentials; the original cluster system identifier and app health survived recreation. bin/pgvector-rehearsal reads the running development DB, retains a private mode-0600 custom dump under ignored storage/backups with mode-0700 parent, restores into a unique network-none memory-backed helper, compares all public-table row fingerprints/indexes/triggers, and verifies vector/relational joins, SQL rollback and append-only trigger behavior. Concurrent source changes fail; scratch container is removed while backup is intentionally retained. This is a local small-database rehearsal, not offsite encryption/PITR or a full roles/secrets/Redis/uploads backup. Never commit backups or delete the original volume. Image availability alone does not enable vector in a DB. Roll application code back while retaining extension-capable DB/tables/vectors; no automatic DROP EXTENSION/CASCADE or base-image downgrade on an extension-using cluster. Managed/production extension availability, administrator privileges and isolated restore are separate deployment gates; local rails is a superuser, not a production privilege recommendation. Versioned research models and vector queries are not yet implemented.",
+    "status": "implemented",
+    "updated_on": "2026-11-07",
+    "sources": ["Dockerfile.postgres", "compose.yml", "bin/pgvector-rehearsal", "README.md#postgresql-vector-foundation", "https://github.com/pgvector/pgvector/tree/v0.8.1"]
+  },
+  {
     "id": "m0-model-permission-readiness",
     "title": "M0 model selection and unresolved source/egress prerequisites",
     "aliases": ["M0-02", "M0-03", "approved egress", "inference model selection", "embedding dimensions", "research permission matrix"],

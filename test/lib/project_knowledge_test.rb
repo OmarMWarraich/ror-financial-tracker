@@ -50,6 +50,16 @@ class ProjectKnowledgeTest < Minitest::Test
     end
   end
 
+  def test_vector_restore_knowledge_preserves_existing_database_and_rollback_boundaries
+    result = @knowledge.search("pgvector restore").first
+    assert_equal "postgres-vector-foundation", result["id"]
+    assert_equal "implemented", result["status"]
+    assert_includes result["summary"], "unchanged digest-pinned PostgreSQL 16.15"
+    assert_includes result["summary"], "scratch container is removed while backup is intentionally retained"
+    assert_includes result["summary"], "no automatic DROP EXTENSION/CASCADE"
+    assert_includes result["sources"], "bin/pgvector-rehearsal"
+  end
+
   def test_retrieves_native_agent_direction_without_claiming_implemented_chat
     result = @knowledge.search("conversational agent").first
     assert_equal "rails-native-research-agent", result["id"]
