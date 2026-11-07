@@ -20,6 +20,8 @@ class ResearchPassage < ApplicationRecord
   end
   attr_readonly :user_id, :revision_id, :preprocessing_version, :chunker_version,
                 :position, :start_char, :end_char, :start_line, :end_line, :speaker
+  attr_readonly :source_metadata
+  self.filter_attributes += [:content, :source_metadata]
 
   def self.eligible_for(space, at:)
     joins(revision: :document)

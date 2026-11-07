@@ -188,12 +188,14 @@ class ResearchStorageTest < ActiveSupport::TestCase
   end
 
   def revision(document)
-    document.revisions.create!(
+    row = document.revisions.create!(
       user: document.user, source_revision: "original",
       content: "Fictional revenue increased. This is original synthetic evidence.",
       event_at: @now - 3.days, published_at: @now - 2.days, known_at: @now - 2.days,
-      received_at: @now - 1.day, expires_at: @now + 7.days
+      received_at: @now - 1.day, expires_at: @now + 7.days, index_state: "ready"
     )
+    document.update!(current_revision: row)
+    row
   end
 
   def passage(revision, position: 0)

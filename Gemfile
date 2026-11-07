@@ -11,6 +11,10 @@ gem "sprockets-rails"
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.1"
 gem "neighbor", "0.6.0"
+gem "openai", "0.120.0"
+gem "tiktoken_ruby", "0.0.17"
+# The official SDK uses RFC2396_PARSER, absent from Ruby 3.3.0's URI 0.13.0.
+gem "uri", "0.13.3"
 gem "sidekiq", "~> 8.0"
 # connection_pool 3 uses forwarding syntax unsupported by Ruby 3.3.0.
 gem "connection_pool", "~> 2.5"

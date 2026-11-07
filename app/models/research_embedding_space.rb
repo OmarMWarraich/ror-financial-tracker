@@ -1,5 +1,6 @@
 class ResearchEmbeddingSpace < ApplicationRecord
   include ResearchOwnership
+  has_many :ingestions, class_name: "ResearchIngestion", foreign_key: :space_id, dependent: :restrict_with_error
   has_many :embeddings, class_name: "ResearchEmbedding", foreign_key: :space_id,
            inverse_of: :space, dependent: :restrict_with_error
 

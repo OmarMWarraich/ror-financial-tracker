@@ -52,8 +52,9 @@ ActiveRecord::Base.transaction do
           revision = document.revisions.create!(
             user: owner, source_revision: "original", content: lines.join("\n"),
             event_at: now - 3.days, published_at: now - 2.days, known_at: now - 2.days,
-            received_at: now - 1.day, expires_at: now + 7.days
+            received_at: now - 1.day, expires_at: now + 7.days, index_state: "ready"
           )
+          document.update!(current_revision: revision)
           offset = 0
           lines.each_with_index do |content, position|
             passage = revision.passages.create!(

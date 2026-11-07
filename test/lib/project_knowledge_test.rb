@@ -66,7 +66,9 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_equal "implemented", result["status"]
     assert_includes result["summary"], "Composite foreign keys enforce owner/checksum/chunker/preprocessing consistency"
     assert_includes result["summary"], "historical cutoffs cannot revive expired material"
-    assert_includes result["summary"], "No ingestion jobs, controller, external model/provider call or RAG/chat runtime is enabled"
+    assert_includes result["summary"], "No research controller, real-source egress or RAG/chat runtime is enabled"
+    assert_includes result["summary"], "New revisions default pending"
+    assert_includes result["sources"], "db/migrate/20261107070000_add_research_ingestion.rb"
     assert_includes result["sources"], "test/models/research_storage_test.rb"
   end
 

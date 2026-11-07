@@ -1,5 +1,6 @@
 class ResearchDocument < ApplicationRecord
   include ResearchOwnership
+  belongs_to :current_revision, class_name: "ResearchRevision", optional: true
   has_many :revisions, class_name: "ResearchRevision", foreign_key: :document_id,
            inverse_of: :document, dependent: :restrict_with_error
 
@@ -14,4 +15,16 @@ class ResearchDocument < ApplicationRecord
                 :listing_identity, :fiscal_year, :fiscal_period
 
   scope :retained_at, ->(time) { where(revoked_at: nil).where("research_documents.rights_expires_at > ?", time) }
+
+  def purge_superseded!
+    user.with_lock do
+      reload
+      raise Research::Error.new("no_current_revision") unless current_revision_id
+      old = revisions.where.not(id: current_revision_id)
+      passages = ResearchPassage.where(revision_id: old.select(:id))
+      ResearchEmbedding.where(passage_id: passages.select(:id)).delete_all
+      passages.delete_all
+      old.delete_all
+    end
+  end
 end

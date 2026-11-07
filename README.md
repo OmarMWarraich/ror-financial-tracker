@@ -339,11 +339,13 @@ The existing relational database now also contains:
 
 | Model/table | Stored identity and lifecycle |
 | --- | --- |
-| `ResearchDocument` / `research_documents` | Owner, provider/source kind/stable source ID, issuer/instrument and exact listing identity, fiscal year/period, citation URL, entitlement reference, rights deadline and revocation. |
-| `ResearchRevision` / `research_revisions` | Source revision ID, immutable content/checksum, event/publication/known-available/received/indexed times, freshness deadline, retention expiry and revocation. Unknown source availability remains null, not invented from receipt time. |
+| `ResearchDocument` / `research_documents` | Owner, provider/source kind/stable source ID, issuer/instrument and exact listing identity, fiscal year/period, citation URL, entitlement reference, rights deadline, revocation, current revision and ingestion generation. |
+| `ResearchRevision` / `research_revisions` | Source revision ID, immutable content/checksum and source provenance, pending/ready/failed indexing state, supersession, event/publication/known-available/received/indexed times, freshness deadline, retention expiry and revocation. Unknown source availability remains null, not invented from receipt time. |
 | `ResearchPassage` / `research_passages` | Revision/owner, preprocessing and chunker versions, passage position, character/line spans, speaker, token count and immutable text/checksum. |
 | `ResearchEmbeddingSpace` / `research_embedding_spaces` | Owner, provider/model/model version, 1,536 dimensions, cosine metric, preprocessing/chunker versions and building/active/retired state. |
 | `ResearchEmbedding` / `research_embeddings` | Owner, passage, space, input checksum, matching preprocessing/chunker versions and `vector(1536)`. |
+| `ResearchIngestion` / `research_ingestions` | Owner-scoped idempotency key, allowlisted source selectors, stage/error, source request count, short claim lease and generation fence. No credentials or source text in the job arguments. |
+| `ResearchEmbeddingAttempt` / `research_embedding_attempts` | Durable batch/generation identity, UTC budget date, reserved/actual tokens and nanodollar costs; reserved/dispatched/settled/uncertain/released outcome. |
 
 Neighbor **0.6.0** supports the locked Ruby 3.3/Rails 7.1 stack; newer 1.x requires
 Rails/Active Record 7.2 or newer and is intentionally not selected.
@@ -367,15 +369,24 @@ retires the previous active space and activates its replacement transactionally,
 without deleting old rows. Space identity is immutable in both Rails and SQL.
 Ordinary ORM research writes, cutover and vector reads share the owner row lock;
 future bulk ingestion/disposal writers must take that same lock. Do not hold it
-across network/model calls. Actual resumable ingestion jobs remain M2 work.
+across network/model calls.
+
+The M2 [schema extension](db/migrate/20261107070000_add_research_ingestion.rb)
+starts every new revision as `pending`. Retrieval requires `ready`, the document's
+current revision, no supersession, and valid retention/availability. Existing text
+is not automatically declared indexed. The composite current-revision foreign
+key also prevents pointing to another document or owner. Publication/orchestration
+must be verified separately; these tables alone do not enable provider access.
+The selected local tokenizer is `tiktoken_ruby` 0.0.17 (`cl100k_base`); the official
+`openai` SDK is pinned to 0.120.0, with URI 0.13.3 for its parser compatibility.
 
 `space.nearest(query_vector, limit: 5)` is an exact-cosine storage primitive,
 not the complete M3 retrieval policy or an authorization API. It validates inputs,
 uses only that owner's active space, and excludes revoked, currently expired or
 unknown/future-available evidence. Historical availability cannot bypass current
-retention/rights expiry. It does not select the latest event/revision, implement
+retention/rights expiry. It follows the published current revision, but does not select the latest event, implement
 full-text/hybrid ranking or authorize a provider request. Those remain separate
-M2/M3/workflow gates; no research controller, paid call or real-source ingestion
+M3/workflow gates; no research controller, paid call or real-source ingestion
 was enabled by M1. Metadata references do not themselves establish permission.
 User deletion is restricted while research documents/spaces remain; reviewed
 M8 disposal must handle text, vectors, derived material and backups explicitly.
