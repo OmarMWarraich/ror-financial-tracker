@@ -1,8 +1,13 @@
 Rails.application.routes.draw do
+  get "dashboard", to: "market_dashboards#show", as: :dashboard
+  get "dashboard/preferences", to: "market_dashboards#preferences", as: :dashboard_preferences
+  put "dashboard/preferences", to: "market_dashboards#save_preferences"
+  get "overview", to: "welcome#index", as: :overview
   resource :market_dashboard, only: :show, controller: "market_dashboards" do
     post :refresh
   end
-  get "portfolio_demo", to: "portfolio_demos#show", as: :portfolio_demo
+  get "portfolio_demo", to: redirect("/dashboard"), as: :portfolio_demo
+  get "portfolio_examples", to: "portfolio_demos#show", as: :portfolio_examples
   get "research_demo", to: "research_demos#show", as: :research_demo
   get "configurations/ios_v1", to: "native_configurations#show", defaults: { platform: "ios", format: :json }
   get "configurations/android_v1", to: "native_configurations#show", defaults: { platform: "android", format: :json }

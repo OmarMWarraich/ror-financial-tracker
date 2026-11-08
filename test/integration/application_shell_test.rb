@@ -23,13 +23,13 @@ class ApplicationShellTest < Minitest::Test
   end
 
   def test_public_shell_has_supported_navigation_and_unique_main_and_flash
-    get "/portfolio_demo"
+    get "/portfolio_examples"
     assert_equal 200, last_response.status
     doc = Nokogiri::HTML(last_response.body)
     assert_equal 1, doc.css("main").length
     assert_equal 1, doc.css("#flash").length
     assert_equal "en", doc.at_css("html")["lang"]
-    assert_equal "/portfolio_demo", doc.at_css('nav a[aria-current="page"]')["href"]
+    assert_equal "/portfolio_examples", doc.at_css('nav a[aria-current="page"]')["href"]
     assert doc.at_css('a[href="#main-content"]')
     assert doc.at_css('button[aria-controls="application-navigation"]')
     assert_empty doc.css('nav a[href="/broker_connections"]')

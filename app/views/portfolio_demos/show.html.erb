@@ -26,7 +26,7 @@
       No provider receipt time is available. Watchlist membership is not holdings, transactions, cash, a connected account, or investment performance.</p>
   </section>
 
-  <%= form_with url: portfolio_demo_path, method: :get, class: "demo-scenarios mb-4" do |form| %>
+  <%= form_with url: portfolio_examples_path, method: :get, class: "demo-scenarios mb-4" do |form| %>
     <div>
       <%= form.label :scenario, "Explore data-quality scenarios", class: "form-label fw-bold" %>
       <%= form.select :scenario, DemoPortfolio::SCENARIOS.map { |value, label| [label, value] },

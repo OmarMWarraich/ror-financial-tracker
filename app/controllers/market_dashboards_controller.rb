@@ -1,9 +1,38 @@
 class MarketDashboardsController < ApplicationController
   prepend_before_action :disable_caching
-  before_action :require_local_showcase
+  before_action :require_local_showcase, only: %i[show refresh]
 
   def show
     @tickers = MarketDashboard::DEFAULT_TICKERS.join(", ")
+    @disabled = !MarketDashboard.enabled?
+    return if @disabled
+    selected = dashboard_preferences_for_show["selected"]
+    service = MarketDashboard.new
+    @dashboard = selected ? service.call(mode: "leaders", selected_ticker: selected) : service.call(mode: "leaders")
+  rescue EquiblesClient::EvidenceError => error
+    Rails.logger.warn("dashboard initial_load_rejected code=#{error.message}")
+    @error = error.message.humanize
+    render :show, status: :service_unavailable
+  end
+
+  def preferences
+    render json: DashboardPreferences.new(current_user).read
+  rescue Redis::BaseError, RedisClient::Error, JSON::ParserError, DashboardPreferences::Invalid => error
+    Rails.logger.warn("dashboard preferences_read_failed type=#{error.class.name}")
+    render json: { error: "Redis preferences unavailable" }, status: :service_unavailable
+  end
+
+  def save_preferences
+    value = params[:preferences]
+    raise DashboardPreferences::Invalid unless value.is_a?(ActionController::Parameters)
+    state = value.to_unsafe_h
+    render json: DashboardPreferences.new(current_user).write(state)
+  rescue DashboardPreferences::Invalid, ActionController::ParameterMissing => error
+    Rails.logger.warn("dashboard preferences_rejected type=#{error.class.name}")
+    render json: { error: "Invalid UI preferences; market data cannot be stored here" }, status: :unprocessable_entity
+  rescue Redis::BaseError, RedisClient::Error => error
+    Rails.logger.warn("dashboard preferences_write_failed type=#{error.class.name}")
+    render json: { error: "Redis synchronization unavailable; local UI preferences may remain saved" }, status: :service_unavailable
   end
 
   def refresh
@@ -43,12 +72,21 @@ class MarketDashboardsController < ApplicationController
 
   private
 
+  def dashboard_preferences_for_show
+    DashboardPreferences.new(current_user).read
+  rescue Redis::BaseError, RedisClient::Error, JSON::ParserError, DashboardPreferences::Invalid => error
+    Rails.logger.warn("dashboard preferences_restore_failed type=#{error.class.name}")
+    @preferences_error = "Redis preferences unavailable; fresh market data is still requested."
+    { "selected" => nil }
+  end
+
   def disable_caching
     response.headers["Cache-Control"] = "no-store"
     response.headers["Pragma"] = "no-cache"
   end
 
   def require_local_showcase
+    return if action_name == "show" && !MarketDashboard.enabled?
     return head :not_found unless MarketDashboard.enabled?
     unless PrivateRequestTransport::COMPOSE_HOSTS.include?(request.host) && PrivateRequestTransport.allowed?(request)
       head :forbidden

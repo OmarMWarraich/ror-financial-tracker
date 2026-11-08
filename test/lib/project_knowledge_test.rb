@@ -22,12 +22,16 @@ class ProjectKnowledgeTest < Minitest::Test
     result = @knowledge.search("C01 dashboard").first
     assert_equal "equibles-market-dashboard", result["id"]
     assert_equal "implemented", result["status"]
-    assert_includes result["summary"], "production remains denied"
-    assert_includes result["summary"], "no background polling, OpenAI, trading or screener-price fallback"
-    assert_includes result["summary"], "cap120/key/day"
+    assert_includes result["summary"], "production source denied"
+    assert_includes result["summary"], "no AI/trading/commercial readiness"
+    assert_includes result["summary"], "Shared atomic120/key/UTC-day cap"
     assert_includes result["summary"], "900000ms"
-    assert_includes result["summary"], "date-only"
-    assert_match(/exact named billing plan\/expiry/i, result["summary"])
+    assert_includes result["summary"], "discrete EPS periods/dates/unit/split basis"
+    assert_match(/exact named billing\/expiry/i, result["summary"])
+    assert_includes result["summary"], "no licensed quote/history/EPS/profile/private-account/credential persistence"
+    assert_includes result["summary"], "not independently verified/offsite backup"
+    assert_includes result["summary"], "localStorage"
+    assert_includes result["summary"], "GET/PUT dashboard/preferences"
     assert_includes result["sources"], "app/services/market_dashboard.rb"
   end
 

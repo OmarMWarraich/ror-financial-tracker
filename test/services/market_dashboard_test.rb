@@ -125,12 +125,13 @@ class MarketDashboardTest < ActiveSupport::TestCase
     end
   end
 
-  test "ranked ten stock view uses four calls and quote refresh uses only one" do
+  test "ranked ten stock view uses eight calls for five charts and quote refresh uses only one" do
     requests = []
     with_provider(requests) do
       result = MarketDashboard.new(api_key: @key).call(mode: "leaders")
       assert_equal 10, result[:stocks].size
-      assert_equal 4, result[:requests]
+      assert_equal 8, result[:requests]
+      assert_equal 5, result[:stocks].count { |stock| stock[:history]&.[]("points")&.any? }
       assert_empty result[:errors]
       assert_equal 30, result[:selected][:history]["points"].size
       assert result[:selected][:earnings]["points"].any?
@@ -139,7 +140,7 @@ class MarketDashboardTest < ActiveSupport::TestCase
       assert_equal 1, refresh[:requests]
       assert_equal 10, refresh[:stocks].count { |stock| stock[:quote] }
       assert_nil refresh[:selected]
-      assert_equal 5, ResearchSourceUsage.where(key_digest: @digest).sum(:requests_used)
+      assert_equal 9, ResearchSourceUsage.where(key_digest: @digest).sum(:requests_used)
     end
   end
 
@@ -180,7 +181,7 @@ class MarketDashboardTest < ActiveSupport::TestCase
       assert_equal 10, result[:stocks].size
       assert_equal "BRAVO", result[:selected][:ticker]
       assert_equal "Original fixture BRAVO", result[:selected][:name]
-      assert_equal 4, result[:requests]
+      assert_equal 8, result[:requests]
     end
   end
 

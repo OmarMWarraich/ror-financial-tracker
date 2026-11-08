@@ -25,23 +25,30 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "GET is private no-store and never consumes provider requests" do
-    Net::HTTP.stub(:start, ->(*) { flunk "GET must not fetch" }) do
-      get market_dashboard_path
-      assert_response :success
-      assert_equal "no-store", response.headers["Cache-Control"]
-      assert_select 'form[data-turbo="false"]'
-      assert_select '[data-testid="market-price"]', count: 0
-      sign_out users(:one)
-      post refresh_market_dashboard_path, params: { tickers: "AAPL" }
-      assert_redirected_to new_user_session_path
+  test "GET is private no-store and loads the dashboard before browser rendering" do
+    service = Object.new
+    service.define_singleton_method(:call) { |mode:| raise "Wrong mode" unless mode == "leaders"; { received_at: Time.current.utc, stocks: [], errors: [], selected: nil } }
+    MarketDashboard.stub(:new, ->(*) { service }) do
+      Net::HTTP.stub(:start, ->(*) { flunk "Unstubbed provider request" }) do
+        get dashboard_path
+        assert_response :success
+        assert_equal "no-store", response.headers["Cache-Control"]
+        assert_select 'form[data-turbo="false"]'
+        assert_select '[data-testid="market-price"]', count: 0
+        sign_out users(:one)
+        post refresh_market_dashboard_path, params: { tickers: "AAPL" }
+        assert_redirected_to new_user_session_path
+      end
     end
   end
 
   test "disabled and non-local access cannot use the operator credential" do
     Net::HTTP.stub(:start, ->(*) { flunk "Denied request must not fetch" }) do
       ENV["MARKET_DASHBOARD_ENABLED"] = "0"
-      get market_dashboard_path
+      get dashboard_path
+      assert_response :success
+      assert_includes response.body, "Provider data is disabled"
+      post refresh_market_dashboard_path, params: { mode: "leaders" }
       assert_response :not_found
       ENV["MARKET_DASHBOARD_ENABLED"] = "1"
       host! "example.org"
@@ -97,11 +104,42 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
     MarketDashboard.stub(:new, ->(*) { service }) do
       post refresh_market_dashboard_path, params: { mode: "leaders" }
       assert_response :success
-      assert_select 'svg[role="img"]', count: 4
-      assert_select '[data-market-chart="1Y"]:not([hidden])', count: 1
-      assert_select '[data-market-range][aria-pressed="true"]', count: 1
+      assert_select '[data-market-selected] svg[role="img"]', count: 4
+      assert_select '[data-market-selected] [data-market-chart="1Y"]:not([hidden])', count: 1
+      assert_select '[data-market-selected] [data-market-range][aria-pressed="true"]', count: 1
       assert_includes response.body, "not an intraday chart"
       assert_includes response.body, "120 requests"
     end
+  end
+
+  test "five distinct colorful chart panels render on the authenticated default Dashboard" do
+    history = { "points" => [{ "date" => "2026-11-05", "close" => 10, "open" => 9, "high" => 11, "low" => 8 },
+      { "date" => "2026-11-06", "close" => 12, "open" => 11, "high" => 13, "low" => 10 }] }
+    stocks = %w[ALPHA BRAVO CHARLIE DELTA ECHO].map { |ticker| { ticker: ticker, name: "Original #{ticker}", history: history, quote: nil } }
+    service = Object.new
+    service.define_singleton_method(:call) { |mode:| { received_at: Time.current.utc, requests: 8, stocks: stocks, selected: stocks.first, errors: [] } }
+    MarketDashboard.stub(:new, ->(*) { service }) do
+      get dashboard_path
+      assert_response :success
+      assert_select "h1", text: "Dashboard"
+      assert_select "[data-market-color]", count: 5
+      colors = Nokogiri::HTML(response.body).css("[data-market-color]").map { |node| node["data-market-color"] }
+      assert_equal 5, colors.uniq.size
+      assert_select '[data-market-points][tabindex="0"]', count: 20
+      assert_select '[data-market-color] [data-market-chart]:not([hidden])', count: 5
+      assert_not_includes response.body, ">Demo dashboard<"
+    end
+  end
+
+  test "sign in defaults to Dashboard and old demo bookmarks route there" do
+    sign_out users(:one)
+    user = users(:one)
+    user.update!(password: "Original-dashboard-login-123", password_confirmation: "Original-dashboard-login-123")
+    post user_session_path, params: { user: { email: user.email, password: "Original-dashboard-login-123" } }
+    assert_redirected_to dashboard_path
+    get root_path
+    assert_redirected_to dashboard_path
+    get portfolio_demo_path
+    assert_redirected_to dashboard_path
   end
 end

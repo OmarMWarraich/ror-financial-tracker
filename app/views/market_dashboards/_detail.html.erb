@@ -1,6 +1,6 @@
 <% stock = dashboard[:selected] || dashboard[:stocks].first %>
 <% if stock %>
-  <div data-market-selected="<%= stock[:ticker] %>">
+  <div data-market-selected="<%= stock[:ticker] %>" data-market-visualization="selected">
     <%= render_card title: stock[:name], subtitle: "#{stock[:ticker]} / US listing / USD" do %>
       <div class="p-6 pt-0">
         <p class="text-4xl font-semibold" data-testid="market-price" data-market-price="<%= stock[:ticker] %>"><%= stock[:quote] ? number_to_currency(stock[:quote]["price"]) : "Unavailable" %></p>

@@ -8,7 +8,7 @@
   <%= render_card title: "Portfolio analytics", subtitle: "Public, fictional USD holdings" do %>
     <div class="p-6 pt-0">
       <p>Review valuation, allocation, cost basis and concentration. Explore missing-data scenarios without contacting a provider.</p>
-      <%= render_button "Explore demo dashboard", as: :link, href: portfolio_demo_path %>
+      <%= render_button "Explore fictional examples", as: :link, href: portfolio_examples_path %>
     </div>
   <% end %>
   <%= render_card title: "Research policy lab", subtitle: "Deterministic educational fixtures" do %>
@@ -22,7 +22,7 @@
       <%= render_card title: "Stocks and earnings", subtitle: "Real Equibles API data / delayed quotes supported" do %>
         <div class="p-6 pt-0">
           <p>Explore ten leading US stock listings, daily price charts and quarterly earnings. Quotes refresh every15 minutes while visible; no fictional price fallback.</p>
-          <%= render_button "Open stocks and earnings", as: :link, href: market_dashboard_path %>
+          <%= render_button "Open Dashboard", as: :link, href: dashboard_path %>
         </div>
       <% end %>
     <% end %>

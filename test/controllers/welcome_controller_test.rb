@@ -3,15 +3,15 @@ require "test_helper"
 class WelcomeControllerTest < ActionDispatch::IntegrationTest
   test "authenticated welcome page renders" do
     sign_in users(:one)
-    get root_path
+    get overview_path
     assert_response :success
     assert_select "h1", "Your financial engineering workspace"
-    assert_select "a[href=?]", portfolio_demo_path, text: "Explore demo dashboard"
+    assert_select "a[href=?]", portfolio_examples_path, text: "Explore fictional examples"
   end
 
   test "Devise sign in authenticates valid fixture credentials" do
     post user_session_path, params: { user: { email: users(:one).email, password: "password123" } }
-    assert_redirected_to root_path
+    assert_redirected_to dashboard_path
     get my_portfolio_path
     assert_response :success
   end

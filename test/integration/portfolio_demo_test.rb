@@ -13,7 +13,7 @@ class PortfolioDemoTest < Minitest::Test
 
   def test_public_demo_renders_without_authentication_or_external_api_calls
     Net::HTTP.stub(:start, ->(*) { flunk "Demo must not request external data" }) do
-      get "/portfolio_demo"
+      get "/portfolio_examples"
     end
     assert_equal 200, last_response.status
     document = Nokogiri::HTML(last_response.body)
@@ -29,7 +29,7 @@ class PortfolioDemoTest < Minitest::Test
   end
 
   def test_missing_price_is_explicit_and_partial_subtotal_is_not_total
-    get "/portfolio_demo", scenario: "missing_price"
+    get "/portfolio_examples", scenario: "missing_price"
     assert_equal 200, last_response.status
     document = Nokogiri::HTML(last_response.body)
     assert_equal "Unavailable", document.at_css('[data-testid="total-value"]').text
@@ -40,7 +40,7 @@ class PortfolioDemoTest < Minitest::Test
   end
 
   def test_missing_cost_is_not_a_zero_gain
-    get "/portfolio_demo", scenario: "missing_cost"
+    get "/portfolio_examples", scenario: "missing_cost"
     assert_equal 200, last_response.status
     document = Nokogiri::HTML(last_response.body)
     assert_equal "$2,000.00", document.at_css('[data-testid="total-value"]').text
@@ -49,7 +49,7 @@ class PortfolioDemoTest < Minitest::Test
   end
 
   def test_empty_scenario_explains_undefined_allocation
-    get "/portfolio_demo", scenario: "empty"
+    get "/portfolio_examples", scenario: "empty"
     assert_equal 200, last_response.status
     document = Nokogiri::HTML(last_response.body)
     assert_empty document.css("tbody tr")
@@ -60,7 +60,7 @@ class PortfolioDemoTest < Minitest::Test
 
   def test_unknown_or_structured_scenarios_are_bad_requests
     ["unknown", ["complete"], { "name" => "complete" }].each do |scenario|
-      get "/portfolio_demo", scenario: scenario
+      get "/portfolio_examples", scenario: scenario
       assert_equal 400, last_response.status
     end
   end
@@ -72,12 +72,12 @@ class PortfolioDemoTest < Minitest::Test
   end
 
   def test_demo_has_no_write_route
-    post "/portfolio_demo"
+    post "/portfolio_examples"
     assert_equal 404, last_response.status
   end
 
   def test_holdings_include_source_observation_time_cost_and_weight
-    get "/portfolio_demo"
+    get "/portfolio_examples"
     document = Nokogiri::HTML(last_response.body)
     assert_equal "no-store", last_response.headers["cache-control"]
     assert_includes document.at_css('[aria-label="Source and freshness"]').text, "static / not live"
@@ -94,14 +94,14 @@ class PortfolioDemoTest < Minitest::Test
     assert_equal "50.0%", document.at_css("tbody tr").css("td")[5].text
     assert_includes document.text, "Watchlist membership is not holdings"
 
-    get "/portfolio_demo", scenario: "missing_price"
+    get "/portfolio_examples", scenario: "missing_price"
     row = Nokogiri::HTML(last_response.body).at_css("tbody tr")
     assert_nil row.at_css("time")
     assert_includes row.text, "Observation time unavailable"
   end
 
   def test_formulas_show_exact_operands_and_rounding_is_display_only
-    get "/portfolio_demo"
+    get "/portfolio_examples"
     document = Nokogiri::HTML(last_response.body)
     formula = document.css('[data-testid="worked-formula"]').first.text.gsub(/\s+/, " ")
     assert_includes formula, "Value: 10.0 × 100.0 = 1000.0 USD"
@@ -121,7 +121,7 @@ class PortfolioDemoTest < Minitest::Test
   end
 
   def test_walkthrough_is_sanitized_and_live_features_are_visibly_gated
-    get "/portfolio_demo"
+    get "/portfolio_examples"
     document = Nokogiri::HTML(last_response.body)
     assert_equal 5, document.css('[data-testid="architecture-diagram"] li').length
     assert_equal 5, document.css('[data-testid="request-flow-diagram"] li').length
@@ -148,7 +148,7 @@ class PortfolioDemoTest < Minitest::Test
 
   def test_simulated_loading_and_provider_error_never_render_success_fallbacks
     DemoPortfolio::STATES.each_key do |scenario|
-      get "/portfolio_demo", scenario: scenario
+      get "/portfolio_examples", scenario: scenario
       assert_equal 200, last_response.status
       document = Nokogiri::HTML(last_response.body)
       assert_includes document.at_css('[data-testid="evidence-state"]').text, DemoPortfolio::STATES.fetch(scenario)
@@ -167,7 +167,7 @@ class PortfolioDemoTest < Minitest::Test
     Net::HTTP.stub(:start, no_network) do
       EquiblesClient.stub(:new, no_network) do
         DemoPortfolio::SCENARIOS.each_key do |scenario|
-          get "/portfolio_demo", scenario: scenario, api_key: "PRIVATE_SENTINEL", account_id: "PRIVATE_ACCOUNT",
+          get "/portfolio_examples", scenario: scenario, api_key: "PRIVATE_SENTINEL", account_id: "PRIVATE_ACCOUNT",
                                  holdings: [{ ticker: "UNTRUSTED-HOLDING", quantity: "999" }]
           assert_equal 200, last_response.status
           refute_includes last_response.body, "PRIVATE_SENTINEL"
@@ -185,7 +185,7 @@ class PortfolioDemoTest < Minitest::Test
   end
 
   def test_accessible_controls_tables_diagrams_and_chart_text
-    get "/portfolio_demo"
+    get "/portfolio_examples"
     document = Nokogiri::HTML(last_response.body)
     assert_equal "scenario", document.at_css('label[for="scenario"]')["for"]
     assert document.at_css('select#scenario[name="scenario"]')

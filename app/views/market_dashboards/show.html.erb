@@ -1,26 +1,28 @@
-<% content_for :title, "Stocks and earnings | FinanceTracker" %>
+<% content_for :title, "Dashboard | FinanceTracker" %>
 <% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
-<div data-controller="market-dashboard" data-market-dashboard-url-value="<%= refresh_market_dashboard_path %>" data-market-dashboard-interval-value="900000">
+<div data-controller="market-dashboard" data-market-dashboard-url-value="<%= refresh_market_dashboard_path %>" data-market-dashboard-interval-value="900000" data-market-dashboard-enabled-value="<%= !@disabled %>" data-market-dashboard-paused-value="<%= !!(@error.present? || (@dashboard && @dashboard[:errors].any?)) %>">
   <header class="mb-6 flex flex-wrap items-start justify-between gap-4">
     <div>
       <p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Equibles / private portfolio showcase</p>
-      <h1>Stocks and earnings</h1>
+      <h1>Dashboard</h1>
       <p class="text-muted-foreground">Ten leading US listings by market capitalization. Share classes are separate listings, not ten distinct companies.</p>
     </div>
     <%= form_with url: refresh_market_dashboard_path, method: :post, data: { turbo: false, market_dashboard_target: "form", action: "submit->market-dashboard#start" } do |form| %>
       <%= form.hidden_field :mode, value: "leaders" %>
-      <%= render_button "Load / refresh top ten", type: :submit %>
+      <%= render_button "Load / refresh top ten", type: :submit, disabled: @disabled %>
     <% end %>
   </header>
   <p role="status" aria-live="polite" data-market-dashboard-target="status" class="mb-4 text-sm text-muted-foreground">Refreshes every15 minutes while visible. Delayed quotes lag the market; refresh cadence does not remove the delay. Local shared-key cap:120 requests per UTC day.</p>
+  <% if @disabled %><p role="status">Provider data is disabled by the operator. No paid requests are made; the Dashboard remains your sign-in destination.</p><% end %>
   <% if @error %><p role="alert" class="alert alert-danger"><%= @error %>. No fictional substitute is displayed.</p><% end %>
+  <% if @preferences_error %><p role="alert"><%= @preferences_error %></p><% end %>
   <div data-market-dashboard-target="board">
     <% if @dashboard %>
       <%= render "board", dashboard: @dashboard %>
     <% else %>
       <%= render_card title: "Your market overview", subtitle: "A chart-led view of real stocks and reported earnings" do %>
         <div class="p-6 pt-0">
-          <p>The dashboard loads automatically when this page is visible. Without JavaScript, use the load button. Opening the server page itself makes no provider request.</p>
+          <p>Sign in to view the latest available provider data here. Use the load button to retry an unavailable feed.</p>
           <p class="text-sm text-muted-foreground">No trading, AI calls, stored market corpus or background polling. Historical charts use daily bars, not invented intraday candles.</p>
         </div>
       <% end %>

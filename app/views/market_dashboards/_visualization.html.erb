@@ -1,0 +1,25 @@
+<section data-market-visualization="<%= stock[:ticker] %>" data-market-color="<%= color %>" class="min-w-0 rounded-xl border p-4" style="border-top: 3px solid <%= color %>">
+  <h3 class="text-lg font-semibold"><%= stock[:ticker] %> <span class="block text-sm text-muted-foreground"><%= stock[:name] %></span></h3>
+  <p class="text-2xl font-semibold" data-market-price="<%= stock[:ticker] %>"><%= stock[:quote] ? number_to_currency(stock[:quote]["price"]) : "Unavailable" %></p>
+  <p class="text-xs text-muted-foreground" data-market-timing="<%= stock[:ticker] %>" data-market-source="<%= stock[:quote]&.[]("source_at") %>"><%= stock[:quote]&.[]("delayed") == true ? "Delayed quote" : "Delay not verified" %> / source <%= stock[:quote]&.[]("source_at") || "Unknown" %></p>
+  <% history = stock[:history] %>
+  <% if history && history["points"].length >= 2 %>
+    <div class="flex flex-wrap gap-2 my-3" role="group" aria-label="<%= stock[:ticker] %> chart range">
+      <% [["5D", 5], ["1M", 22], ["6M", 132], ["1Y", 300]].each do |label, sessions| %>
+        <button type="button" class="btn btn-sm btn-outline-primary" aria-pressed="<%= label == "1M" %>" data-market-range="<%= label %>" data-action="market-dashboard#range"><%= label %></button>
+      <% end %>
+    </div>
+    <% [["5D", 5], ["1M", 22], ["6M", 132], ["1Y", 300]].each do |label, sessions| %>
+      <% chart = market_chart_points(history, sessions) %>
+      <figure data-market-chart="<%= label %>" <%= "hidden" unless label == "1M" %>>
+        <svg viewBox="0 0 700 210" role="img" tabindex="0" aria-label="<%= stock[:ticker] %> daily close. Arrow keys inspect observations." data-market-points="<%= chart[:points].to_json %>" data-action="pointermove->market-dashboard#inspectChart keydown->market-dashboard#inspectChart" class="w-full" style="color: <%= color %>">
+          <polygon points="0,210 <%= chart[:path] %> 700,210" fill="currentColor" fill-opacity="0.12"/>
+          <polyline points="<%= chart[:path] %>" fill="none" stroke="currentColor" stroke-width="3" vector-effect="non-scaling-stroke"/>
+          <circle data-market-marker r="5" fill="currentColor" hidden/>
+        </svg>
+        <figcaption class="text-xs text-muted-foreground"><%= chart[:first] %> - <%= chart[:last] %> / USD daily close</figcaption>
+      </figure>
+    <% end %>
+    <p data-market-inspection role="status" aria-live="polite" class="mt-2 text-sm">Inspect a point for its source session and closing price.</p>
+  <% else %><p role="status">Daily history unavailable; no simulated chart.</p><% end %>
+</section>

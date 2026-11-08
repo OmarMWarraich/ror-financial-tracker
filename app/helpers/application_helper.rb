@@ -10,7 +10,8 @@ module ApplicationHelper
       y = span.zero? ? 100 : (180 - (value - low) / span * 160).round(2)
       "#{x},#{y}"
     end.join(" ")
-    { path: path, first: rows.first["date"], last: rows.last["date"], low: low, high: high }
+    { path: path, first: rows.first["date"], last: rows.last["date"], low: low, high: high,
+      points: rows.map { |row| { date: row["date"], close: row["close"] } } }
   end
 
   def current_path?(path)
@@ -19,7 +20,7 @@ module ApplicationHelper
 
   def shell_nav_link(label, path, icon, active: current_page?(path))
     link_to path, class: class_names("shell-nav", "is-active": active),
-                  title: label, aria: { label: label, current: active ? "page" : nil } do
+                  title: label, data: { turbo_prefetch: false }, aria: { label: label, current: active ? "page" : nil } do
       safe_join([fa_icon(icon, aria: { hidden: true }), content_tag(:span, label, class: "sidebar-label")])
     end
   end
@@ -28,7 +29,7 @@ module ApplicationHelper
     {
       "welcome" => "Overview",
       "portfolio_demos" => "Portfolio analytics",
-      "market_dashboards" => "Stocks and earnings",
+      "market_dashboards" => "Dashboard",
       "research_demos" => "Research policy lab",
       "research_chats" => "Research chat",
       "broker_connections" => "Private connections",

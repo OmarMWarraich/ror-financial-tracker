@@ -300,7 +300,7 @@ class BrokerConnectionsTest < Minitest::Test
   def test_private_data_never_appears_in_demo_or_social_views
     @connection.update!(balance_payload: JSON.generate([{ "provider_instrument_id" => "PRIVATEASSET", "quantity" => "1234567.89" }]))
     login(@other)
-    ["/portfolio_demo", "/users/#{@owner.id}", "/my_friends"].each do |path|
+    ["/portfolio_examples", "/users/#{@owner.id}", "/my_friends"].each do |path|
       get "https://example.org#{path}"
       assert_equal 200, last_response.status
       refute_includes last_response.body, "PRIVATEASSET"

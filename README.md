@@ -17,7 +17,11 @@ The desktop-first shared shell uses Avi Flombaum's
 [shadcn/ui on Rails](https://github.com/aviflombaum/shadcn-rails), pinned to
 `shadcn-ui` 0.0.15, with Tailwind CSS 3.4.19 (`tailwindcss-rails` 3.3.x).
 Rails ERB, Sprockets, import maps, Turbo and Stimulus remain the frontend
-architecture; React and a JavaScript bundler are not required.
+architecture. The user-requested Dashboard charts are a bounded React19.3.1
+island bundled with esbuild0.28.2; other pages and research chat remain Hotwire.
+`tailwindcss:build` and `assets:precompile` also build that island. When binding a
+macOS checkout into the Linux test container, add `-v /rails/node_modules` so
+esbuild uses the image's native dependencies rather than the host binary.
 
 Install and build with:
 
@@ -198,7 +202,7 @@ docker compose --env-file .env.docker build postgres web
 docker compose --env-file .env.docker up -d --wait web worker scheduler
 ```
 
-Open <http://127.0.0.1:3000/portfolio_demo>. Only the web port is published,
+Open <http://127.0.0.1:3000/portfolio_examples>. Only the web port is published,
 on loopback; PostgreSQL and Redis are reachable only inside the Compose network.
 Set `WEB_PORT` in the ignored `.env.docker` before startup if 3000 is occupied.
 Existing host PostgreSQL/Redis services and databases are not changed or imported.
@@ -792,14 +796,21 @@ Official reference: [REST API](https://equibles.com/docs/api), [authentication](
 
 #### C01 real-data stocks and earnings dashboard
 
-`/market_dashboard` is a separate **authenticated local** Equibles showcase;
-the public `/portfolio_demo` remains entirely fictional. Opening the page makes
-no provider request. When visible, Stimulus automatically loads the ten US listings
+`/dashboard` is the authenticated default sign-in destination and root redirect.
+An explicit stored destination still wins. `/market_dashboard` aliases it;
+the old `/portfolio_demo` redirects there, while public fictional scenarios now
+live at `/portfolio_examples`. Provider display remains **local and gated**.
+An authenticated GET requests fresh data server-side, including without JavaScript.
+The ten US listings are
 ranked by Equibles market capitalization (`market=US`, `sortBy=marketcap`,
 `sortAscending=false`, `limit=10`). Share classes remain separate listings;
 this is the provider-covered universe, not ten distinct companies. Initial loading
-uses four exchanges: screener, one `/v1/quotes` batch, and selected-stock daily
-history and diluted EPS. A chart-led original layout has a selected-stock panel,
+uses eight exchanges: screener, one `/v1/quotes` batch, five daily histories and
+selected-stock diluted EPS; a selection outside the first five adds one history.
+Five independently colored React charts use `useState`, `useReducer`, `useMemo`,
+`useRef` and cleaned-up `useEffect` subscriptions. Range controls and keyboard/
+pointer cursors are independent. Server-rendered charts remain the no-JS fallback.
+React roots unmount on navigation and board replacement. A chart-led layout has a selected-stock panel,
 market-leader list, dated OHLC metrics and reported earnings. No Google artwork,
 invented figures, OpenAI calls, trading or screener-price substitution is used.
 
@@ -832,6 +843,28 @@ configuration, credentials or raw provider responses. Removing the key or
 disabling the flag stops further dashboard access; a key's presence does not
 authorize AI requests, caching or hosted redistribution.
 
+When the flag is disabled, Dashboard is still an authenticated200 page with an
+operator notice; paid refresh is denied. The reviewed OpenAPI has no verified
+renewal notification/webhook/stream endpoint. Visible15-minute snapshot checks
+cannot promise synchronization with every provider renewal. Identical source
+timestamps are not reported as newly published readings.
+
+**Persistence is UI metadata only.** An authenticated, CSRF-protected
+`GET`/`PUT /dashboard/preferences` validates a versioned selected ticker and at
+most ten chart ranges. Redis keys are environment/owner scoped and stable across
+web rebuilds; browser keys use an opaque owner HMAC. Redis expires preferences
+after24 hours. localStorage keeps only a dated preference envelope; expired
+envelopes are rejected/deleted on the next read, not promised physically erased
+while an unused browser remains closed. Local preferences restore ranges first,
+otherwise Redis restores them; Redis restores selected listings for the next
+fresh server request. UI preference writes are last-writer-wins, not a financial
+ledger. No quote/history/EPS/profile text, credentials or private account payload
+is persisted in either store. Storage and Redis failures are visible, not
+success-shaped backups. Redis AOF (`appendfsync everysec`) and its persistent
+Compose volume provide crash persistence, **not a tested independent/offsite
+backup or zero-loss guarantee**. Licensed snapshot caching remains blocked
+pending confirmed rights.
+
 Quotes retain exact ticker/USD identity, provider market/session time and receipt
 time. Delayed quotes are supported and labelled; stale, malformed, wrong-currency
 or future-source-time quotes are unavailable, not relabelled live. Diluted EPS
@@ -861,21 +894,24 @@ accepted errors/timeouts keep reservations and there are no retries. A 20-second
 admission deadline stops starting further exchanges; an already accepted request
 may finish afterward. Database locks do not cover network work.
 
-The 2026-11-07 bounded live acceptance rendered ten ranked listings, four real
-daily-chart ranges and four selected-stock quarterly EPS rows with HTTP200/no
-errors. Simulated foreground/due-time testing confirmed no hidden-page POST,
-one quote-only exchange for all ten stocks, correct stock selection and one
-visible chart after a local range change. Two initial loads plus one quote
-refresh and one selection used12 provider exchanges; no AI calls. The observed
-312px layout had no page-level overflow. The embedded browser was backgrounded,
-so this is DOM/simulated-visibility acceptance, not physical/native-device proof.
+The 2026-11-07 quote-only polling/selection checks remain verified. The expanded
+2026-11-08 dashboard rendered ten listings and five distinct colored React charts;
+independent5D/6M ranges, keyboard cursor inspection, metadata-only localStorage
+and matching authenticated Redis state were verified in the local browser.
+Clearing the browser copy recovered ranges and selection from Redis on reload.
+Original synthetic UI checks verified browser-only restoration, blocked-storage
+warnings, quote updates surviving range changes and root cleanup on unmount.
+The embedded browser was backgrounded, so this is DOM acceptance, not physical/
+native-device proof.
 No actual prices, earnings figures, keys or real-data screenshots are retained
 in shared acceptance records.
 
-Final verification:402 Rails tests/4,533 assertions,36 curated-knowledge
-tests/555 assertions and4 dependency-free JavaScript tests passed. Eager loading,
-development/production image builds and bounded live dashboard checks passed.
-Run the refresh tests with `node --test test/javascript/market_dashboard_test.mjs`.
+Run UI regression tests with `npm run test:ui`; Rails preference tests cover
+authentication, owner isolation, expiry, invalid/licensed payload rejection,
+CSRF and explicit Redis failures. Production and development builds include
+the locked React bundle.
+Final validation:408 Rails tests/4,595 assertions,36 knowledge tests/563
+assertions and25 UI tests passed, plus development/production image builds.
 
 This completes the requested local real-data dashboard, **not** C01's still
 unverified exact named account plan/expiry, C03 caching/redistribution permissions,
@@ -1738,7 +1774,7 @@ See [config/routes.rb](config/routes.rb) for the complete route definitions.
 ## Portfolio Proof of Concept
 
 With the existing Rails environment configured, start `bundle exec ruby bin/rails server`
-and open `/portfolio_demo`. This public demo is deliberately isolated from private
+and open `/portfolio_examples`. This public demo is deliberately isolated from private
 portfolios: it collects no account credentials, writes no holdings, and makes no
 Equibles, ALVIS, or Kraken requests.
 

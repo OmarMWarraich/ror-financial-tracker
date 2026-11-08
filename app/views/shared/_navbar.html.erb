@@ -1,6 +1,6 @@
 <aside id="application-navigation" class="shell-sidebar" aria-label="Application navigation" data-shell-target="sidebar" data-action="keydown->shell#trapFocus">
   <div class="shell-brand">
-    <%= link_to root_path, class: "shell-brand-link", aria: { label: "FinanceTracker home" } do %>
+    <%= link_to root_path, class: "shell-brand-link", data: { turbo_prefetch: false }, aria: { label: "FinanceTracker home" } do %>
       <span class="brand-mark" aria-hidden="true"><%= fa_icon "line-chart" %></span>
       <span class="sidebar-label">FinanceTracker</span>
     <% end %>
@@ -8,13 +8,11 @@
   </div>
   <nav class="shell-navigation" aria-label="Primary">
     <p class="nav-group-label sidebar-label">Explore</p>
-    <%= shell_nav_link "Overview", root_path, "home" %>
-    <%= shell_nav_link "Demo dashboard", portfolio_demo_path, "pie-chart" %>
+    <%= shell_nav_link "Dashboard", dashboard_path, "line-chart" %>
+    <%= shell_nav_link "Overview", overview_path, "home" %>
+    <%= shell_nav_link "Fictional portfolio examples", portfolio_examples_path, "pie-chart" %>
     <%= shell_nav_link "Research policy lab", research_demo_path, "flask" %>
     <% if current_user %>
-      <% if MarketDashboard.enabled? %>
-        <%= shell_nav_link "Stocks and earnings", market_dashboard_path, "bar-chart" %>
-      <% end %>
       <% if Research::Chat.enabled? %>
         <%= shell_nav_link "Research chat", research_chats_path, "comments" %>
       <% end %>

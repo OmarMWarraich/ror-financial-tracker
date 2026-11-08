@@ -50,12 +50,17 @@ class MarketDashboard
         { ticker: ticker, name: profiles&.dig(ticker, "name") || ticker,
           market_cap: profiles&.dig(ticker, "marketCap"), quote: reading&.[](:quote) }
       end
+      if mode == "leaders"
+        stocks.first(5).each do |stock|
+          stock[:history] = capture("#{stock[:ticker]} history") { @client.history(stock[:ticker]) }
+        end
+      end
       selected = nil
       if %w[leaders detail].include?(mode) && stocks.any?
         chosen = selected_ticker ? stocks.find { |stock| stock[:ticker] == selected_ticker } : stocks.first
         @errors << "Selected listing is no longer among the market leaders." if chosen.nil?
         if chosen
-          selected = chosen.merge(history: capture("#{chosen[:ticker]} history") { @client.history(chosen[:ticker]) },
+          selected = chosen.merge(history: chosen[:history] || capture("#{chosen[:ticker]} history") { @client.history(chosen[:ticker]) },
             earnings: capture("#{chosen[:ticker]} earnings") { @client.earnings(chosen[:ticker]) })
         end
       end

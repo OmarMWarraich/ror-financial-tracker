@@ -5,6 +5,10 @@ class ApplicationController < ActionController::Base
 
   protected
 
+  def after_sign_in_path_for(resource)
+    stored_location_for(resource) || dashboard_path
+  end
+
   def check_restore_gate
     if Research::RestoreGate.pending?
       response.headers["Cache-Control"] = "no-store"
