@@ -794,11 +794,15 @@ Official reference: [REST API](https://equibles.com/docs/api), [authentication](
 
 #### C01 real-data stocks and earnings dashboard
 
-`/dashboard` is the authenticated default sign-in destination and root redirect.
+`/` redirects to `/dashboard` for both authenticated users and guests.
+`/dashboard` is also the default sign-in destination. Dashboard display, stock
+selection and refreshes do not require authentication. Guests receive the same
+fresh provider data and interactive charts, without reading or saving any
+account-owned preferences. Preference endpoints remain authenticated.
 An explicit stored destination still wins. `/market_dashboard` aliases it;
 the old `/portfolio_demo` redirects there, while public fictional scenarios now
 live at `/portfolio_examples`. Provider display remains **local and gated**.
-An authenticated GET requests fresh data server-side, including without JavaScript.
+A GET requests fresh data server-side, including without JavaScript.
 The ten US listings are
 ranked by Equibles market capitalization (`market=US`, `sortBy=marketcap`,
 `sortAscending=false`, `limit=10`). Share classes remain separate listings;

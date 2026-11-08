@@ -3,8 +3,10 @@
   <section class="mb-6" aria-labelledby="market-five-heading">
     <h2 id="market-five-heading">Top five / interactive price history</h2>
     <p class="text-sm text-muted-foreground">Each chart has its own range and cursor. Hover, touch or use the arrow keys to inspect a daily close. Quotes and historical sessions have separate dates.</p>
-    <div data-dashboard-preferences data-owner-scope="<%= DashboardPreferences.scope(current_user) %>" data-preferences-url="<%= dashboard_preferences_path %>">
-    <p data-dashboard-persistence role="status" class="mb-3 text-sm text-muted-foreground">UI preferences restore with JavaScript; market data is freshly fetched.</p>
+    <div data-dashboard-preferences <% if user_signed_in? %>data-owner-scope="<%= DashboardPreferences.scope(current_user) %>" data-preferences-url="<%= dashboard_preferences_path %>"<% end %>>
+    <% if user_signed_in? %>
+      <p data-dashboard-persistence role="status" class="mb-3 text-sm text-muted-foreground">UI preferences restore with JavaScript; market data is freshly fetched.</p>
+    <% end %>
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <% colors = %w[#3b82f6 #059669 #d97706 #8b5cf6 #f43f5e] %>
       <% dashboard[:stocks].first(5).each_with_index do |stock, index| %>

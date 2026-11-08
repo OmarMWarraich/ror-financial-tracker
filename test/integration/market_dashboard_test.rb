@@ -13,7 +13,66 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
     @previous_flag.nil? ? ENV.delete("MARKET_DASHBOARD_ENABLED") : ENV["MARKET_DASHBOARD_ENABLED"] = @previous_flag
   end
 
+  test "root redirects guests to live charts without reading owner preferences" do
+    sign_out users(:one)
+    stock = { ticker: "ALPHA", name: "Original Alpha", quote: { "price" => "12", "delayed" => true },
+      history: { "points" => [{ "date" => "2026-11-05", "close" => 10 },
+        { "date" => "2026-11-06", "close" => 12 }] } }
+    service = Object.new
+    service.define_singleton_method(:call) do |mode:|
+      raise "Wrong mode" unless mode == "leaders"
+      { received_at: Time.current.utc, stocks: [stock], selected: stock, errors: [] }
+    end
+    MarketDashboard.stub(:new, ->(*) { service }) do
+      DashboardPreferences.stub(:new, ->(*) { flunk "Guest must not read owner preferences" }) do
+        get root_path
+        assert_redirected_to dashboard_path
+        follow_redirect!
+        assert_response :success
+        assert_equal "no-store", response.headers["Cache-Control"]
+        assert_select "h1", text: "Dashboard"
+        assert_select '[data-market-dashboard-enabled-value="true"]'
+        assert_select 'button[type="submit"][disabled]', count: 0
+        assert_select '[data-testid="market-price"]', text: "$12.00"
+        assert_select '[data-market-color] svg', count: 4
+        assert_select '[data-owner-scope]', count: 0
+        assert_select '[data-preferences-url]', count: 0
+        assert_not_includes response.body, "Sign in to load provider data"
+        get market_dashboard_path
+        assert_response :success
+        host! "example.org"
+        get dashboard_path
+        assert_response :forbidden
+      end
+    end
+  end
+
+  test "disabled guest dashboard denies refresh while preferences remain authenticated" do
+    sign_out users(:one)
+    ENV["MARKET_DASHBOARD_ENABLED"] = "0"
+    get dashboard_path
+    assert_response :success
+    assert_includes response.body, "Provider data is disabled"
+    post refresh_market_dashboard_path, params: { mode: "leaders" }
+    assert_response :not_found
+    get dashboard_preferences_path, as: :json
+    assert_response :unauthorized
+    put dashboard_preferences_path, params: { preferences: { version: 1, selected: nil, ranges: {} } }, as: :json
+    assert_response :unauthorized
+  end
+
+  test "sign in preserves an explicitly requested protected destination" do
+    sign_out users(:one)
+    get my_portfolio_path
+    assert_redirected_to new_user_session_path
+    user = users(:one)
+    user.update!(password: "Original-dashboard-login-123", password_confirmation: "Original-dashboard-login-123")
+    post user_session_path, params: { user: { email: user.email, password: "Original-dashboard-login-123" } }
+    assert_redirected_to my_portfolio_path
+  end
+
   test "non-JavaScript selection keeps the top ten view instead of calling it a one-stock ranking" do
+    sign_out users(:one)
     service = Object.new
     service.define_singleton_method(:call) do |mode:, selected_ticker:|
       raise "Wrong selection" unless mode == "leaders" && selected_ticker == "BRAVO"
@@ -22,6 +81,7 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
     MarketDashboard.stub(:new, ->(*) { service }) do
       post refresh_market_dashboard_path, params: { mode: "detail", tickers: "BRAVO" }
       assert_response :success
+      assert_select '[data-owner-scope]', count: 0
     end
   end
 
@@ -36,8 +96,8 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
         assert_select 'form[data-turbo="false"]'
         assert_select '[data-testid="market-price"]', count: 0
         sign_out users(:one)
-        post refresh_market_dashboard_path, params: { tickers: "AAPL" }
-        assert_redirected_to new_user_session_path
+        post refresh_market_dashboard_path, params: { mode: "leaders" }
+        assert_response :success
       end
     end
   end
@@ -81,7 +141,8 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "JSON refresh stays authenticated and returns quotes without a full financial reload" do
+  test "JSON refresh is public and returns quotes without a full financial reload" do
+    sign_out users(:one)
     result = { received_at: Time.current.utc, requests: 1, errors: [], stocks: [], selected: nil }
     service = Object.new
     service.define_singleton_method(:call) { |mode:| raise "Wrong mode" unless mode == "quotes"; result }

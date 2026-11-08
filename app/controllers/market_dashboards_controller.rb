@@ -1,4 +1,5 @@
 class MarketDashboardsController < ApplicationController
+  skip_before_action :authenticate_user!, only: %i[show refresh]
   prepend_before_action :disable_caching
   before_action :require_local_showcase, only: %i[show refresh]
 
@@ -6,7 +7,7 @@ class MarketDashboardsController < ApplicationController
     @tickers = MarketDashboard::DEFAULT_TICKERS.join(", ")
     @disabled = !MarketDashboard.enabled?
     return if @disabled
-    selected = dashboard_preferences_for_show["selected"]
+    selected = dashboard_preferences_for_show["selected"] if user_signed_in?
     service = MarketDashboard.new
     @dashboard = selected ? service.call(mode: "leaders", selected_ticker: selected) : service.call(mode: "leaders")
   rescue EquiblesClient::EvidenceError => error

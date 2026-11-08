@@ -13,7 +13,9 @@
     <% end %>
   </header>
   <p role="status" aria-live="polite" data-market-dashboard-target="status" class="mb-4 text-sm text-muted-foreground">Refreshes every15 minutes while visible. Delayed quotes lag the market; refresh cadence does not remove the delay. Local shared-key cap:120 requests per UTC day.</p>
-  <% if @disabled %><p role="status">Provider data is disabled by the operator. No paid requests are made; the Dashboard remains your sign-in destination.</p><% end %>
+  <% if @disabled %>
+    <p role="status">Provider data is disabled by the operator. No paid requests are made; the Dashboard remains your sign-in destination.</p>
+  <% end %>
   <% if @error %><p role="alert" class="alert alert-danger"><%= @error %>. No fictional substitute is displayed.</p><% end %>
   <% if @preferences_error %><p role="alert"><%= @preferences_error %></p><% end %>
   <div data-market-dashboard-target="board">
@@ -22,7 +24,7 @@
     <% else %>
       <%= render_card title: "Your market overview", subtitle: "A chart-led view of real stocks and reported earnings" do %>
         <div class="p-6 pt-0">
-          <p>Sign in to view the latest available provider data here. Use the load button to retry an unavailable feed.</p>
+          <p>Provider data is available without signing in when enabled by the operator. Use the load button to retry an unavailable feed.</p>
           <p class="text-sm text-muted-foreground">No trading, AI calls, stored market corpus or background polling. Historical charts use daily bars, not invented intraday candles.</p>
         </div>
       <% end %>
