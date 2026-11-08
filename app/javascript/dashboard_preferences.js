@@ -13,7 +13,7 @@ export function validatePreferences(state) {
   return state
 }
 
-export function preferenceReducer(state, action) {
+export function updatePreferences(state, action) {
   if (action.type === "restore") return validatePreferences(action.value)
   if (action.type === "select") return validatePreferences({ ...state, selected: action.ticker })
   if (action.type === "range") {
@@ -27,6 +27,7 @@ export function readLocalPreferences(storage, key, now = Date.now()) {
   const raw = storage.getItem(key)
   if (!raw) return null
   const saved = JSON.parse(raw)
+  if (!saved || typeof saved !== "object") throw new Error("Invalid saved UI preferences")
   if (!Number.isFinite(saved.savedAt) || saved.savedAt > now || now - saved.savedAt >= retention) {
     storage.removeItem(key)
     return null

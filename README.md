@@ -17,11 +17,9 @@ The desktop-first shared shell uses Avi Flombaum's
 [shadcn/ui on Rails](https://github.com/aviflombaum/shadcn-rails), pinned to
 `shadcn-ui` 0.0.15, with Tailwind CSS 3.4.19 (`tailwindcss-rails` 3.3.x).
 Rails ERB, Sprockets, import maps, Turbo and Stimulus remain the frontend
-architecture. The user-requested Dashboard charts are a bounded React19.3.1
-island bundled with esbuild0.28.2; other pages and research chat remain Hotwire.
-`tailwindcss:build` and `assets:precompile` also build that island. When binding a
-macOS checkout into the Linux test container, add `-v /rails/node_modules` so
-esbuild uses the image's native dependencies rather than the host binary.
+architecture throughout, including Dashboard. The user corrected the earlier
+React request: charts and UI-preference state use Rails ERB and Stimulus only.
+React, React DOM, esbuild and the separate JavaScript build task are removed.
 
 Install and build with:
 
@@ -807,10 +805,12 @@ ranked by Equibles market capitalization (`market=US`, `sortBy=marketcap`,
 this is the provider-covered universe, not ten distinct companies. Initial loading
 uses eight exchanges: screener, one `/v1/quotes` batch, five daily histories and
 selected-stock diluted EPS; a selection outside the first five adds one history.
-Five independently colored React charts use `useState`, `useReducer`, `useMemo`,
-`useRef` and cleaned-up `useEffect` subscriptions. Range controls and keyboard/
-pointer cursors are independent. Server-rendered charts remain the no-JS fallback.
-React roots unmount on navigation and board replacement. A chart-led layout has a selected-stock panel,
+Five independently colored charts are server-rendered SVGs enhanced by Stimulus.
+Range controls and keyboard/pointer cursors are independent. Charts and forms
+remain usable without JavaScript. Stimulus manages preference restoration,
+debounced Redis writes, cancellation and generation guards on disconnect/
+reconnect. Board replacement reapplies ranges without another preference read.
+A chart-led layout has a selected-stock panel,
 market-leader list, dated OHLC metrics and reported earnings. No Google artwork,
 invented figures, OpenAI calls, trading or screener-price substitution is used.
 
@@ -895,12 +895,13 @@ admission deadline stops starting further exchanges; an already accepted request
 may finish afterward. Database locks do not cover network work.
 
 The 2026-11-07 quote-only polling/selection checks remain verified. The expanded
-2026-11-08 dashboard rendered ten listings and five distinct colored React charts;
+2026-11-08 dashboard rendered ten listings and five distinct colored charts;
 independent5D/6M ranges, keyboard cursor inspection, metadata-only localStorage
 and matching authenticated Redis state were verified in the local browser.
 Clearing the browser copy recovered ranges and selection from Redis on reload.
 Original synthetic UI checks verified browser-only restoration, blocked-storage
-warnings, quote updates surviving range changes and root cleanup on unmount.
+warnings and quote updates surviving range changes. The Hotwire replacement
+adds explicit tests for early-edit/late-restore races and disconnected delivery.
 The embedded browser was backgrounded, so this is DOM acceptance, not physical/
 native-device proof.
 No actual prices, earnings figures, keys or real-data screenshots are retained
@@ -908,10 +909,13 @@ in shared acceptance records.
 
 Run UI regression tests with `npm run test:ui`; Rails preference tests cover
 authentication, owner isolation, expiry, invalid/licensed payload rejection,
-CSRF and explicit Redis failures. Production and development builds include
-the locked React bundle.
-Final validation:408 Rails tests/4,595 assertions,36 knowledge tests/563
-assertions and25 UI tests passed, plus development/production image builds.
+CSRF and explicit Redis failures. Production and development use the existing
+Rails asset/Tailwind pipeline with no React bundle.
+Hotwire validation:408 Rails tests/4,599 assertions,36 knowledge tests/567
+assertions and29 UI tests passed. Both image builds passed. Live DOM checks
+confirmed five colors, ten listings, independent ranges/cursor, metadata-only
+Redis/localStorage synchronization and reload recovery, with no React import
+or redundant island JSON payload.
 
 This completes the requested local real-data dashboard, **not** C01's still
 unverified exact named account plan/expiry, C03 caching/redistribution permissions,

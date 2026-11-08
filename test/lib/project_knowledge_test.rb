@@ -30,8 +30,10 @@ class ProjectKnowledgeTest < Minitest::Test
     assert_match(/exact named billing\/expiry/i, result["summary"])
     assert_includes result["summary"], "no licensed quote/history/EPS/profile/private-account/credential persistence"
     assert_includes result["summary"], "not independently verified/offsite backup"
-    assert_includes result["summary"], "localStorage"
+    assert_includes result["summary"], "browser HMAC namespace opaque"
     assert_includes result["summary"], "GET/PUT dashboard/preferences"
+    assert_includes result["summary"], "Rails/Hotwire only"
+    assert_includes result["summary"], "React removed"
     assert_includes result["sources"], "app/services/market_dashboard.rb"
   end
 

@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { mountCharts } from "dashboard-charts"
+import { emptyPreferences, readLocalPreferences, updatePreferences, validatePreferences } from "dashboard-preferences"
 
 export default class extends Controller {
   static targets = ["board", "status", "form"]
@@ -15,12 +15,18 @@ export default class extends Controller {
     this.lastRefresh = this.hasListings() ? Date.now() : 0
     this.quoteSources = new Map(Array.from(this.boardTarget.querySelectorAll("[data-market-quote-source]"))
       .map(node => [node.dataset.marketPrice, node.dataset.marketQuoteSource]))
-    this.unmountCharts = mountCharts(this.boardTarget)
+    this.preferences = emptyPreferences()
+    this.preferencesDirty = false
+    this.preferencesReady = false
+    this.preferencesKey = null
+    this.initializePreferences()
     this.activate()
   }
 
   disconnect() {
-    this.unmountCharts?.()
+    clearTimeout(this.preferencesTimer)
+    this.preferencesRestoreAbort?.abort()
+    this.preferencesWriteAbort?.abort()
     document.removeEventListener("visibilitychange", this.visibilityListener)
     clearTimeout(this.timer)
     this.abortController?.abort()
@@ -61,9 +67,8 @@ export default class extends Controller {
       if (this.disconnected || generation !== this.generation) return
       let renewed = null
       if (mode === "leaders") {
-        this.unmountCharts?.()
         this.boardTarget.innerHTML = result.html
-        this.unmountCharts = mountCharts(this.boardTarget)
+        this.initializePreferences()
         this.quoteSources = new Map(Array.from(this.boardTarget.querySelectorAll("[data-market-quote-source]"))
           .map(node => [node.dataset.marketPrice, node.dataset.marketQuoteSource]))
       } else renewed = this.updateQuotes(result.stocks)
@@ -92,7 +97,11 @@ export default class extends Controller {
       const result = await this.request("detail", ticker)
       if (this.disconnected || generation !== this.generation) return
       this.boardTarget.querySelector("[data-market-detail]").innerHTML = result.html
-      this.boardTarget.querySelector("[data-dashboard-react]")?.dispatchEvent(new CustomEvent("dashboard:selected", { detail: ticker }))
+      if (this.preferencesKey) {
+        this.preferences = updatePreferences(this.preferences, { type: "select", ticker })
+        this.preferencesDirty = true
+        this.savePreferences()
+      }
       const heading = this.boardTarget.querySelector("[data-market-detail] h3, [data-market-detail] h2")
       if (heading && listing) heading.textContent = listing.dataset.marketName
       if (result.errors.length) this.stopped = true
@@ -134,7 +143,6 @@ export default class extends Controller {
   }
 
   updateQuotes(stocks) {
-    this.boardTarget.querySelector("[data-dashboard-react]")?.dispatchEvent(new CustomEvent("dashboard:quotes", { detail: stocks }))
     let renewed = 0
     for (const stock of stocks) {
       const source = stock.quote?.source_at || ""
@@ -156,8 +164,133 @@ export default class extends Controller {
   range(event) {
     const label = event.currentTarget.dataset.marketRange
     const scope = event.currentTarget.closest("[data-market-visualization]")
+    this.applyRange(scope, label)
+    if (this.preferencesKey && scope.closest("[data-dashboard-preferences]")) {
+      this.preferences = updatePreferences(this.preferences, { type: "range", ticker: scope.dataset.marketVisualization, range: label })
+      this.preferencesDirty = true
+      this.savePreferences()
+    }
+  }
+
+  applyRange(scope, label) {
     for (const chart of scope.querySelectorAll("[data-market-chart]")) chart.hidden = chart.dataset.marketChart !== label
     for (const button of scope.querySelectorAll("[data-market-range]")) button.setAttribute("aria-pressed", String(button.dataset.marketRange === label))
+  }
+
+  initializePreferences() {
+    const node = this.boardTarget.querySelector("[data-dashboard-preferences]")
+    if (!node?.dataset?.ownerScope) return
+    this.preferencesStatus = node.querySelector("[data-dashboard-persistence]")
+    if (this.preferencesKey) {
+      this.applyPreferences()
+      this.preferencesStatus.textContent = "UI preferences preserved; market data freshly fetched."
+      return
+    }
+    this.preferencesKey = `dashboard-ui:v1:${node.dataset.ownerScope}`
+    this.preferencesUrl = node.dataset.preferencesUrl
+    this.restorePreferences()
+  }
+
+  applyPreferences() {
+    for (const scope of this.boardTarget.querySelectorAll("[data-dashboard-preferences] [data-market-visualization]")) {
+      const range = this.preferences.ranges[scope.dataset.marketVisualization]
+      if (range) this.applyRange(scope, range)
+    }
+  }
+
+  storageFailure(error) {
+    return ["SecurityError", "QuotaExceededError"].includes(error.name) ||
+      error instanceof SyntaxError || error.message === "Invalid saved UI preferences"
+  }
+
+  async restorePreferences() {
+    const generation = this.generation
+    const abort = new AbortController()
+    this.preferencesRestoreAbort = abort
+    const timeout = setTimeout(() => abort.abort(), 5000)
+    let local = null, warning = ""
+    try {
+      local = readLocalPreferences(localStorage, this.preferencesKey)
+    } catch (error) {
+      if (!this.storageFailure(error)) {
+        clearTimeout(timeout)
+        this.preferencesStatus.textContent = `Browser preference restoration failed: ${error.message}`
+        throw error
+      }
+      warning = "Browser storage unavailable or invalid. "
+    }
+    if (local) {
+      this.preferences = local
+      this.applyPreferences()
+    }
+    try {
+      const remote = await this.preferenceRequest("GET", null, abort.signal)
+      if (this.disconnected || this.generation !== generation) return
+      if (!local && !this.preferencesDirty) {
+        this.preferences = remote
+        this.applyPreferences()
+      }
+      this.preferencesStatus.textContent = `${warning}UI preferences restored; prices are freshly fetched, not restored.`
+    } catch (error) {
+      if (!this.disconnected && this.generation === generation) {
+        this.preferencesStatus.textContent = `${warning}Redis preferences unavailable: ${error.message}. UI changes can still be saved locally.`
+      }
+    } finally {
+      clearTimeout(timeout)
+      if (!this.disconnected && this.generation === generation) {
+        this.preferencesReady = true
+        if (this.preferencesDirty) this.savePreferences()
+      }
+    }
+  }
+
+  savePreferences() {
+    if (this.disconnected) return
+    clearTimeout(this.preferencesTimer)
+    this.preferencesWriteAbort?.abort()
+    const snapshot = this.preferences
+    const generation = this.generation
+    let warning = ""
+    try {
+      localStorage.setItem(this.preferencesKey, JSON.stringify({ savedAt: Date.now(), preferences: snapshot }))
+    } catch (error) {
+      if (!this.storageFailure(error)) throw error
+      warning = "Browser persistence unavailable. "
+    }
+    this.preferencesStatus.textContent = `${warning}${warning ? "UI preferences not yet saved." : "UI preferences saved in this browser."} Redis synchronization pending.`
+    if (!this.preferencesReady) return
+    this.preferencesTimer = setTimeout(async () => {
+      const abort = new AbortController()
+      this.preferencesWriteAbort = abort
+      const timeout = setTimeout(() => abort.abort(), 5000)
+      try {
+        await this.preferenceRequest("PUT", snapshot, abort.signal)
+        if (this.disconnected || generation !== this.generation || snapshot !== this.preferences) return
+        this.preferencesStatus.textContent = `${warning}UI preferences saved in Redis${warning ? "" : " and this browser"} for up to24 hours. No market data stored.`
+      } catch (error) {
+        if (!this.disconnected && generation === this.generation && snapshot === this.preferences) {
+          this.preferencesStatus.textContent = `${warning}Redis synchronization unavailable: ${error.message}; ${warning ? "preferences are not saved" : "only the browser copy is saved"}.`
+        }
+      } finally {
+        clearTimeout(timeout)
+      }
+    }, 300)
+  }
+
+  async preferenceRequest(method, state, signal) {
+    const headers = { Accept: "application/json" }
+    if (method === "PUT") {
+      headers["Content-Type"] = "application/json"
+      headers["X-CSRF-Token"] = document.querySelector('meta[name="csrf-token"]').content
+    }
+    const response = await fetch(this.preferencesUrl, {
+      method, credentials: "same-origin", cache: "no-store", headers, signal,
+      ...(method === "PUT" ? { body: JSON.stringify({ preferences: state }) } : {})
+    })
+    if (response.redirected) throw new Error("Session expired; sign in again")
+    const result = await response.json()
+    if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`)
+    return validatePreferences(result)
   }
 
   inspectChart(event) {

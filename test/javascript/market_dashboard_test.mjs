@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs"
 import { test } from "node:test"
 
 const source = readFileSync(new URL("../../app/javascript/controllers/market_dashboard_controller.js", import.meta.url), "utf8")
-const { default: Dashboard } = await import(`data:text/javascript;base64,${Buffer.from(source.replace('import { Controller } from "@hotwired/stimulus"', "class Controller {}").replace('import { mountCharts } from "dashboard-charts"', "const mountCharts = () => () => {}")).toString("base64")}`)
+const preferencesSource = readFileSync(new URL("../../app/javascript/dashboard_preferences.js", import.meta.url), "utf8")
+const preferencesModule = `data:text/javascript;base64,${Buffer.from(preferencesSource).toString("base64")}`
+const { default: Dashboard } = await import(`data:text/javascript;base64,${Buffer.from(source.replace('import { Controller } from "@hotwired/stimulus"', "class Controller {}").replace('"dashboard-preferences"', JSON.stringify(preferencesModule))).toString("base64")}`)
 
 test("refresh interval is exactly fifteen minutes and hidden pages consume no requests", () => {
   assert.equal(Dashboard.values.interval.default, 900000)

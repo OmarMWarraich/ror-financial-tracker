@@ -1,6 +1,10 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { emptyPreferences, preferenceReducer, readLocalPreferences, retention, validatePreferences } from "../../app/frontend/dashboard_state.mjs"
+import { readFileSync } from "node:fs"
+
+const source = readFileSync(new URL("../../app/javascript/dashboard_preferences.js", import.meta.url), "utf8")
+const { emptyPreferences, updatePreferences: preferenceReducer, readLocalPreferences, retention, validatePreferences } =
+  await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`)
 
 test("independent ranges and selected listing persist UI metadata only", () => {
   let state = preferenceReducer(emptyPreferences(), { type: "range", ticker: "ALPHA", range: "5D" })
