@@ -1,0 +1,15 @@
+<% content_for :title, "Stock listings | FinanceTracker" %>
+<h1>Search US stocks</h1>
+<p class="text-muted-foreground">Browse provider-covered US listings or search by symbol or company name. International listings and exchange-traded funds are excluded from this USD stock dashboard.</p>
+<%= form_with url: dashboard_listings_path, method: :get, data: { turbo: false }, class: "my-4" do |form| %>
+  <%= form.label :query, "Symbol or company" %>
+  <%= form.text_field :query, value: @query, maxlength: 80 %>
+  <%= form.submit "Search" %>
+<% end %>
+<% if @error %><p role="alert"><%= @error %>. Listing search is unavailable; no fictional results are displayed.</p><% end %>
+<% if @listings %>
+  <ul role="listbox" aria-label="US stock listings"><%= render "listing_results", listings: @listings %></ul>
+  <% if @listings[:stocks].empty? %><p role="status">No matching US stocks on this page.</p><% end %>
+  <% if @listings[:next_offset] %><%= link_to "Next page", dashboard_listings_path(query: @query, offset: @listings[:next_offset]) %><% end %>
+<% end %>
+<%= link_to "Back to Dashboard", dashboard_path %>

@@ -130,3 +130,24 @@ test("an interrupted request cannot publish into or stop a reconnected widget", 
     globalThis.document = original
   }
 })
+
+test("picker selections load arbitrary stock details and save only the selected symbol", async () => {
+  const controller = new Dashboard()
+  const detail = { innerHTML: "" }
+  controller.boardTarget = { querySelector: () => detail }
+  controller.statusTarget = { textContent: "" }
+  controller.preferencesKey = "original-owner"
+  controller.preferences = { version: 1, ranges: {}, selected: null }
+  controller.request = async (mode, ticker) => {
+    assert.equal(mode, "detail")
+    assert.equal(ticker, "ZULU")
+    return { html: "Original Zulu charts and earnings", errors: [], received_at: "2026-11-08T16:00:00Z" }
+  }
+  let saved
+  controller.savePreferences = () => { saved = controller.preferences }
+  controller.activate = () => {}
+  await controller.pick({ detail: { ticker: "ZULU" } })
+  assert.equal(detail.innerHTML, "Original Zulu charts and earnings")
+  assert.deepEqual(saved, { version: 1, ranges: {}, selected: "ZULU" })
+  assert.match(controller.statusTarget.textContent, /Selected ZULU/)
+})

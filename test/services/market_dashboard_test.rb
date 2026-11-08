@@ -185,6 +185,51 @@ class MarketDashboardTest < ActiveSupport::TestCase
     end
   end
 
+  test "a stock outside the top ten loads the same profile history quote and earnings" do
+    requests = []
+    with_provider(requests) do
+      result = MarketDashboard.new(tickers: "ZULU", api_key: @key).call(mode: "detail")
+      assert_equal 4, result[:requests]
+      assert_equal "Original fixture ZULU", result[:selected][:name]
+      assert_equal 10_000_000_000, result[:selected][:market_cap]
+      assert result[:selected][:quote]
+      assert_equal 30, result[:selected][:history]["points"].size
+      assert result[:selected][:earnings]["points"].any?
+      assert_empty result[:errors]
+      ranked = MarketDashboard.new(api_key: @key).call(mode: "leaders", selected_ticker: "ZULU")
+      assert_equal 10, ranked[:stocks].size
+      assert_equal "ZULU", ranked[:selected][:ticker]
+      assert_equal "Original fixture ZULU", ranked[:selected][:name]
+      assert_equal 10_000_000_000, ranked[:selected][:market_cap]
+      assert_equal 11, ranked[:requests]
+      assert_empty ranked[:errors]
+      quotes = MarketDashboard.new(tickers: ranked[:stocks].map { |stock| stock[:ticker] }.join(","), api_key: @key)
+        .call(mode: "quotes", selected_ticker: "ZULU")
+      assert_equal 1, quotes[:requests]
+      assert_equal 11, quotes[:stocks].size
+      assert_equal "ZULU", quotes[:stocks].last[:ticker]
+      assert quotes[:stocks].last[:quote]
+    end
+  end
+
+  test "listing browsing shares the provider budget and stores no stock corpus" do
+    before = Stock.count
+    requests = []
+    with_provider(requests) do
+      page = MarketDashboard.new(api_key: @key).listings(query: "Zulu")
+      assert_equal [{ ticker: "ZULU", name: "Original listing ZULU" }], page[:stocks]
+      assert_equal 1, requests.size
+      assert_equal 1, ResearchSourceUsage.where(key_digest: @digest).sum(:requests_used)
+      assert_equal before, Stock.count
+    end
+    ResearchSourceUsage.create!(key_digest: @digest, budget_date: Time.current.utc.to_date, requests_used: 119)
+    Net::HTTP.stub(:start, ->(*) { flunk "Quota exhausted listing request" }) do
+      assert_equal "local_quota", assert_raises(EquiblesClient::EvidenceError) {
+        MarketDashboard.new(api_key: @key).listings
+      }.message
+    end
+  end
+
   private
 
   def with_provider(requests, invalid: nil, remaining: nil)
@@ -192,7 +237,13 @@ class MarketDashboardTest < ActiveSupport::TestCase
     http.define_singleton_method(:request) do |request|
       requests << request
       ticker = request.uri.path.split("/")[3]
-      body = if request.uri.path.end_with?("/screener/stocks")
+      body = if request.uri.path.end_with?("/listings")
+        query = URI.decode_www_form(request.uri.query).to_h
+        symbols = %w[ALPHA BRAVO ZULU].select { |symbol| query["query"].to_s.empty? || symbol.downcase.include?(query["query"].downcase) }
+        offset = query.fetch("offset").to_i
+        rows = symbols.drop(offset).map { |symbol| { ticker: symbol, companyName: "Original listing #{symbol}", market: "US", currency: "USD" } }
+        { data: rows, meta: { offset: offset, count: rows.size, hasMore: false } }
+      elsif request.uri.path.end_with?("/screener/stocks")
         query = URI.decode_www_form(request.uri.query).to_h
         symbols = query["tickers"]&.split(",") || %w[ALPHA BRAVO CHARLIE DELTA ECHO FOXTROT GOLF HOTEL INDIA JULIET]
         rows = symbols.each_with_index.map { |symbol, index| { ticker: symbol, name: "Original fixture #{symbol}", sector: "Original sector", market: "US", currency: "USD", marketCap: (10 - index) * 1_000_000_000 } }

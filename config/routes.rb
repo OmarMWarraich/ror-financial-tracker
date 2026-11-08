@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
   get "dashboard", to: "market_dashboards#show", as: :dashboard
+  get "dashboard/listings", to: "market_dashboards#listings", as: :dashboard_listings
   get "dashboard/preferences", to: "market_dashboards#preferences", as: :dashboard_preferences
   put "dashboard/preferences", to: "market_dashboards#save_preferences"
   get "overview", to: "welcome#index", as: :overview

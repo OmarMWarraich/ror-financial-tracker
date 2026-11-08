@@ -26,13 +26,14 @@ class EquiblesClient
     rows.each_with_object({}) do |row, result|
       unless row.is_a?(Hash) && row["ticker"].is_a?(String) && row["name"].is_a?(String) &&
              row["name"].length.between?(1, 200) &&
-             (row["sector"].nil? || (row["sector"].is_a?(String) && row["sector"].length <= 200))
+             (row["sector"].nil? || (row["sector"].is_a?(String) && row["sector"].length <= 200)) &&
+             (row["marketCap"].nil? || (row["marketCap"].is_a?(Numeric) && BigDecimal(row["marketCap"].to_s).finite? && row["marketCap"].positive?))
         raise EvidenceError, "malformed_response"
       end
       ticker = row["ticker"].upcase.tr(".", "-")
       next unless tickers.include?(ticker)
       raise EvidenceError, "identity_mismatch" if result.key?(ticker)
-      result[ticker] = row.slice("name", "sector")
+      result[ticker] = row.slice("name", "sector", "marketCap")
     end
   end
 
@@ -91,8 +92,40 @@ class EquiblesClient
     result
   end
 
+  def listings(query: "", offset: 0)
+    unless query.is_a?(String) && query.length <= 80 && !query.match?(/[[:cntrl:]]/) &&
+           offset.is_a?(Integer) && offset.between?(0, 1_000_000)
+      raise EvidenceError, "invalid_listing_search"
+    end
+    parameters = { limit: 50, offset: offset }
+    parameters.merge!(query.empty? ? { market: "US" } : { query: query })
+    data = data!("/listings", parameters)
+    rows = data["data"]
+    meta = data["meta"]
+    unless rows.is_a?(Array) && rows.size <= 50 && meta.is_a?(Hash) &&
+           meta["offset"] == offset && meta["count"] == rows.size &&
+           [true, false].include?(meta["hasMore"]) && (!meta["hasMore"] || rows.any?)
+      raise EvidenceError, "malformed_response"
+    end
+    seen = []
+    stocks = rows.filter_map do |row|
+      raise EvidenceError, "malformed_response" unless row.is_a?(Hash) && row["market"].is_a?(String)
+      next unless row["market"] == "US"
+      unless row["currency"] == "USD" && row["ticker"].is_a?(String) &&
+             row["ticker"].match?(/\A[A-Z][A-Z0-9-]{0,19}\z/) &&
+             (row["companyName"].nil? || (row["companyName"].is_a?(String) && row["companyName"].length.between?(1, 200)))
+        raise EvidenceError, "malformed_response"
+      end
+      raise EvidenceError, "identity_mismatch" if seen.include?(row["ticker"])
+      seen << row["ticker"]
+      next if row["exchangeTradedProduct"] == true
+      { ticker: row["ticker"], name: row["companyName"] }
+    end
+    { stocks: stocks, next_offset: meta["hasMore"] ? offset + rows.size : nil }
+  end
+
   def snapshots(tickers)
-    unless tickers.is_a?(Array) && tickers.length.between?(1, 10) && tickers.uniq == tickers &&
+    unless tickers.is_a?(Array) && tickers.length.between?(1, 11) && tickers.uniq == tickers &&
            tickers.all? { |ticker| ticker.is_a?(String) && ticker.match?(/\A[A-Z][A-Z0-9-]{0,19}\z/) }
       raise EvidenceError, "invalid_instrument"
     end

@@ -1,0 +1,14 @@
+<%= form_with url: dashboard_listings_path, method: :get, data: { turbo: false, controller: "stock-picker",
+  stock_picker_url_value: dashboard_listings_path, action: "submit->stock-picker#search click@window->stock-picker#outside focusout->stock-picker#blur" }, class: "relative" do |form| %>
+  <%= form.label :query, "Stock symbol or company", for: "dashboard-stock-query", class: "block text-sm text-muted-foreground mb-2" %>
+  <%= form.text_field :query, value: "#{stock[:ticker]} / #{stock[:name]}", id: "dashboard-stock-query",
+    role: "combobox", autocomplete: "off", maxlength: 80, class: "w-full rounded-md border bg-background px-3 py-2 text-xl font-semibold",
+    aria: { expanded: false, controls: "dashboard-stock-options", autocomplete: "list", haspopup: "listbox" },
+    data: { stock_picker_target: "input", action: "focus->stock-picker#open input->stock-picker#schedule keydown->stock-picker#key" } %>
+  <noscript><%= form.submit "Search US stocks" %></noscript>
+  <div hidden data-stock-picker-target="panel" class="absolute z-50 mt-1 w-full rounded-md border bg-background p-2 shadow-lg">
+    <p role="status" aria-live="polite" data-stock-picker-target="status" class="mb-2 text-sm text-muted-foreground"></p>
+    <ul id="dashboard-stock-options" role="listbox" aria-label="US stock listings" data-stock-picker-target="list" class="max-h-72 overflow-y-auto"></ul>
+    <button type="button" hidden data-stock-picker-target="more" data-action="stock-picker#more" class="mt-2 w-full rounded-md border px-3 py-2">Load more listings</button>
+  </div>
+<% end %>

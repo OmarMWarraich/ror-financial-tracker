@@ -1,19 +1,45 @@
 class MarketDashboardsController < ApplicationController
-  skip_before_action :authenticate_user!, only: %i[show refresh]
+  skip_before_action :authenticate_user!, only: %i[show refresh listings]
   prepend_before_action :disable_caching
-  before_action :require_local_showcase, only: %i[show refresh]
+  before_action :require_local_showcase, only: %i[show refresh listings]
 
   def show
     @tickers = MarketDashboard::DEFAULT_TICKERS.join(", ")
     @disabled = !MarketDashboard.enabled?
     return if @disabled
-    selected = dashboard_preferences_for_show["selected"] if user_signed_in?
+    selected = if params[:selected].present?
+      MarketDashboard.tickers(params[:selected], limit: 1).first
+    elsif user_signed_in?
+      dashboard_preferences_for_show["selected"]
+    end
     service = MarketDashboard.new
     @dashboard = selected ? service.call(mode: "leaders", selected_ticker: selected) : service.call(mode: "leaders")
   rescue EquiblesClient::EvidenceError => error
     Rails.logger.warn("dashboard initial_load_rejected code=#{error.message}")
     @error = error.message.humanize
     render :show, status: :service_unavailable
+  end
+
+  def listings
+    @query = params.fetch(:query, "")
+    offset = params.fetch(:offset, "0")
+    unless (offset.is_a?(String) && offset.match?(/\A\d{1,7}\z/)) ||
+           (offset.is_a?(Integer) && offset.between?(0, 1_000_000))
+      raise EquiblesClient::EvidenceError, "invalid_listing_search"
+    end
+    @listings = MarketDashboard.new.listings(query: @query, offset: offset.to_i)
+    if request.format.json?
+      render json: { html: render_to_string(partial: "listing_results", formats: [:html], locals: { listings: @listings }),
+        next_offset: @listings[:next_offset] }
+    end
+  rescue EquiblesClient::EvidenceError => error
+    Rails.logger.warn("dashboard listings_rejected code=#{error.message}")
+    @error = error.message.humanize
+    if request.format.json?
+      render json: { error: @error }, status: :unprocessable_entity
+    else
+      render :listings, status: :unprocessable_entity
+    end
   end
 
   def preferences
@@ -44,7 +70,7 @@ class MarketDashboardsController < ApplicationController
       service.call
     elsif mode == "detail" && !request.format.json?
       service.call(mode: "leaders", selected_ticker: MarketDashboard.tickers(@tickers, limit: 1).first)
-    elsif mode == "leaders" && params[:selected].present?
+    elsif %w[leaders quotes].include?(mode) && params[:selected].present?
       service.call(mode: mode, selected_ticker: MarketDashboard.tickers(params[:selected], limit: 1).first)
     else
       service.call(mode: mode)

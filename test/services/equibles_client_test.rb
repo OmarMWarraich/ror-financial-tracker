@@ -84,6 +84,55 @@ class EquiblesClientTest < Minitest::Test
     end
   end
 
+  def test_listing_browse_and_search_use_provider_pagination_without_combining_market_and_query
+    listing = { ticker: "ZULU", companyName: "Original Zulu Company", market: "US", currency: "USD", exchangeTradedProduct: false }
+    page = { data: [listing], meta: { offset: 0, count: 1, hasMore: true } }
+    with_responses(success_response(page)) do |requests|
+      assert_equal({ stocks: [{ ticker: "ZULU", name: "Original Zulu Company" }], next_offset: 1 }, @client.listings)
+      assert_equal "/v1/listings", requests.first.uri.path
+      assert_equal({ "market" => "US", "limit" => "50", "offset" => "0" }, URI.decode_www_form(requests.first.uri.query).to_h)
+    end
+    page[:meta] = { offset: 50, count: 1, hasMore: false }
+    with_responses(success_response(page)) do |requests|
+      assert_nil @client.listings(query: "Zulu", offset: 50)[:next_offset]
+      assert_equal({ "query" => "Zulu", "limit" => "50", "offset" => "50" }, URI.decode_www_form(requests.first.uri.query).to_h)
+    end
+  end
+
+  def test_listing_search_excludes_other_currencies_and_funds_and_keeps_optional_names
+    page = { data: [
+      { ticker: "XETR:ZULU", companyName: "Original International", market: "DE", currency: "EUR" },
+      { ticker: "FUND", companyName: "Original Fund", market: "US", currency: "USD", exchangeTradedProduct: true },
+      { ticker: "ZULU", companyName: nil, market: "US", currency: "USD", exchangeTradedProduct: false }
+    ], meta: { offset: 0, count: 3, hasMore: false } }
+    with_responses(success_response(page)) do
+      assert_equal [{ ticker: "ZULU", name: nil }], @client.listings(query: "Zulu")[:stocks]
+    end
+  end
+
+  def test_invalid_listing_inputs_never_dispatch
+    Net::HTTP.stub(:start, ->(*) { flunk "Unexpected listing request" }) do
+      [nil, [], "A" * 81, "bad\nquery"].each do |query|
+        assert_raises(EquiblesClient::EvidenceError) { @client.listings(query: query) }
+      end
+      [-1, "50", 1_000_001].each do |offset|
+        assert_raises(EquiblesClient::EvidenceError) { @client.listings(offset: offset) }
+      end
+    end
+  end
+
+  def test_malformed_listing_metadata_identity_and_currency_are_explicit_errors
+    row = { ticker: "ZULU", companyName: "Original Zulu", market: "US", currency: "USD" }
+    [
+      { data: [row], meta: { offset: 1, count: 1, hasMore: false } },
+      { data: [], meta: { offset: 0, count: 0, hasMore: true } },
+      { data: [row, row], meta: { offset: 0, count: 2, hasMore: false } },
+      { data: [row.merge(currency: "EUR")], meta: { offset: 0, count: 1, hasMore: false } }
+    ].each do |page|
+      with_responses(success_response(page)) { assert_raises(EquiblesClient::EvidenceError) { @client.listings } }
+    end
+  end
+
   private
 
   def success_response(payload, raw: false)

@@ -1,0 +1,10 @@
+<% listings[:stocks].each do |stock| %>
+  <li role="presentation">
+    <%= link_to dashboard_path(selected: stock[:ticker]), id: "stock-option-#{stock[:ticker]}", role: "option", aria: { selected: false },
+      data: { action: "click->stock-picker#choose", stock_picker_ticker: stock[:ticker] },
+      class: "block rounded-md px-3 py-2 hover:bg-muted focus:bg-muted aria-selected:bg-muted" do %>
+      <strong><%= stock[:ticker] %></strong>
+      <% if stock[:name].present? %><span class="ml-2 text-sm text-muted-foreground"><%= stock[:name] %></span><% end %>
+    <% end %>
+  </li>
+<% end %>

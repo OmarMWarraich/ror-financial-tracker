@@ -32,15 +32,16 @@ class MarketDashboard
 
   def call(mode: "manual", selected_ticker: nil)
     raise EquiblesClient::EvidenceError, "invalid_dashboard_mode" unless %w[manual leaders quotes detail].include?(mode)
-    raise EquiblesClient::EvidenceError, "dashboard_disabled" unless self.class.enabled?
-    raise EquiblesClient::EvidenceError, "missing_credentials" if @key.empty? || @key.match?(/\s/)
-    raise EquiblesClient::EvidenceError, "invalid_credentials" unless @key.match?(/\Aeq_[^\s]{1,250}\z/)
-    raise EquiblesClient::EvidenceError, "database_transaction_open" if ApplicationRecord.connection.transaction_open?
-    @deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DEADLINE
-    @client = @client_factory.call(@key, -> { reserve! }, ->(status, headers) { observe!(status, headers) })
+    selected_ticker = self.class.tickers(selected_ticker, limit: 1).first if selected_ticker
+    prepare!
     if mode != "manual"
-      profiles = mode == "leaders" ? capture("Market-cap ranking") { @client.top_stocks } : nil
+      profiles = if mode == "leaders"
+        capture("Market-cap ranking") { @client.top_stocks }
+      elsif mode == "detail"
+        capture("Company profile") { @client.profiles(@tickers) }
+      end
       symbols = mode == "leaders" ? (profiles || {}).keys : @tickers
+      symbols = symbols + [selected_ticker] if mode == "quotes" && selected_ticker && !symbols.include?(selected_ticker)
       readings = symbols.empty? ? {} : (capture("Batch quotes") { @client.snapshots(symbols) } || {})
       stocks = symbols.map do |ticker|
         reading = readings[ticker]
@@ -58,7 +59,13 @@ class MarketDashboard
       selected = nil
       if %w[leaders detail].include?(mode) && stocks.any?
         chosen = selected_ticker ? stocks.find { |stock| stock[:ticker] == selected_ticker } : stocks.first
-        @errors << "Selected listing is no longer among the market leaders." if chosen.nil?
+        if chosen.nil? && selected_ticker
+          profile = capture("Selected company profile") { @client.profiles([selected_ticker]) }
+          reading = capture("Selected quote") { @client.snapshots([selected_ticker]) }&.[](selected_ticker)
+          @errors << "#{selected_ticker} quote: #{reading&.[](:error)&.humanize || 'Unavailable'}." if reading.nil? || reading[:error]
+          chosen = { ticker: selected_ticker, name: profile&.dig(selected_ticker, "name") || selected_ticker,
+            market_cap: profile&.dig(selected_ticker, "marketCap"), quote: reading&.[](:quote) }
+        end
         if chosen
           selected = chosen.merge(history: chosen[:history] || capture("#{chosen[:ticker]} history") { @client.history(chosen[:ticker]) },
             earnings: capture("#{chosen[:ticker]} earnings") { @client.earnings(chosen[:ticker]) })
@@ -76,7 +83,25 @@ class MarketDashboard
     { stocks: stocks, errors: @errors, requests: @requests, received_at: Time.current.utc }
   end
 
+  def listings(query: "", offset: 0)
+    unless query.is_a?(String) && query.length <= 80 && !query.match?(/[[:cntrl:]]/) &&
+           offset.is_a?(Integer) && offset.between?(0, 1_000_000)
+      raise EquiblesClient::EvidenceError, "invalid_listing_search"
+    end
+    prepare!
+    @client.listings(query: query.strip, offset: offset)
+  end
+
   private
+
+  def prepare!
+    raise EquiblesClient::EvidenceError, "dashboard_disabled" unless self.class.enabled?
+    raise EquiblesClient::EvidenceError, "missing_credentials" if @key.empty? || @key.match?(/\s/)
+    raise EquiblesClient::EvidenceError, "invalid_credentials" unless @key.match?(/\Aeq_[^\s]{1,250}\z/)
+    raise EquiblesClient::EvidenceError, "database_transaction_open" if ApplicationRecord.connection.transaction_open?
+    @deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + DEADLINE
+    @client = @client_factory.call(@key, -> { reserve! }, ->(status, headers) { observe!(status, headers) })
+  end
 
   def reserve!
     raise EquiblesClient::EvidenceError, @stop if @stop

@@ -809,6 +809,20 @@ ranked by Equibles market capitalization (`market=US`, `sortBy=marketcap`,
 this is the provider-covered universe, not ten distinct companies. Initial loading
 uses eight exchanges: screener, one `/v1/quotes` batch, five daily histories and
 selected-stock diluted EPS; a selection outside the first five adds one history.
+The selected-stock heading is a searchable symbol/company combobox. Clicking it
+opens the provider-covered US stock list; typing searches symbols and company
+names with a 500ms debounce. `GET /dashboard/listings` uses `/v1/listings` in
+50-row pages, with explicit load-more controls, optional company names and
+keyboard selection. Empty searches use `market=US`; text searches use `query`
+without the incompatible market filter, then exclude international listings
+and exchange-traded products. Results are in-page only, not a retained catalogue.
+The same endpoint has a non-JavaScript search page whose links select a stock
+through `/dashboard?selected=SYMBOL`.
+Selecting a stock outside the top ten loads its own profile, quote, daily chart
+and quarterly EPS in the existing detail panel without replacing the ranked list.
+This costs four provider calls; a full ranked-page reload with an outside
+selection costs eleven. Every search page consumes one call from the same
+shared-key daily allowance. Missing provider coverage stays explicitly unavailable.
 Five independently colored charts are server-rendered SVGs enhanced by Stimulus.
 Range controls and keyboard/pointer cursors are independent. Charts and forms
 remain usable without JavaScript. Stimulus manages preference restoration,
@@ -819,12 +833,14 @@ market-leader list, dated OHLC metrics and reported earnings. No Google artwork,
 invented figures, OpenAI calls, trading or screener-price substitution is used.
 
 Quotes refresh every900,000ms (15 minutes) **while visible**, using one batch call
-for all ten listings. Hiding the page pauses the timer; a due refresh runs on
+for all ten listings plus an independently selected stock when necessary
+(up to eleven symbols, within the provider's 25-symbol batch limit).
+Hiding the page pauses the timer; a due refresh runs on
 return. Requests never overlap within the widget. Provider/auth/quota/network
 errors pause automatic work and explicitly mark previous figures as not current.
 Refreshes do not run in background jobs. Rankings are reloaded on UTC-day rollover
-or manual refresh; the current selected listing is preserved when still ranked.
-Stock selection fetches a quote, bounded daily history and quarterly EPS; changing
+or manual refresh; the current selected listing is preserved even outside the top ten.
+Stock selection fetches a profile, quote, bounded daily history and quarterly EPS; changing
 chart ranges is local and consumes no requests. Non-JavaScript load/selection
 forms remain usable, without claiming automatic updates.
 Disconnecting aborts browser delivery, not already accepted provider work; those
@@ -847,7 +863,7 @@ configuration, credentials or raw provider responses. Removing the key or
 disabling the flag stops further dashboard access; a key's presence does not
 authorize AI requests, caching or hosted redistribution.
 
-When the flag is disabled, Dashboard is still an authenticated200 page with an
+When the flag is disabled, Dashboard is still a public200 page with an
 operator notice; paid refresh is denied. The reviewed OpenAPI has no verified
 renewal notification/webhook/stream endpoint. Visible15-minute snapshot checks
 cannot promise synchronization with every provider renewal. Identical source

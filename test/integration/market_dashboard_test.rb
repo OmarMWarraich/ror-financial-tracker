@@ -37,6 +37,8 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
         assert_select '[data-market-color] svg', count: 4
         assert_select '[data-owner-scope]', count: 0
         assert_select '[data-preferences-url]', count: 0
+        assert_select 'input[role="combobox"][aria-controls="dashboard-stock-options"]'
+        assert_select '[data-controller="stock-picker"]'
         assert_not_includes response.body, "Sign in to load provider data"
         get market_dashboard_path
         assert_response :success
@@ -152,6 +154,63 @@ class MarketDashboardIntegrationTest < ActionDispatch::IntegrationTest
       assert_equal 1, response.parsed_body["requests"]
       assert_nil response.parsed_body["selected"]
       assert_equal "no-store", response.headers["Cache-Control"]
+    end
+  end
+
+  test "guests can search paged listings and provider text remains escaped" do
+    sign_out users(:one)
+    service = Object.new
+    service.define_singleton_method(:listings) do |query:, offset:|
+      raise "Wrong listing parameters" unless query == "Zulu" && offset == 50
+      { stocks: [{ ticker: "ZULU", name: "<script>original</script>" }], next_offset: 100 }
+    end
+    MarketDashboard.stub(:new, ->(*) { service }) do
+      get dashboard_listings_path, params: { query: "Zulu", offset: 50 }, as: :json
+      assert_response :success
+      assert_equal "no-store", response.headers["Cache-Control"]
+      assert_equal 100, response.parsed_body["next_offset"]
+      assert_includes response.parsed_body["html"], "data-stock-picker-ticker=\"ZULU\""
+      assert_not_includes response.parsed_body["html"], "<script>"
+      get dashboard_listings_path, params: { query: "Zulu", offset: 50 }
+      assert_response :success
+      assert_select 'a[href="/dashboard?selected=ZULU"]'
+      assert_select 'a[href*="offset=100"]', text: "Next page"
+    end
+  end
+
+  test "listing errors and feature transport gates are explicit for guests" do
+    sign_out users(:one)
+    Net::HTTP.stub(:start, ->(*) { flunk "Invalid or denied search must not fetch" }) do
+      get dashboard_listings_path, params: { offset: "-1" }, as: :json
+      assert_response :unprocessable_entity
+      assert_equal "Invalid listing search", response.parsed_body["error"]
+      get dashboard_listings_path, params: { query: "A" * 81 }, as: :json
+      assert_response :unprocessable_entity
+      ENV["MARKET_DASHBOARD_ENABLED"] = "0"
+      get dashboard_listings_path, as: :json
+      assert_response :not_found
+      ENV["MARKET_DASHBOARD_ENABLED"] = "1"
+      host! "example.org"
+      get dashboard_listings_path, as: :json
+      assert_response :forbidden
+    end
+  end
+
+  test "an arbitrary selected symbol survives guest GET and quote refresh" do
+    sign_out users(:one)
+    service = Object.new
+    modes = []
+    service.define_singleton_method(:call) do |mode:, selected_ticker:|
+      raise "Wrong selected ticker" unless selected_ticker == "ZULU"
+      modes << mode
+      { received_at: Time.current.utc, requests: 1, errors: [], stocks: [], selected: nil }
+    end
+    MarketDashboard.stub(:new, ->(*) { service }) do
+      get dashboard_path, params: { selected: "ZULU" }
+      assert_response :success
+      post refresh_market_dashboard_path, params: { mode: "quotes", tickers: "ALPHA", selected: "ZULU" }, as: :json
+      assert_response :success
+      assert_equal %w[leaders quotes], modes
     end
   end
 

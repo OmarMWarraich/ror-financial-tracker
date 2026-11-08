@@ -89,10 +89,19 @@ export default class extends Controller {
 
   async select(event) {
     event.preventDefault()
-    if (this.busy) return
+    await this.loadSelection(new FormData(event.currentTarget).get("tickers"))
+  }
+
+  async pick(event) {
+    await this.loadSelection(event.detail.ticker)
+  }
+
+  async loadSelection(ticker) {
+    if (this.busy) {
+      this.statusTarget.textContent = "A data request is in progress. Select the stock again when it finishes."
+      return
+    }
     const generation = this.generation
-    const ticker = new FormData(event.currentTarget).get("tickers")
-    const listing = Array.from(this.boardTarget.querySelectorAll("[data-market-listing]")).find(node => node.dataset.marketListing === ticker)
     try {
       const result = await this.request("detail", ticker)
       if (this.disconnected || generation !== this.generation) return
@@ -102,8 +111,6 @@ export default class extends Controller {
         this.preferencesDirty = true
         this.savePreferences()
       }
-      const heading = this.boardTarget.querySelector("[data-market-detail] h3, [data-market-detail] h2")
-      if (heading && listing) heading.textContent = listing.dataset.marketName
       if (result.errors.length) this.stopped = true
       this.statusTarget.textContent = result.errors.length ? result.errors.join(" ") : `Selected ${ticker}. Daily history and earnings retrieved ${result.received_at}.`
     } catch (error) {

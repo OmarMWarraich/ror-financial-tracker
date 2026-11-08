@@ -1,7 +1,11 @@
 <% stock = dashboard[:selected] || dashboard[:stocks].first %>
 <% if stock %>
   <div data-market-selected="<%= stock[:ticker] %>" data-market-visualization="selected">
-    <%= render_card title: stock[:name], subtitle: "#{stock[:ticker]} / US listing / USD" do %>
+    <%= render_card do %>
+      <div class="p-6 pb-0">
+        <%= render "stock_picker", stock: stock %>
+        <p class="mt-2 text-sm text-muted-foreground"><%= stock[:ticker] %> / US listing / USD</p>
+      </div>
       <div class="p-6 pt-0">
         <p class="text-4xl font-semibold" data-testid="market-price" data-market-price="<%= stock[:ticker] %>"><%= stock[:quote] ? number_to_currency(stock[:quote]["price"]) : "Unavailable" %></p>
         <p class="text-sm text-muted-foreground" data-market-timing="<%= stock[:ticker] %>"><%= stock[:quote]&.[]("delayed") == true ? "Delayed quote" : "Delay not verified" %> / source <%= stock[:quote]&.[]("source_at") || "Unknown" %></p>
@@ -33,7 +37,7 @@
               <div><dt class="text-muted-foreground"><%= name %></dt><dd class="font-semibold"><%= number_to_currency(value) %></dd></div>
             <% end %>
           </dl>
-          <% if stock[:market_cap] %><p class="mt-3 text-sm">Market cap at ranking: <%= number_to_human(stock[:market_cap], units: { billion: "B", trillion: "T", million: "M" }, precision: 3) %></p><% end %>
+          <% if stock[:market_cap] %><p class="mt-3 text-sm">Market cap at retrieval: <%= number_to_human(stock[:market_cap], units: { billion: "B", trillion: "T", million: "M" }, precision: 3) %></p><% end %>
           <p class="text-xs text-muted-foreground mt-3">Last captured daily session: <%= last["date"] %>. Split-adjusted historical bars may be revised; not an intraday chart or point-in-time backtest.</p>
           <% if history["truncated"] %><p role="status">History is a bounded page; the provider reports additional bars.</p><% end %>
         <% else %><p role="status" class="my-5">Daily history unavailable or insufficient to draw a chart. No simulated line is shown.</p><% end %>

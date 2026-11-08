@@ -1,6 +1,6 @@
 <% content_for :title, "Dashboard | FinanceTracker" %>
 <% content_for :head do %><meta name="turbo-cache-control" content="no-cache"><% end %>
-<div data-controller="market-dashboard" data-market-dashboard-url-value="<%= refresh_market_dashboard_path %>" data-market-dashboard-interval-value="900000" data-market-dashboard-enabled-value="<%= !@disabled %>" data-market-dashboard-paused-value="<%= !!(@error.present? || (@dashboard && @dashboard[:errors].any?)) %>">
+<div data-controller="market-dashboard" data-action="stock-picker:select->market-dashboard#pick" data-market-dashboard-url-value="<%= refresh_market_dashboard_path %>" data-market-dashboard-interval-value="900000" data-market-dashboard-enabled-value="<%= !@disabled %>" data-market-dashboard-paused-value="<%= !!(@error.present? || (@dashboard && @dashboard[:errors].any?)) %>">
   <header class="mb-6 flex flex-wrap items-start justify-between gap-4">
     <div>
       <p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">Equibles / private portfolio showcase</p>
